@@ -10,6 +10,15 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(createVuestic())
+app.use(createVuestic({
+  config: {
+    icons: [
+      {
+        name: 'md',
+        resolve: ({ name }) => ({ class: 'material-icons', content: name })
+      }
+    ]
+  }
+}))
 
 app.mount('#app')
