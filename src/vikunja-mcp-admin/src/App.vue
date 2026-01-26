@@ -1,11 +1,13 @@
 <template>
   <VaLayout>
     <template #top>
-      <VaNavbar color="background-secondary">
+      <VaNavbar color="background-secondary" class="modern-navbar">
         <template #left>
           <VaNavbarItem class="logo-section">
-            <VaIcon name="layers" color="primary" />
-            <span class="app-title ml-2">Vikunja MCP</span>
+            <div class="logo-container">
+              <VaIcon name="layers" color="primary" size="large" />
+              <span class="app-title ml-2">Vikunja MCP</span>
+            </div>
           </VaNavbarItem>
         </template>
 
@@ -20,8 +22,9 @@
             <VaNavbarItem
               @click="navigate"
               :class="{ 'va-navbar-item--active': isActive }"
-              style="cursor: pointer;"
+              class="nav-item"
             >
+              <VaIcon :name="item.icon" size="small" class="mr-2" />
               {{ item.title }}
             </VaNavbarItem>
           </router-link>
@@ -44,7 +47,7 @@
     </template>
 
     <template #content>
-      <div class="content-wrapper">
+      <div class="content-wrapper fade-in">
         <RouterView />
       </div>
     </template>
@@ -58,11 +61,11 @@ import { useServerStore } from './stores/server'
 const serverStore = useServerStore()
 
 const menuItems = [
-  { title: 'Dashboard', to: '/' },
-  { title: 'Configuration', to: '/config' },
-  { title: 'Tools', to: '/tools' },
-  { title: 'Sessions', to: '/sessions' },
-  { title: 'Logs', to: '/logs' }
+  { title: 'Dashboard', to: '/', icon: 'dashboard' },
+  { title: 'Configuration', to: '/config', icon: 'settings' },
+  { title: 'Tools', to: '/tools', icon: 'build' },
+  { title: 'Sessions', to: '/sessions', icon: 'people' },
+  { title: 'Logs', to: '/logs', icon: 'article' }
 ]
 
 const serverStatus = ref('Checking...')
@@ -85,62 +88,105 @@ onMounted(async () => {
 })
 </script>
 
-<style>
-.logo-section {
+<style scoped>
+.modern-navbar {
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.logo-container {
   display: flex;
   align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  transition: all 0.3s ease;
+}
+
+.logo-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
 .app-title {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .content-wrapper {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: calc(100vh - 64px);
 }
 
 .status-badge {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 .status-dot-success {
-  background: var(--va-success);
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  box-shadow: 0 0 10px rgba(56, 239, 125, 0.5);
 }
 
 .status-dot-danger {
-  background: var(--va-danger);
+  background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
   animation: none;
+  box-shadow: 0 0 10px rgba(235, 51, 73, 0.5);
 }
 
 .status-dot-warning {
-  background: var(--va-warning);
-}
-
-.va-navbar-item--active {
-  background: rgba(var(--va-primary-rgb), 0.15);
-  color: var(--va-primary);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 0 10px rgba(240, 147, 251, 0.5);
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
 }
 
 @media (max-width: 768px) {
   .content-wrapper {
     padding: 1rem;
+  }
+  
+  .app-title {
+    font-size: 1.125rem;
+  }
+  
+  .nav-item {
+    font-size: 0.875rem;
   }
 }
 </style>
