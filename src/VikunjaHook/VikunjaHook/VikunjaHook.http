@@ -1,0 +1,135 @@
+@VikunjaHook_HostAddress = http://localhost:5082
+
+### 健康检查
+GET {{VikunjaHook_HostAddress}}/health
+Accept: application/json
+
+### 获取支持的事件列表
+GET {{VikunjaHook_HostAddress}}/webhook/vikunja/events
+Accept: application/json
+
+### 测试任务创建事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "task.created",
+  "time": "2026-01-26T10:00:00Z",
+  "data": {
+    "task": {
+      "id": 123,
+      "title": "测试任务",
+      "description": "这是一个测试任务",
+      "done": false,
+      "priority": 3,
+      "percent_done": 0,
+      "project_id": 1,
+      "created": "2026-01-26T10:00:00Z",
+      "updated": "2026-01-26T10:00:00Z"
+    }
+  }
+}
+
+### 测试任务更新事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "task.updated",
+  "time": "2026-01-26T10:05:00Z",
+  "data": {
+    "task": {
+      "id": 123,
+      "title": "测试任务（已更新）",
+      "description": "这是一个更新后的测试任务",
+      "done": true,
+      "priority": 5,
+      "percent_done": 100,
+      "project_id": 1,
+      "created": "2026-01-26T10:00:00Z",
+      "updated": "2026-01-26T10:05:00Z"
+    }
+  }
+}
+
+### 测试项目创建事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "project.created",
+  "time": "2026-01-26T10:10:00Z",
+  "data": {
+    "project": {
+      "id": 1,
+      "title": "新项目",
+      "description": "项目描述",
+      "is_archived": false,
+      "hex_color": "#1973ff",
+      "created": "2026-01-26T10:10:00Z",
+      "updated": "2026-01-26T10:10:00Z"
+    }
+  }
+}
+
+### 测试评论创建事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "task.comment.created",
+  "time": "2026-01-26T10:15:00Z",
+  "data": {
+    "comment": {
+      "id": 456,
+      "comment": "这是一条评论",
+      "task_id": 123,
+      "created": "2026-01-26T10:15:00Z",
+      "updated": "2026-01-26T10:15:00Z"
+    }
+  }
+}
+
+### 测试任务分配事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "task.assignee.created",
+  "time": "2026-01-26T10:20:00Z",
+  "data": {
+    "task": {
+      "id": 123,
+      "title": "测试任务",
+      "project_id": 1
+    },
+    "assignee": {
+      "id": 2,
+      "username": "assignee",
+      "name": "被分配者",
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    }
+  }
+}
+
+### 测试标签创建事件
+POST {{VikunjaHook_HostAddress}}/webhook/vikunja
+Content-Type: application/json
+
+{
+  "event_name": "label.created",
+  "time": "2026-01-26T10:25:00Z",
+  "data": {
+    "label": {
+      "id": 789,
+      "title": "重要",
+      "description": "重要任务标签",
+      "hex_color": "#ff0000",
+      "created": "2026-01-26T10:25:00Z",
+      "updated": "2026-01-26T10:25:00Z"
+    }
+  }
+}
+
+###

@@ -1,0 +1,117 @@
+# 更新日志
+
+本文档记录项目的所有重要更改。
+
+## [未发布] - 2026-01-26
+
+### 新增 ✨
+
+#### CI/CD 基础设施
+- 添加 GitHub Actions CI 配置 (`.github/workflows/ci.yml`)
+  - 自动化构建和测试
+  - 多平台构建检查（Ubuntu, Windows, macOS）
+  - 测试日志上传
+- 添加 Linux/macOS 测试脚本 (`run-tests.sh`)
+  - 彩色输出
+  - 自动构建和服务器管理
+  - 健康检查等待
+- 添加 Windows PowerShell 测试脚本 (`run-tests.ps1`)
+  - 参数支持
+  - 自动构建和服务器管理
+  - 健康检查等待
+
+#### 文档
+- 添加 GitHub Secrets 设置指南 (`.github/SETUP_SECRETS.md`)
+- 添加完整测试指南 (`TESTING.md`)
+- 添加 CI 配置完成报告 (`CI_SETUP_COMPLETE.md`)
+- 添加项目根目录 README (`README.md`)
+- 添加更新日志 (`CHANGELOG.md`)
+
+#### 测试改进
+- 测试脚本支持环境变量配置
+  - `VIKUNJA_URL`: Vikunja API URL
+  - `VIKUNJA_TOKEN`: Vikunja API Token
+  - `API_BASE`: MCP 服务器地址
+- 环境变量验证和错误提示
+
+### 修改 🔧
+
+#### 测试脚本
+- `test-complete.js`: 从硬编码配置改为环境变量
+  - 支持 `process.env.VIKUNJA_URL`
+  - 支持 `process.env.VIKUNJA_TOKEN`
+  - 支持 `process.env.API_BASE`
+  - 添加环境变量验证
+
+#### 文档更新
+- `src/VikunjaHook/README.md`: 添加 CI 和测试说明
+  - 添加 CI 状态徽章
+  - 添加测试运行说明
+  - 添加 CI 配置说明
+
+#### 安全配置
+- `.gitignore`: 添加测试和 CI 相关忽略项
+  - `*.pid`, `server.pid`
+  - `.env.local`, `.env.test`, `.env.production`
+  - `test-results/`, `test-output/`, `*.test.log`
+
+### 修复 🐛
+
+#### MCP 服务器
+- 修复项目更新 API 方法（从 PUT 改为 POST）
+  - `ProjectsTool.UpdateProjectAsync` 现在使用正确的 HTTP 方法
+- 修复测试脚本参数名称
+  - `projectId` → `id`
+  - `labelId` → `id`
+  - `teamId` → `id`
+- 消除匿名类型
+  - 创建 `ApplyLabelRequest` 类
+  - 在 `AppJsonSerializerContext` 中注册
+
+### 测试结果 ✅
+
+- **测试通过率**: 100% (28/28)
+- **基础功能测试**: 8/8 通过
+- **Tasks 工具测试**: 22/22 通过
+
+## [1.0.0] - 2026-01-26
+
+### 初始发布 🎉
+
+#### 核心功能
+- Vikunja MCP C# 服务器
+  - 5 个工具，45+ 子命令
+  - Tasks 工具（22 个子命令）
+  - Projects 工具（11 个子命令）
+  - Labels、Teams、Users 工具
+  - Native AOT 编译支持
+  - HTTP/RESTful API
+  - 双重认证（API Token 和 JWT）
+  - 弹性 HTTP 客户端
+
+#### 测试套件
+- 完整的测试套件（28 项测试）
+  - 基础功能测试
+  - Tasks 工具完整测试
+  - 自动化清理
+
+#### 文档
+- MCP 服务器文档
+- 实现总结
+- 完成报告
+
+---
+
+## 版本说明
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+### 变更类型
+
+- `新增` - 新功能
+- `修改` - 现有功能的变更
+- `弃用` - 即将移除的功能
+- `移除` - 已移除的功能
+- `修复` - Bug 修复
+- `安全` - 安全相关的修复

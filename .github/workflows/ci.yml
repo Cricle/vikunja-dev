@@ -1,0 +1,98 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '20.x'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore src/VikunjaHook/VikunjaHook.sln
+    
+    - name: Build
+      run: dotnet build src/VikunjaHook/VikunjaHook.sln --configuration Release --no-restore
+    
+    - name: Start MCP Server
+      run: |
+        cd src/VikunjaHook/VikunjaHook
+        dotnet run --configuration Release &
+        echo $! > server.pid
+        sleep 10
+      env:
+        ASPNETCORE_ENVIRONMENT: Production
+    
+    - name: Wait for server to be ready
+      run: |
+        timeout 30 bash -c 'until curl -f http://localhost:5082/health; do sleep 2; done'
+    
+    - name: Run tests
+      run: node test-complete.js
+      env:
+        VIKUNJA_URL: ${{ secrets.VIKUNJA_URL }}
+        VIKUNJA_TOKEN: ${{ secrets.VIKUNJA_TOKEN }}
+        API_BASE: http://localhost:5082
+    
+    - name: Stop MCP Server
+      if: always()
+      run: |
+        if [ -f src/VikunjaHook/VikunjaHook/server.pid ]; then
+          kill $(cat src/VikunjaHook/VikunjaHook/server.pid) || true
+        fi
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          src/VikunjaHook/VikunjaHook/logs/
+        retention-days: 7
+
+  build-check:
+    name: Build Check (Multiple Platforms)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore src/VikunjaHook/VikunjaHook.sln
+    
+    - name: Build
+      run: dotnet build src/VikunjaHook/VikunjaHook.sln --configuration Release --no-restore
+    
+    - name: Check for warnings
+      run: dotnet build src/VikunjaHook/VikunjaHook.sln --configuration Release --no-restore --no-incremental /warnaserror
