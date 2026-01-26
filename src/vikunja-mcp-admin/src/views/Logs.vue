@@ -1,30 +1,49 @@
 <template>
-  <div>
+  <div class="logs-page">
+    <!-- Controls Card -->
     <VaCard class="mb-4">
       <VaCardContent>
         <div class="row align-end">
-          <div class="flex xs12 md4">
+          <div class="flex xs12 md3">
             <VaSelect
               v-model="logLevel"
               label="Log Level"
               :options="logLevels"
+              @update:model-value="refreshLogs"
             />
           </div>
 
-          <div class="flex xs12 md4">
+          <div class="flex xs12 md3">
+            <VaSelect
+              v-model="logCount"
+              label="Number of Logs"
+              :options="logCountOptions"
+              @update:model-value="refreshLogs"
+            />
+          </div>
+
+          <div class="flex xs12 md3">
             <VaSwitch
               v-model="autoRefresh"
               label="Auto Refresh (5s)"
+              class="mt-4"
             />
           </div>
 
-          <div class="flex xs12 md4">
+          <div class="flex xs12 md3">
             <div class="d-flex" style="gap: 0.5rem;">
-              <VaButton @click="refreshLogs">
+              <VaButton 
+                @click="refreshLogs"
+                :loading="loading"
+              >
                 <VaIcon name="refresh" class="mr-2" />
                 Refresh
               </VaButton>
-              <VaButton color="danger" @click="clearLogs">
+              <VaButton 
+                color="danger" 
+                @click="clearLogs"
+                :loading="clearing"
+              >
                 <VaIcon name="delete" class="mr-2" />
                 Clear
               </VaButton>
@@ -34,25 +53,80 @@
       </VaCardContent>
     </VaCard>
 
+    <!-- Logs Display Card -->
     <VaCard>
-      <VaCardContent class="log-container">
-        <div
-          v-for="(log, index) in filteredLogs"
-          :key="index"
-          class="log-entry"
-        >
-          <span class="log-timestamp">{{ formatTimestamp(log.timestamp) }}</span>
+      <VaCardTitle>
+        <div class="d-flex justify-space-between align-center">
+          <span>Server Logs</span>
           <VaBadge 
-            :text="log.level" 
-            :color="getLogColor(log.level)" 
-            class="mx-2"
+            :text="`${filteredLogs.length} entries`" 
+            color="info" 
           />
-          <span class="log-message">{{ log.message }}</span>
         </div>
+      </VaCardTitle>
+      <VaCardContent class="log-container">
+        <VaInnerLoading :loading="loading">
+          <div v-if="filteredLogs.length > 0">
+            <div
+              v-for="(log, index) in filteredLogs"
+              :key="index"
+              class="log-entry"
+              :class="`log-level-${log.level.toLowerCase()}`"
+            >
+              <span class="log-timestamp">{{ formatTimestamp(log.timestamp) }}</span>
+              <VaBadge 
+                :text="log.level" 
+                :color="getLogColor(log.level)" 
+                class="mx-2 log-badge"
+              />
+              <span class="log-message">{{ log.message }}</span>
+            </div>
+          </div>
 
-        <div v-if="filteredLogs.length === 0" class="text-center py-4">
-          <VaIcon name="info" size="large" class="mb-2" />
-          <p>No logs available</p>
+          <div v-else class="text-center py-6">
+            <VaIcon name="info" size="large" class="mb-3" color="secondary" />
+            <h3 class="va-h3 mb-2">No Logs Available</h3>
+            <p class="text-secondary">
+              {{ logLevel === 'All' ? 'No logs have been recorded yet.' : `No ${logLevel} logs found.` }}
+            </p>
+          </div>
+        </VaInnerLoading>
+      </VaCardContent>
+    </VaCard>
+
+    <!-- Log Statistics -->
+    <VaCard class="mt-4" v-if="logs.length > 0">
+      <VaCardTitle>Log Statistics</VaCardTitle>
+      <VaCardContent>
+        <div class="row">
+          <div class="flex xs12 md3">
+            <div class="stat-box">
+              <VaIcon name="article" size="large" color="primary" class="mb-2" />
+              <div class="stat-value">{{ logs.length }}</div>
+              <div class="text-secondary">Total Logs</div>
+            </div>
+          </div>
+          <div class="flex xs12 md3">
+            <div class="stat-box">
+              <VaIcon name="error" size="large" color="danger" class="mb-2" />
+              <div class="stat-value">{{ countByLevel('Error') }}</div>
+              <div class="text-secondary">Errors</div>
+            </div>
+          </div>
+          <div class="flex xs12 md3">
+            <div class="stat-box">
+              <VaIcon name="warning" size="large" color="warning" class="mb-2" />
+              <div class="stat-value">{{ countByLevel('Warning') }}</div>
+              <div class="text-secondary">Warnings</div>
+            </div>
+          </div>
+          <div class="flex xs12 md3">
+            <div class="stat-box">
+              <VaIcon name="info" size="large" color="info" class="mb-2" />
+              <div class="stat-value">{{ countByLevel('Info') }}</div>
+              <div class="text-secondary">Info</div>
+            </div>
+          </div>
         </div>
       </VaCardContent>
     </VaCard>
@@ -60,46 +134,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, computed, onUnmounted, watch, onMounted } from 'vue'
+import { adminApi } from '../services/api'
+import type { LogEntry } from '../types'
+import { useToast } from 'vuestic-ui'
 
-interface LogEntry {
-  timestamp: string
-  level: string
-  message: string
-}
+const { init: notify } = useToast()
 
 const logLevel = ref('All')
 const logLevels = ['All', 'Debug', 'Info', 'Warning', 'Error']
+const logCount = ref(100)
+const logCountOptions = [50, 100, 200, 500]
 const autoRefresh = ref(false)
+const loading = ref(false)
+const clearing = ref(false)
 let refreshInterval: number | null = null
 
-const logs = ref<LogEntry[]>([
-  {
-    timestamp: new Date().toISOString(),
-    level: 'Info',
-    message: 'VikunjaHook MCP Server started successfully'
-  },
-  {
-    timestamp: new Date().toISOString(),
-    level: 'Info',
-    message: 'Registered 5 MCP tools with 45 total subcommands'
-  },
-  {
-    timestamp: new Date().toISOString(),
-    level: 'Debug',
-    message: 'Configuration validated successfully'
-  },
-  {
-    timestamp: new Date().toISOString(),
-    level: 'Info',
-    message: 'CORS middleware enabled for origins: *'
-  },
-  {
-    timestamp: new Date().toISOString(),
-    level: 'Info',
-    message: 'Rate limiting configured: 60 requests/minute per token'
-  }
-])
+const logs = ref<LogEntry[]>([])
 
 const filteredLogs = computed(() => {
   if (logLevel.value === 'All') {
@@ -110,7 +161,12 @@ const filteredLogs = computed(() => {
 
 function formatTimestamp(timestamp: string) {
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('en-US', { hour12: false })
+  return date.toLocaleTimeString('en-US', { 
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }
 
 function getLogColor(level: string) {
@@ -123,13 +179,50 @@ function getLogColor(level: string) {
   return colors[level] || 'secondary'
 }
 
-function refreshLogs() {
-  console.log('Refreshing logs...')
+function countByLevel(level: string): number {
+  return logs.value.filter(log => log.level === level).length
 }
 
-function clearLogs() {
-  if (confirm('Are you sure you want to clear all logs?')) {
+async function refreshLogs() {
+  loading.value = true
+  try {
+    logs.value = await adminApi.getLogs(logCount.value, logLevel.value)
+    notify({
+      message: 'Logs refreshed successfully',
+      color: 'success'
+    })
+  } catch (error) {
+    notify({
+      message: 'Failed to fetch logs',
+      color: 'danger'
+    })
+    console.error('Failed to fetch logs:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function clearLogs() {
+  if (!confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
+    return
+  }
+
+  clearing.value = true
+  try {
+    await adminApi.clearLogs()
     logs.value = []
+    notify({
+      message: 'Logs cleared successfully',
+      color: 'success'
+    })
+  } catch (error) {
+    notify({
+      message: 'Failed to clear logs',
+      color: 'danger'
+    })
+    console.error('Failed to clear logs:', error)
+  } finally {
+    clearing.value = false
   }
 }
 
@@ -142,6 +235,10 @@ watch(autoRefresh, (enabled) => {
   }
 })
 
+onMounted(() => {
+  refreshLogs()
+})
+
 onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval)
@@ -150,6 +247,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.logs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -161,7 +264,7 @@ onUnmounted(() => {
 }
 
 .xs12 { flex: 0 0 100%; max-width: 100%; }
-.md4 { flex: 0 0 33.333%; max-width: 33.333%; }
+.md3 { flex: 0 0 25%; max-width: 25%; }
 
 .align-end {
   align-items: flex-end;
@@ -171,8 +274,23 @@ onUnmounted(() => {
   display: flex;
 }
 
+.justify-space-between {
+  justify-content: space-between;
+}
+
+.align-center {
+  align-items: center;
+}
+
 @media (max-width: 960px) {
-  .md4 {
+  .md3 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 600px) {
+  .md3 {
     flex: 0 0 100%;
     max-width: 100%;
   }
@@ -190,20 +308,46 @@ onUnmounted(() => {
 }
 
 .log-entry {
-  padding: 0.25rem 0;
+  padding: 0.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.log-entry:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .log-entry:last-child {
   border-bottom: none;
 }
 
+.log-entry.log-level-error {
+  border-left: 3px solid #e34234;
+}
+
+.log-entry.log-level-warning {
+  border-left: 3px solid #ffc107;
+}
+
+.log-entry.log-level-info {
+  border-left: 3px solid #2c82e0;
+}
+
+.log-entry.log-level-debug {
+  border-left: 3px solid #6c757d;
+}
+
 .log-timestamp {
   color: #858585;
   font-size: 0.75rem;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.log-badge {
   flex-shrink: 0;
 }
 
@@ -217,8 +361,23 @@ onUnmounted(() => {
   text-align: center;
 }
 
-.py-4 {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
+.py-6 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.stat-box {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(var(--va-background-element), 0.5);
+  border-radius: 8px;
+  height: 100%;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--va-primary);
+  margin-bottom: 0.5rem;
 }
 </style>

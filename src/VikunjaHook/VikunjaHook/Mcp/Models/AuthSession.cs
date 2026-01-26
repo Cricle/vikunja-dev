@@ -11,4 +11,20 @@ public record AuthSession(
     DateTime CreatedAt,
     DateTime? ExpiresAt = null,
     string? UserId = null
-);
+)
+{
+    /// <summary>
+    /// Alias for CreatedAt (for backward compatibility)
+    /// </summary>
+    public DateTime Created => CreatedAt;
+
+    /// <summary>
+    /// Last accessed time (defaults to creation time)
+    /// </summary>
+    public DateTime LastAccessed { get; init; } = CreatedAt;
+
+    /// <summary>
+    /// Check if session is expired
+    /// </summary>
+    public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
+};

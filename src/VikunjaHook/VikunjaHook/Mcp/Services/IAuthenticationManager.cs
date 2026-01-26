@@ -30,7 +30,12 @@ public interface IAuthenticationManager
     /// <summary>
     /// Remove authentication session
     /// </summary>
-    void Disconnect(string sessionId);
+    bool Disconnect(string sessionId);
+    
+    /// <summary>
+    /// Get all active sessions
+    /// </summary>
+    IReadOnlyList<AuthSession> GetAllSessions();
     
     /// <summary>
     /// Clear all authentication sessions (called on shutdown)

@@ -159,15 +159,26 @@ public class AuthenticationManager : IAuthenticationManager
     /// <summary>
     /// Remove authentication session
     /// </summary>
-    public void Disconnect(string sessionId)
+    public bool Disconnect(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
-            return;
+            return false;
 
         if (_sessions.TryRemove(sessionId, out _))
         {
             _logger.LogInformation("Session {SessionId} disconnected", sessionId);
+            return true;
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Get all active sessions
+    /// </summary>
+    public IReadOnlyList<AuthSession> GetAllSessions()
+    {
+        return _sessions.Values.ToList();
     }
 
     /// <summary>
