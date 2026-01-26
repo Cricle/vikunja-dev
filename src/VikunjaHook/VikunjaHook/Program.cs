@@ -442,6 +442,255 @@ app.MapGet("/mcp/health", (IMcpServer mcpServer) =>
     return Results.Ok(healthResponse);
 });
 
+// Admin API 端点
+// 获取所有会话
+app.MapGet("/admin/sessions", (IAuthenticationManager authManager) =>
+{
+    try
+    {
+        var sessions = authManager.GetAllSessions();
+        var sessionList = sessions.Select(s => new SessionInfo(
+            s.SessionId,
+            s.ApiUrl,
+            s.AuthType.ToString(),
+            s.Created,
+            s.LastAccessed,
+            s.IsExpired
+        )).ToList();
+
+        return Results.Ok(new SessionsResponse(sessionList, sessionList.Count));
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error getting sessions");
+        return Results.Problem("Failed to get sessions");
+    }
+});
+
+// 断开特定会话
+app.MapDelete("/admin/sessions/{sessionId}", (
+    string sessionId,
+    IAuthenticationManager authManager) =>
+{
+    try
+    {
+        var success = authManager.Disconnect(sessionId);
+        if (!success)
+        {
+            return Results.NotFound(new { error = "Session not found" });
+        }
+
+        Log.Information("Session {SessionId} disconnected via admin", sessionId);
+        return Results.Ok(new MessageResponse("Session disconnected successfully"));
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error disconnecting session {SessionId}", sessionId);
+        return Results.Problem("Failed to disconnect session");
+    }
+});
+
+// 断开所有会话
+app.MapDelete("/admin/sessions", (IAuthenticationManager authManager) =>
+{
+    try
+    {
+        authManager.DisconnectAll();
+        Log.Information("All sessions disconnected via admin");
+        return Results.Ok(new MessageResponse("All sessions disconnected successfully"));
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error disconnecting all sessions");
+        return Results.Problem("Failed to disconnect all sessions");
+    }
+});
+
+// 获取服务器统计
+app.MapGet("/admin/stats", (
+    IAuthenticationManager authManager,
+    IToolRegistry toolRegistry,
+    IMcpServer mcpServer) =>
+{
+    try
+    {
+        var sessions = authManager.GetAllSessions();
+        var tools = toolRegistry.GetAllTools();
+        var serverInfo = mcpServer.GetServerInfo();
+        var process = System.Diagnostics.Process.GetCurrentProcess();
+
+        var stats = new ServerStatsResponse(
+            new ServerInfoStats(
+                serverInfo.Name,
+                serverInfo.Version,
+                (DateTime.UtcNow - process.StartTime.ToUniversalTime()).ToString(@"hh\:mm\:ss")
+            ),
+            new SessionStats(
+                sessions.Count,
+                sessions.Count(s => !s.IsExpired)
+            ),
+            new ToolStats(
+                tools.Count,
+                tools.Sum(t => t.Subcommands.Count)
+            ),
+            new MemoryStats(
+                process.WorkingSet64,
+                process.PrivateMemorySize64
+            )
+        );
+
+        return Results.Ok(stats);
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error getting stats");
+        return Results.Problem("Failed to get stats");
+    }
+});
+
+// 执行工具（用于测试）
+app.MapPost("/admin/tools/{toolName}/{subcommand}", async (
+    string toolName,
+    string subcommand,
+    HttpContext context,
+    IToolRegistry toolRegistry,
+    IAuthenticationManager authManager) =>
+{
+    try
+    {
+        // 验证 X-Session-Id header
+        if (!context.Request.Headers.TryGetValue("X-Session-Id", out var sessionIdHeader))
+        {
+            return Results.BadRequest(new { error = "X-Session-Id header is required" });
+        }
+
+        var sessionId = sessionIdHeader.ToString();
+        if (!authManager.IsAuthenticated(sessionId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var tool = toolRegistry.GetTool(toolName);
+        if (tool == null)
+        {
+            return Results.NotFound(new { error = $"Tool '{toolName}' not found" });
+        }
+
+        if (!tool.Subcommands.Contains(subcommand))
+        {
+            return Results.BadRequest(new { error = $"Subcommand '{subcommand}' not found for tool '{toolName}'" });
+        }
+
+        Dictionary<string, object?>? parameters = null;
+        if (context.Request.ContentLength > 0)
+        {
+            parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object?>>();
+        }
+
+        parameters ??= new Dictionary<string, object?>();
+        var result = await tool.ExecuteAsync(subcommand, parameters, sessionId);
+
+        return Results.Ok(new AdminToolExecutionResponse(true, toolName, subcommand, result));
+    }
+    catch (ValidationException ex)
+    {
+        Log.Warning(ex, "Validation error in tool execution");
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error executing tool {Tool}/{Subcommand}", toolName, subcommand);
+        return Results.Problem("Failed to execute tool");
+    }
+});
+
+// 获取日志
+app.MapGet("/admin/logs", (HttpContext context) =>
+{
+    try
+    {
+        var countStr = context.Request.Query["count"].ToString();
+        var level = context.Request.Query["level"].ToString();
+        var count = int.TryParse(countStr, out var c) ? c : 100;
+
+        var logsDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        if (!Directory.Exists(logsDir))
+        {
+            return Results.Ok(new LogsResponse(new List<LogEntryInfo>(), 0));
+        }
+
+        var logFiles = Directory.GetFiles(logsDir, "vikunja-mcp-*.log")
+            .OrderByDescending(f => System.IO.File.GetLastWriteTime(f))
+            .Take(1)
+            .ToList();
+
+        if (logFiles.Count == 0)
+        {
+            return Results.Ok(new LogsResponse(new List<LogEntryInfo>(), 0));
+        }
+
+        var lines = System.IO.File.ReadLines(logFiles[0])
+            .Reverse()
+            .Take(count)
+            .Reverse()
+            .ToList();
+
+        var logs = lines.Select(line =>
+        {
+            var parts = line.Split(new[] { ' ' }, 4);
+            if (parts.Length >= 4)
+            {
+                return new LogEntryInfo(
+                    $"{parts[0]} {parts[1]}",
+                    parts[2].Trim('[', ']'),
+                    parts[3]
+                );
+            }
+            return new LogEntryInfo(
+                DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+                "INFO",
+                line
+            );
+        }).ToList();
+
+        if (!string.IsNullOrEmpty(level) && level != "All")
+        {
+            logs = logs.Where(l => l.Level.Equals(level, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        return Results.Ok(new LogsResponse(logs, logs.Count));
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error getting logs");
+        return Results.Problem("Failed to get logs");
+    }
+});
+
+// 清除日志
+app.MapDelete("/admin/logs", () =>
+{
+    try
+    {
+        var logsDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        if (Directory.Exists(logsDir))
+        {
+            foreach (var file in Directory.GetFiles(logsDir, "vikunja-mcp-*.log"))
+            {
+                System.IO.File.Delete(file);
+            }
+        }
+
+        Log.Information("Logs cleared via admin");
+        return Results.Ok(new MessageResponse("Logs cleared successfully"));
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error clearing logs");
+        return Results.Problem("Failed to clear logs");
+    }
+});
+
 app.Run();
 
 return 0;

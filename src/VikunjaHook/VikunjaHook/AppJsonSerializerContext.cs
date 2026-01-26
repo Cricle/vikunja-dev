@@ -58,6 +58,19 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(ReminderListResponse))]
 [JsonSerializable(typeof(BulkOperationResponse))]
 
+// Admin response models
+[JsonSerializable(typeof(SessionInfo))]
+[JsonSerializable(typeof(SessionsResponse))]
+[JsonSerializable(typeof(ServerStatsResponse))]
+[JsonSerializable(typeof(ServerInfoStats))]
+[JsonSerializable(typeof(SessionStats))]
+[JsonSerializable(typeof(ToolStats))]
+[JsonSerializable(typeof(MemoryStats))]
+[JsonSerializable(typeof(AdminToolExecutionResponse))]
+[JsonSerializable(typeof(LogEntryInfo))]
+[JsonSerializable(typeof(LogsResponse))]
+[JsonSerializable(typeof(MessageResponse))]
+
 // MCP Vikunja entity models
 [JsonSerializable(typeof(VikunjaTask))]
 [JsonSerializable(typeof(VikunjaProject))]
