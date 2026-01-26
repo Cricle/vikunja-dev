@@ -10,7 +10,7 @@
             @click="refreshData"
             :loading="loading"
           >
-            <VaIcon name="refresh" class="mr-1" />
+            <VaIcon name="mdi-refresh" class="mr-1" />
             Refresh
           </VaButton>
         </div>
@@ -54,28 +54,28 @@
         <div class="row">
           <div class="flex xs12 md6 lg3">
             <div class="stat-box">
-              <VaIcon name="schedule" size="large" color="primary" class="mb-2" />
+              <VaIcon name="mdi-clock-outline" size="large" color="primary" class="mb-2" />
               <div class="stat-value">{{ stats.server.uptime }}</div>
               <div class="text-secondary">Uptime</div>
             </div>
           </div>
           <div class="flex xs12 md6 lg3">
             <div class="stat-box">
-              <VaIcon name="people" size="large" color="success" class="mb-2" />
+              <VaIcon name="mdi-account-multiple" size="large" color="success" class="mb-2" />
               <div class="stat-value">{{ stats.sessions.active }} / {{ stats.sessions.total }}</div>
               <div class="text-secondary">Active Sessions</div>
             </div>
           </div>
           <div class="flex xs12 md6 lg3">
             <div class="stat-box">
-              <VaIcon name="build" size="large" color="info" class="mb-2" />
+              <VaIcon name="mdi-tools" size="large" color="info" class="mb-2" />
               <div class="stat-value">{{ stats.tools.total }}</div>
               <div class="text-secondary">Tools ({{ stats.tools.subcommands }} subcommands)</div>
             </div>
           </div>
           <div class="flex xs12 md6 lg3">
             <div class="stat-box">
-              <VaIcon name="memory" size="large" color="warning" class="mb-2" />
+              <VaIcon name="mdi-memory" size="large" color="warning" class="mb-2" />
               <div class="stat-value">{{ formatMemory(stats.memory.workingSet) }}</div>
               <div class="text-secondary">Memory Usage</div>
             </div>
@@ -89,7 +89,7 @@
       <div class="flex xs12 md4">
         <VaCard class="stat-card">
           <VaCardContent class="text-center">
-            <VaIcon name="build" size="large" color="primary" class="mb-2" />
+            <VaIcon name="mdi-tools" size="large" color="primary" class="mb-2" />
             <div class="stat-value">{{ serverStore.tools.length }}</div>
             <div class="text-secondary">Registered Tools</div>
           </VaCardContent>
@@ -98,7 +98,7 @@
       <div class="flex xs12 md4">
         <VaCard class="stat-card">
           <VaCardContent class="text-center">
-            <VaIcon name="code" size="large" color="info" class="mb-2" />
+            <VaIcon name="mdi-code-tags" size="large" color="info" class="mb-2" />
             <div class="stat-value">{{ totalSubcommands }}</div>
             <div class="text-secondary">Total Subcommands</div>
           </VaCardContent>
@@ -107,7 +107,7 @@
       <div class="flex xs12 md4">
         <VaCard class="stat-card">
           <VaCardContent class="text-center">
-            <VaIcon name="speed" size="large" color="success" class="mb-2" />
+            <VaIcon name="mdi-speedometer" size="large" color="success" class="mb-2" />
             <div class="stat-value">60/min</div>
             <div class="text-secondary">Rate Limit</div>
           </VaCardContent>
@@ -121,19 +121,19 @@
       <VaCardContent>
         <div class="actions">
           <VaButton @click="refreshData" :loading="loading">
-            <VaIcon name="refresh" class="mr-2" />
+            <VaIcon name="mdi-refresh" class="mr-2" />
             Refresh Status
           </VaButton>
           <VaButton color="primary" to="/config">
-            <VaIcon name="settings" class="mr-2" />
+            <VaIcon name="mdi-cog" class="mr-2" />
             Configure Server
           </VaButton>
           <VaButton to="/tools">
-            <VaIcon name="build" class="mr-2" />
+            <VaIcon name="mdi-tools" class="mr-2" />
             View Tools
           </VaButton>
           <VaButton to="/sessions" color="info">
-            <VaIcon name="people" class="mr-2" />
+            <VaIcon name="mdi-account-multiple" class="mr-2" />
             Manage Sessions
           </VaButton>
           <VaButton 
@@ -141,7 +141,7 @@
             @click="disconnectAllSessions"
             :loading="disconnecting"
           >
-            <VaIcon name="link_off" class="mr-2" />
+            <VaIcon name="mdi-link-off" class="mr-2" />
             Disconnect All Sessions
           </VaButton>
           <VaButton 
@@ -149,7 +149,7 @@
             @click="clearAllLogs"
             :loading="clearingLogs"
           >
-            <VaIcon name="delete" class="mr-2" />
+            <VaIcon name="mdi-delete" class="mr-2" />
             Clear Logs
           </VaButton>
         </div>

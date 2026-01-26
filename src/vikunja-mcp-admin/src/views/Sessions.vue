@@ -13,7 +13,7 @@
               @click="refreshSessions"
               :loading="loading"
             >
-              <VaIcon name="refresh" class="mr-2" />
+              <VaIcon name="mdi-refresh" class="mr-2" />
               Refresh
             </VaButton>
             <VaButton 
@@ -22,7 +22,7 @@
               :loading="disconnectingAll"
               :disabled="sessions.length === 0"
             >
-              <VaIcon name="link_off" class="mr-2" />
+              <VaIcon name="mdi-link-off" class="mr-2" />
               Disconnect All
             </VaButton>
           </div>
@@ -84,14 +84,14 @@
                 @click="disconnectSession(row.sessionId)"
                 :loading="disconnectingIds.has(row.sessionId)"
               >
-                <VaIcon name="link_off" size="small" class="mr-1" />
+                <VaIcon name="mdi-link-off" size="small" class="mr-1" />
                 Disconnect
               </VaButton>
             </template>
           </VaDataTable>
 
           <div v-else class="text-center py-6">
-            <VaIcon name="info" size="large" class="mb-3" color="secondary" />
+            <VaIcon name="mdi-information" size="large" class="mb-3" color="secondary" />
             <h3 class="va-h3 mb-2">No Active Sessions</h3>
             <p class="text-secondary">There are currently no active Vikunja API sessions.</p>
           </div>
@@ -116,28 +116,28 @@
         <div class="row">
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="people" size="large" color="primary" class="mb-2" />
+              <VaIcon name="mdi-account-multiple" size="large" color="primary" class="mb-2" />
               <div class="stat-value">{{ sessions.length }}</div>
               <div class="text-secondary">Total Sessions</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="check_circle" size="large" color="success" class="mb-2" />
+              <VaIcon name="mdi-check-circle" size="large" color="success" class="mb-2" />
               <div class="stat-value">{{ activeSessions }}</div>
               <div class="text-secondary">Active</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="error" size="large" color="danger" class="mb-2" />
+              <VaIcon name="mdi-alert-circle" size="large" color="danger" class="mb-2" />
               <div class="stat-value">{{ expiredSessions }}</div>
               <div class="text-secondary">Expired</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="vpn_key" size="large" color="info" class="mb-2" />
+              <VaIcon name="mdi-key" size="large" color="info" class="mb-2" />
               <div class="stat-value">{{ jwtSessions }}</div>
               <div class="text-secondary">JWT Auth</div>
             </div>

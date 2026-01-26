@@ -36,7 +36,7 @@
                 @click="refreshLogs"
                 :loading="loading"
               >
-                <VaIcon name="refresh" class="mr-2" />
+                <VaIcon name="mdi-refresh" class="mr-2" />
                 Refresh
               </VaButton>
               <VaButton 
@@ -44,7 +44,7 @@
                 @click="clearLogs"
                 :loading="clearing"
               >
-                <VaIcon name="delete" class="mr-2" />
+                <VaIcon name="mdi-delete" class="mr-2" />
                 Clear
               </VaButton>
             </div>
@@ -84,7 +84,7 @@
           </div>
 
           <div v-else class="text-center py-6">
-            <VaIcon name="info" size="large" class="mb-3" color="secondary" />
+            <VaIcon name="mdi-information" size="large" class="mb-3" color="secondary" />
             <h3 class="va-h3 mb-2">No Logs Available</h3>
             <p class="text-secondary">
               {{ logLevel === 'All' ? 'No logs have been recorded yet.' : `No ${logLevel} logs found.` }}
@@ -101,28 +101,28 @@
         <div class="row">
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="article" size="large" color="primary" class="mb-2" />
+              <VaIcon name="mdi-text-box" size="large" color="primary" class="mb-2" />
               <div class="stat-value">{{ logs.length }}</div>
               <div class="text-secondary">Total Logs</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="error" size="large" color="danger" class="mb-2" />
+              <VaIcon name="mdi-alert-circle" size="large" color="danger" class="mb-2" />
               <div class="stat-value">{{ countByLevel('Error') }}</div>
               <div class="text-secondary">Errors</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="warning" size="large" color="warning" class="mb-2" />
+              <VaIcon name="mdi-alert" size="large" color="warning" class="mb-2" />
               <div class="stat-value">{{ countByLevel('Warning') }}</div>
               <div class="text-secondary">Warnings</div>
             </div>
           </div>
           <div class="flex xs12 md3">
             <div class="stat-box">
-              <VaIcon name="info" size="large" color="info" class="mb-2" />
+              <VaIcon name="mdi-information" size="large" color="info" class="mb-2" />
               <div class="stat-value">{{ countByLevel('Info') }}</div>
               <div class="text-secondary">Info</div>
             </div>

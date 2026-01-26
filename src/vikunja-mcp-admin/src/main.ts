@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createVuestic } from 'vuestic-ui'
 import 'vuestic-ui/css'
+import '@mdi/font/css/materialdesignicons.css'
 
 import App from './App.vue'
 import router from './router'
@@ -12,14 +13,14 @@ app.use(createPinia())
 app.use(router)
 app.use(createVuestic({
   config: {
-    icons: [
-      {
-        name: '{icon}',
-        class: 'material-icons',
-        content: '{icon}',
-        tag: 'span'
-      }
-    ]
+    icons: {
+      aliases: [
+        {
+          name: '{icon}',
+          to: 'mdi-{icon}',
+        },
+      ],
+    },
   }
 }))
 

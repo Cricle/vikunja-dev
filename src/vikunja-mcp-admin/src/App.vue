@@ -5,7 +5,7 @@
         <template #left>
           <VaNavbarItem class="logo-section">
             <div class="logo-container">
-              <VaIcon name="layers" color="primary" size="large" />
+              <VaIcon name="mdi-layers" color="primary" size="large" />
               <span class="app-title ml-2">Vikunja MCP</span>
             </div>
           </VaNavbarItem>
@@ -61,11 +61,11 @@ import { useServerStore } from './stores/server'
 const serverStore = useServerStore()
 
 const menuItems = [
-  { title: 'Dashboard', to: '/', icon: 'dashboard' },
-  { title: 'Configuration', to: '/config', icon: 'settings' },
-  { title: 'Tools', to: '/tools', icon: 'build' },
-  { title: 'Sessions', to: '/sessions', icon: 'people' },
-  { title: 'Logs', to: '/logs', icon: 'article' }
+  { title: 'Dashboard', to: '/', icon: 'mdi-view-dashboard' },
+  { title: 'Configuration', to: '/config', icon: 'mdi-cog' },
+  { title: 'Tools', to: '/tools', icon: 'mdi-tools' },
+  { title: 'Sessions', to: '/sessions', icon: 'mdi-account-multiple' },
+  { title: 'Logs', to: '/logs', icon: 'mdi-text-box' }
 ]
 
 const serverStatus = ref('Checking...')

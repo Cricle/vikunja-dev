@@ -10,7 +10,7 @@
             @click="refreshTools"
             :loading="serverStore.loading"
           >
-            <VaIcon name="refresh" class="mr-1" />
+            <VaIcon name="mdi-refresh" class="mr-1" />
             Refresh
           </VaButton>
         </div>
@@ -55,7 +55,7 @@
                     block
                     @click="selectToolForTest(tool, tool.subcommands[0])"
                   >
-                    <VaIcon name="play_arrow" class="mr-1" />
+                    <VaIcon name="mdi-play" class="mr-1" />
                     Test Tool
                   </VaButton>
                 </VaCardContent>
@@ -64,7 +64,7 @@
           </div>
 
           <div v-else class="text-center py-6">
-            <VaIcon name="info" size="large" class="mb-3" color="secondary" />
+            <VaIcon name="mdi-information" size="large" class="mb-3" color="secondary" />
             <h3 class="va-h3 mb-2">No Tools Registered</h3>
             <p class="text-secondary">No MCP tools are currently registered.</p>
           </div>
@@ -82,7 +82,7 @@
             preset="plain"
             @click="clearSelection"
           >
-            <VaIcon name="close" />
+            <VaIcon name="mdi-close" />
           </VaButton>
         </div>
       </VaCardTitle>
@@ -108,7 +108,7 @@
                 class="mb-4"
               >
                 <template #prepend>
-                  <VaIcon name="vpn_key" />
+                  <VaIcon name="mdi-key" />
                 </template>
               </VaSelect>
 
@@ -131,21 +131,21 @@
                   :loading="executing"
                   :disabled="!!jsonError"
                 >
-                  <VaIcon name="play_arrow" class="mr-2" />
+                  <VaIcon name="mdi-play" class="mr-2" />
                   Execute
                 </VaButton>
                 <VaButton 
                   preset="secondary"
                   @click="clearParameters"
                 >
-                  <VaIcon name="clear" class="mr-2" />
+                  <VaIcon name="mdi-close" class="mr-2" />
                   Clear
                 </VaButton>
                 <VaButton 
                   preset="secondary"
                   @click="loadSampleParameters"
                 >
-                  <VaIcon name="code" class="mr-2" />
+                  <VaIcon name="mdi-code-tags" class="mr-2" />
                   Sample
                 </VaButton>
               </div>
@@ -185,7 +185,7 @@
               </div>
 
               <div v-else class="text-center py-6">
-                <VaIcon name="science" size="large" class="mb-3" color="secondary" />
+                <VaIcon name="mdi-flask" size="large" class="mb-3" color="secondary" />
                 <p class="text-secondary">Execute the tool to see results here</p>
               </div>
             </div>
