@@ -1,6 +1,27 @@
-# Build stage - 使用 .NET 10 SDK 进行 AOT 编译
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Frontend build stage - 构建 Vue.js 前端
+FROM node:20-alpine AS frontend-build
+WORKDIR /frontend
+
+# 复制前端项目文件
+COPY ["src/vikunja-mcp-admin/package*.json", "./"]
+
+# 安装所有依赖（包括 devDependencies，构建需要）
+RUN npm ci
+
+# 复制前端源代码
+COPY ["src/vikunja-mcp-admin/", "./"]
+
+# 构建前端（跳过类型检查以加快构建速度）
+RUN npx vite build
+
+# Backend build stage - 使用 .NET 10 SDK 进行 AOT 编译
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /src
+
+# 安装 AOT 编译所需的工具
+RUN apt-get update && \
+    apt-get install -y clang zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # 复制项目文件
 COPY ["src/VikunjaHook/VikunjaHook/VikunjaHook.csproj", "VikunjaHook/"]
@@ -18,37 +39,21 @@ RUN dotnet publish "VikunjaHook.csproj" \
     -o /app/publish \
     /p:PublishAot=true \
     /p:StripSymbols=true \
-    /p:EnableCompressionInSingleFile=true
-
+    /p:IlcOptimizationPreference=Size \
+    /p:IlcGenerateStackTraceData=false
+    
 # Runtime stage - 使用最小的运行时镜像
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS runtime
 WORKDIR /app
 
-# 安装必要的运行时依赖
-RUN apk add --no-cache \
-    icu-libs \
-    tzdata
-
-# 创建非 root 用户
-RUN addgroup -g 1000 vikunja && \
-    adduser -D -u 1000 -G vikunja vikunja
-
 # 复制 AOT 编译的二进制文件
-COPY --from=build /app/publish .
+COPY --from=backend-build /app/publish .
 
-# 创建日志目录
-RUN mkdir -p /app/logs && \
-    chown -R vikunja:vikunja /app
-
-# 切换到非 root 用户
-USER vikunja
+# 复制前端构建产物到 wwwroot
+COPY --from=frontend-build /frontend/dist ./wwwroot
 
 # 暴露端口
 EXPOSE 5082
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5082/health || exit 1
 
 # 设置环境变量
 ENV ASPNETCORE_URLS=http://+:5082 \

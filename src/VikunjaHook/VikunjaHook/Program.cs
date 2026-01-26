@@ -158,8 +158,15 @@ app.UseCors();
 // Use Rate Limiting
 app.UseRateLimiter();
 
+// Serve static files from wwwroot (for frontend)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Map controllers
 app.MapControllers();
+
+// Fallback to index.html for SPA routing
+app.MapFallbackToFile("index.html");
 
 // Log startup information
 Log.Information("VikunjaHook MCP Server started successfully");
