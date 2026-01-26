@@ -1,163 +1,264 @@
-# Quick Start Guide
+# Vikunja MCP Admin - 快速开始指南
 
-## 🚀 Get Started in 3 Steps
+## 🚀 快速启动（3步）
 
-### Step 1: Install Dependencies
+### 步骤 1: 安装依赖
 
 ```bash
 cd src/vikunja-mcp-admin
 npm install
 ```
 
-### Step 2: Start the MCP Server
+### 步骤 2: 启动 MCP 服务器
 
-In a separate terminal:
+在另一个终端中：
 
 ```bash
 cd src/VikunjaHook/VikunjaHook
 dotnet run
 ```
 
-Wait for the server to start on `http://localhost:5082`
+等待服务器启动在 `http://localhost:5082`
 
-### Step 3: Start the Admin UI
+### 步骤 3: 启动管理界面
 
 ```bash
 npm run dev
 ```
 
-Or use the PowerShell script:
+或使用 PowerShell 脚本：
 
 ```powershell
 .\start.ps1
 ```
 
-The admin interface will open at `http://localhost:3000`
+管理界面将在 `http://localhost:3000` 打开
 
-## 📱 Using the Admin Interface
+---
+
+## 📋 页面导航
+
+| 页面 | 路径 | 功能 |
+|------|------|------|
+| Dashboard | `/` | 服务器状态、统计、快速操作 |
+| Configuration | `/config` | 服务器配置管理 |
+| Tools | `/tools` | 工具列表、测试执行 |
+| Sessions | `/sessions` | 会话管理、断开连接 |
+| Logs | `/logs` | 日志查看、过滤、清除 |
+
+---
+
+## 📱 使用管理界面
 
 ### Dashboard
-- View server status and statistics
-- Quick access to all features
-- Real-time health monitoring
+- 查看服务器状态和统计信息
+- 快速访问所有功能
+- 实时健康监控
+- 内存使用显示
+- 自动刷新（10秒）
 
 ### Configuration
-1. Navigate to **Configuration** in the sidebar
-2. Modify settings:
-   - Vikunja timeout
-   - MCP server settings
-   - CORS origins
-   - Rate limiting
-3. Click **Save Configuration**
+1. 导航到侧边栏的 **Configuration**
+2. 修改设置：
+   - Vikunja 超时时间
+   - MCP 服务器设置
+   - CORS 源
+   - 速率限制
+3. 点击 **Save Configuration**
 
 ### Tools
-- View all 5 registered tools
-- See 45+ subcommands
-- Explore tool capabilities
+- 查看所有 5 个注册的工具
+- 查看 45+ 个子命令
+- 测试工具功能
+- 选择会话执行
+- JSON 参数编辑
 
 ### Sessions
-- Monitor active authentication sessions
-- View session details
-- Disconnect sessions if needed
+- 监控活跃的认证会话
+- 查看会话详情
+- 断开单个或所有会话
+- 会话统计信息
+- 自动刷新（5秒）
 
 ### Logs
-- View server logs in real-time
-- Filter by log level
-- Enable auto-refresh for live updates
+- 实时查看服务器日志
+- 按日志级别过滤
+- 选择日志数量
+- 清除日志
+- 日志统计
+- 自动刷新（5秒）
 
-## 🔧 Configuration Tips
+---
 
-### Adding CORS Origins
+## 🔌 API 端点快速参考
 
-1. Go to **Configuration** → **CORS Settings**
-2. Click **Add Origin**
-3. Enter the origin URL (e.g., `https://example.com`)
-4. Click **Add**
-5. Save configuration
+### 会话管理
+```
+GET    /admin/sessions              # 获取所有会话
+DELETE /admin/sessions/{id}         # 断开特定会话
+DELETE /admin/sessions              # 断开所有会话
+```
 
-### Adjusting Rate Limits
+### 服务器统计
+```
+GET    /admin/stats                 # 获取服务器统计
+```
 
-1. Go to **Configuration** → **Rate Limiting**
-2. Toggle **Enable Rate Limiting**
-3. Set **Requests Per Minute** (default: 60)
-4. Set **Requests Per Hour** (default: 1000)
-5. Save configuration
+### 工具执行
+```
+POST   /admin/tools/{tool}/{sub}    # 执行工具
+Header: X-Session-Id: {sessionId}
+Body: { "param": "value" }
+```
 
-## 🐛 Troubleshooting
+### 日志管理
+```
+GET    /admin/logs?count=100&level=Info  # 获取日志
+DELETE /admin/logs                       # 清除日志
+```
 
-### Admin UI won't start
+---
 
-**Problem**: `npm run dev` fails
+## 🔧 配置技巧
 
-**Solution**:
+### 添加 CORS 源
+
+1. 进入 **Configuration** → **CORS Settings**
+2. 点击 **Add Origin**
+3. 输入源 URL（例如 `https://example.com`）
+4. 点击 **Add**
+5. 保存配置
+
+### 调整速率限制
+
+1. 进入 **Configuration** → **Rate Limiting**
+2. 切换 **Enable Rate Limiting**
+3. 设置 **Requests Per Minute**（默认：60）
+4. 设置 **Requests Per Hour**（默认：1000）
+5. 保存配置
+
+---
+
+## 💻 代码示例
+
+### 获取会话
+```typescript
+const sessions = await adminApi.getSessions()
+```
+
+### 断开会话
+```typescript
+await adminApi.disconnectSession(sessionId)
+```
+
+### 执行工具
+```typescript
+const result = await adminApi.executeTool({
+  toolName: 'vikunja_projects',
+  subcommand: 'list',
+  parameters: {},
+  sessionId: 'xxx'
+})
+```
+
+### 获取日志
+```typescript
+const logs = await adminApi.getLogs(100, 'Error')
+```
+
+---
+
+## 🐛 故障排除
+
+### 管理界面无法启动
+
+**问题**: `npm run dev` 失败
+
+**解决方案**:
 ```bash
-# Clear node_modules and reinstall
+# 清除 node_modules 并重新安装
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### Can't connect to MCP server
+### 无法连接到 MCP 服务器
 
-**Problem**: "Failed to fetch" errors
+**问题**: "Failed to fetch" 错误
 
-**Solution**:
-1. Ensure MCP server is running on port 5082
-2. Check server health: `http://localhost:5082/mcp/health`
-3. Verify CORS settings allow `http://localhost:3000`
+**解决方案**:
+1. 确保 MCP 服务器运行在 5082 端口
+2. 检查服务器健康: `http://localhost:5082/mcp/health`
+3. 验证 CORS 设置允许 `http://localhost:3000`
 
-### Configuration changes not saving
+### 配置更改未保存
 
-**Problem**: Save button doesn't work
+**问题**: 保存按钮不工作
 
-**Solution**:
-- Currently, configuration is stored in memory only
-- To persist changes, you need to manually update `appsettings.json`
-- Future versions will include a backend API for configuration management
+**解决方案**:
+- 当前配置仅存储在内存中
+- 要持久化更改，需要手动更新 `appsettings.json`
+- 未来版本将包含配置管理后端 API
 
-## 📚 Next Steps
+---
 
-- Explore all 5 MCP tools and their subcommands
-- Configure CORS for your production environment
-- Adjust rate limits based on your needs
-- Monitor active sessions
-- Review server logs for debugging
+## ⚠️ 常见错误
 
-## 🆘 Need Help?
+### 404 Not Found
+```
+原因: API 端点不存在或后端未运行
+解决: 检查后端服务状态
+```
 
-- Check the main README.md for detailed documentation
-- Review the MCP server documentation
-- Check server logs for error messages
+### 401 Unauthorized
+```
+原因: 会话无效或已过期
+解决: 重新创建会话
+```
 
-## 🎯 Production Deployment
+### 500 Internal Server Error
+```
+原因: 后端处理错误
+解决: 查看后端日志
+```
 
-### Build for Production
+### CORS Error
+```
+原因: 跨域配置问题
+解决: 检查 CORS 设置
+```
+
+---
+
+## 🎯 生产部署
+
+### 构建生产版本
 
 ```bash
 npm run build
 ```
 
-### Serve Production Build
+### 预览生产构建
 
 ```bash
 npm run preview
 ```
 
-Or use a static file server:
+或使用静态文件服务器：
 
 ```bash
 npx serve dist
 ```
 
-### Deploy to Web Server
+### 部署到 Web 服务器
 
-1. Build the project: `npm run build`
-2. Copy the `dist` folder to your web server
-3. Configure your web server to:
-   - Serve `index.html` for all routes (SPA mode)
-   - Proxy `/api/*` requests to your MCP server
-4. Update CORS settings on the MCP server to allow your domain
+1. 构建项目: `npm run build`
+2. 将 `dist` 文件夹复制到 Web 服务器
+3. 配置 Web 服务器：
+   - 为所有路由提供 `index.html`（SPA 模式）
+   - 将 `/api/*` 请求代理到 MCP 服务器
+4. 更新 MCP 服务器的 CORS 设置以允许你的域名
 
-Example Nginx configuration:
+### Nginx 配置示例
 
 ```nginx
 server {
@@ -178,4 +279,48 @@ server {
 }
 ```
 
-Enjoy managing your Vikunja MCP Server! 🎉
+---
+
+## 🧪 测试
+
+### 测试 API
+```powershell
+.\test-api.ps1
+```
+
+### 测试前端
+```bash
+npm run dev
+```
+
+---
+
+## 📚 更多文档
+
+- [完整功能文档](./ADMIN_FEATURES.md) - 详细功能说明
+- [使用示例](./EXAMPLES.md) - 实际使用案例
+- [升级指南](./UPGRADE_GUIDE.md) - 版本升级说明
+
+---
+
+## 🆘 需要帮助？
+
+1. 查看文档
+2. 检查控制台错误（F12）
+3. 查看后端日志
+4. 提交 GitHub Issue
+
+---
+
+## 🎉 快速测试清单
+
+- [ ] Dashboard 显示正常
+- [ ] Sessions 管理正常
+- [ ] Logs 查看正常
+- [ ] Tools 测试正常
+- [ ] 自动刷新工作正常
+- [ ] 通知显示正常
+
+---
+
+**享受使用 Vikunja MCP 服务器管理！** 🎉

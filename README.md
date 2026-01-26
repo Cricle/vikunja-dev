@@ -55,8 +55,6 @@ docker build -t vikunja-mcp:latest .
 docker run -d -p 5082:5082 --name vikunja-mcp-server vikunja-mcp:latest
 ```
 
-[查看 Docker 完整文档 →](DOCKER.md)
-
 #### 方式 2: 本地运行
 
 ```bash
@@ -147,11 +145,12 @@ vikunja-dev/
 │   │   │   └── Program.cs            # 入口点
 │   │   └── VikunjaHook.sln           # 解决方案文件
 │   └── vikunja-mcp-admin/            # Web 管理界面
+├── docker-compose.yml                # Docker Compose 配置
+├── Dockerfile                        # Docker 镜像构建
 ├── run-tests.sh                      # Linux/macOS 测试脚本
 ├── run-tests.ps1                     # Windows 测试脚本
 ├── test-complete.js                  # 完整测试套件
-├── TESTING.md                        # 测试指南
-├── CI_SETUP_COMPLETE.md              # CI 配置报告
+├── CHANGELOG.md                      # 更新日志
 └── README.md                         # 本文档
 ```
 
