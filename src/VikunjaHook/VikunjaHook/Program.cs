@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using System.Diagnostics.CodeAnalysis;
 using Serilog;
 using Serilog.Events;
 using VikunjaHook;
@@ -34,18 +35,24 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // Add controllers for API endpoints
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-    });
+// Note: MVC/Controllers don't fully support trimming/AOT yet, but we use minimal APIs where possible
+[UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Controllers are required for configuration endpoints")]
+[UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Controllers are required for configuration endpoints")]
+static void AddControllersWithSuppression(IServiceCollection services)
+{
+    services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+        });
+}
+
+AddControllersWithSuppression(builder.Services);
 
 // 配置JSON序列化（支持AOT）
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-    // Add default resolver as fallback for anonymous types
-    options.SerializerOptions.TypeInfoResolverChain.Add(new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver());
 });
 
 // 注册webhook处理服务
@@ -198,23 +205,23 @@ app.MapPost("/webhook/vikunja", async (
         if (payload == null)
         {
             logger.LogWarning("收到空的webhook payload");
-            return Results.BadRequest(new { error = "Invalid payload" });
+            return Results.BadRequest(new ErrorMessage("Invalid payload"));
         }
 
         if (!VikunjaEventTypes.IsValidEvent(payload.EventName))
         {
             logger.LogWarning("收到未知的事件类型: {EventName}", payload.EventName);
-            return Results.BadRequest(new { error = "Unknown event type" });
+            return Results.BadRequest(new ErrorMessage("Unknown event type"));
         }
 
         await handler.HandleWebhookAsync(payload);
 
-        return Results.Ok(new { status = "success", eventName = payload.EventName });
+        return Results.Ok(new WebhookSuccessResponse("success", payload.EventName));
     }
     catch (JsonException ex)
     {
         logger.LogError(ex, "JSON解析错误");
-        return Results.BadRequest(new { error = "Invalid JSON format" });
+        return Results.BadRequest(new ErrorMessage("Invalid JSON format"));
     }
     catch (Exception ex)
     {
@@ -224,17 +231,15 @@ app.MapPost("/webhook/vikunja", async (
 });
 
 // 健康检查端点
-app.MapGet("/health", () => Results.Ok(new 
-{ 
-    status = "healthy", 
-    timestamp = DateTime.UtcNow,
-    service = "VikunjaHook"
-}));
+app.MapGet("/health", () => Results.Ok(new HealthResponse(
+    "healthy",
+    DateTime.UtcNow,
+    "VikunjaHook"
+)));
 
 // 支持的事件列表端点
-app.MapGet("/webhook/vikunja/events", () => Results.Ok(new
-{
-    supported_events = new[]
+app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsResponse(
+    new[]
     {
         VikunjaEventTypes.TaskCreated,
         VikunjaEventTypes.TaskUpdated,
@@ -263,7 +268,7 @@ app.MapGet("/webhook/vikunja/events", () => Results.Ok(new
         VikunjaEventTypes.TeamMemberAdded,
         VikunjaEventTypes.TeamMemberRemoved
     }
-}));
+)));
 
 // MCP端点
 // 认证端点
@@ -308,7 +313,7 @@ app.MapPost("/mcp/request", async (
 
         if (request == null)
         {
-            return Results.BadRequest(new { error = "Invalid request" });
+            return Results.BadRequest(new ErrorMessage("Invalid request"));
         }
 
         var response = await mcpServer.HandleRequestAsync(request);
@@ -332,18 +337,13 @@ app.MapGet("/mcp/info", (IMcpServer mcpServer) =>
 app.MapGet("/mcp/tools", (IToolRegistry toolRegistry) =>
 {
     var tools = toolRegistry.GetAllTools();
-    var toolList = tools.Select(tool => new Dictionary<string, object?>
-    {
-        ["name"] = tool.Name,
-        ["description"] = tool.Description,
-        ["subcommands"] = tool.Subcommands
-    }).ToList();
+    var toolList = tools.Select(tool => new ToolInfo(
+        tool.Name,
+        tool.Description,
+        tool.Subcommands
+    )).ToList();
 
-    var response = new Dictionary<string, object?>
-    {
-        ["tools"] = toolList,
-        ["count"] = toolList.Count
-    };
+    var response = new ToolsListResponse(toolList, toolList.Count);
     return Results.Ok(response);
 });
 
@@ -383,13 +383,13 @@ app.MapPost("/mcp/tools/{toolName}/{subcommand}", async (
         var tool = toolRegistry.GetTool(toolName);
         if (tool == null)
         {
-            return Results.NotFound(new { error = $"Tool '{toolName}' not found" });
+            return Results.NotFound(new ErrorMessage($"Tool '{toolName}' not found"));
         }
 
         // 验证子命令
         if (!tool.Subcommands.Contains(subcommand))
         {
-            return Results.BadRequest(new { error = $"Subcommand '{subcommand}' not found for tool '{toolName}'" });
+            return Results.BadRequest(new ErrorMessage($"Subcommand '{subcommand}' not found for tool '{toolName}'"));
         }
 
         // 读取请求体作为参数
@@ -404,13 +404,7 @@ app.MapPost("/mcp/tools/{toolName}/{subcommand}", async (
         // 执行工具
         var result = await tool.ExecuteAsync(subcommand, parameters, sessionId);
 
-        var response = new Dictionary<string, object?>
-        {
-            ["success"] = true,
-            ["tool"] = toolName,
-            ["subcommand"] = subcommand,
-            ["data"] = result
-        };
+        var response = new ToolExecutionResponse(true, toolName, subcommand, result);
         return Results.Ok(response);
     }
     catch (AuthenticationException ex)
@@ -421,12 +415,12 @@ app.MapPost("/mcp/tools/{toolName}/{subcommand}", async (
     catch (ValidationException ex)
     {
         logger.LogWarning(ex, "Validation error in tool invocation");
-        return Results.BadRequest(new { error = ex.Message });
+        return Results.BadRequest(new ErrorMessage(ex.Message));
     }
     catch (ResourceNotFoundException ex)
     {
         logger.LogWarning(ex, "Resource not found in tool invocation");
-        return Results.NotFound(new { error = ex.Message });
+        return Results.NotFound(new ErrorMessage(ex.Message));
     }
     catch (Exception ex)
     {
@@ -439,13 +433,12 @@ app.MapPost("/mcp/tools/{toolName}/{subcommand}", async (
 app.MapGet("/mcp/health", (IMcpServer mcpServer) =>
 {
     var info = mcpServer.GetServerInfo();
-    var healthResponse = new Dictionary<string, object?>
-    {
-        ["status"] = "healthy",
-        ["timestamp"] = DateTime.UtcNow,
-        ["server"] = info.Name,
-        ["version"] = info.Version
-    };
+    var healthResponse = new McpHealthResponse(
+        "healthy",
+        DateTime.UtcNow,
+        info.Name,
+        info.Version
+    );
     return Results.Ok(healthResponse);
 });
 

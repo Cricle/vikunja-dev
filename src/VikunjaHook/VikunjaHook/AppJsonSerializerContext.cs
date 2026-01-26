@@ -30,6 +30,14 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(AuthType))]
 [JsonSerializable(typeof(AuthResponse))]
 [JsonSerializable(typeof(ErrorMessage))]
+[JsonSerializable(typeof(SuccessResponse))]
+[JsonSerializable(typeof(WebhookSuccessResponse))]
+[JsonSerializable(typeof(HealthResponse))]
+[JsonSerializable(typeof(SupportedEventsResponse))]
+[JsonSerializable(typeof(ToolExecutionResponse))]
+[JsonSerializable(typeof(ToolInfo))]
+[JsonSerializable(typeof(ToolsListResponse))]
+[JsonSerializable(typeof(McpHealthResponse))]
 
 // MCP Vikunja entity models
 [JsonSerializable(typeof(VikunjaTask))]

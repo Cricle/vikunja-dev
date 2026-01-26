@@ -12,6 +12,7 @@ public class ConfigurationController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<ConfigurationController> _logger;
     private readonly string _configFilePath;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public ConfigurationController(
         IConfiguration configuration,
@@ -21,6 +22,11 @@ public class ConfigurationController : ControllerBase
         _configuration = configuration;
         _logger = logger;
         _configFilePath = Path.Combine(environment.ContentRootPath, "appsettings.json");
+        _jsonOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = AppJsonSerializerContext.Default,
+            WriteIndented = true
+        };
     }
 
     [HttpGet]
@@ -83,68 +89,82 @@ public class ConfigurationController : ControllerBase
             }
 
             var jsonString = await System.IO.File.ReadAllTextAsync(_configFilePath);
-            var jsonDoc = JsonDocument.Parse(jsonString);
-            var root = jsonDoc.RootElement;
-
-            // Create a mutable dictionary from the JSON
-            var configDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
-            if (configDict == null)
+            
+            // Parse as JsonDocument
+            using var jsonDoc = JsonDocument.Parse(jsonString);
+            
+            // Build updated JSON manually to avoid AOT issues
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
             {
-                return BadRequest(new { error = "Invalid configuration format" });
-            }
-
-            // Update Vikunja settings
-            if (request.Vikunja != null)
-            {
-                var vikunjaDict = new Dictionary<string, object>
+                writer.WriteStartObject();
+                
+                // Copy existing properties and update as needed
+                foreach (var property in jsonDoc.RootElement.EnumerateObject())
                 {
-                    ["DefaultTimeout"] = request.Vikunja.DefaultTimeout
-                };
-                configDict["Vikunja"] = JsonSerializer.SerializeToElement(vikunjaDict);
+                    if (property.Name == "Vikunja" && request.Vikunja != null)
+                    {
+                        writer.WritePropertyName("Vikunja");
+                        writer.WriteStartObject();
+                        writer.WriteNumber("DefaultTimeout", request.Vikunja.DefaultTimeout);
+                        writer.WriteEndObject();
+                    }
+                    else if (property.Name == "Mcp" && request.Mcp != null)
+                    {
+                        writer.WritePropertyName("Mcp");
+                        writer.WriteStartObject();
+                        writer.WriteString("ServerName", request.Mcp.ServerName);
+                        writer.WriteString("Version", request.Mcp.Version);
+                        writer.WriteNumber("MaxConcurrentConnections", request.Mcp.MaxConcurrentConnections);
+                        writer.WriteEndObject();
+                    }
+                    else if (property.Name == "Cors" && request.Cors != null)
+                    {
+                        writer.WritePropertyName("Cors");
+                        writer.WriteStartObject();
+                        writer.WritePropertyName("AllowedOrigins");
+                        writer.WriteStartArray();
+                        foreach (var origin in request.Cors.AllowedOrigins)
+                        {
+                            writer.WriteStringValue(origin);
+                        }
+                        writer.WriteEndArray();
+                        writer.WritePropertyName("AllowedMethods");
+                        writer.WriteStartArray();
+                        foreach (var method in request.Cors.AllowedMethods)
+                        {
+                            writer.WriteStringValue(method);
+                        }
+                        writer.WriteEndArray();
+                        writer.WritePropertyName("AllowedHeaders");
+                        writer.WriteStartArray();
+                        foreach (var header in request.Cors.AllowedHeaders)
+                        {
+                            writer.WriteStringValue(header);
+                        }
+                        writer.WriteEndArray();
+                        writer.WriteEndObject();
+                    }
+                    else if (property.Name == "RateLimit" && request.RateLimit != null)
+                    {
+                        writer.WritePropertyName("RateLimit");
+                        writer.WriteStartObject();
+                        writer.WriteBoolean("Enabled", request.RateLimit.Enabled);
+                        writer.WriteNumber("RequestsPerMinute", request.RateLimit.RequestsPerMinute);
+                        writer.WriteNumber("RequestsPerHour", request.RateLimit.RequestsPerHour);
+                        writer.WriteEndObject();
+                    }
+                    else
+                    {
+                        // Copy existing property as-is
+                        property.WriteTo(writer);
+                    }
+                }
+                
+                writer.WriteEndObject();
             }
 
-            // Update MCP settings
-            if (request.Mcp != null)
-            {
-                var mcpDict = new Dictionary<string, object>
-                {
-                    ["ServerName"] = request.Mcp.ServerName,
-                    ["Version"] = request.Mcp.Version,
-                    ["MaxConcurrentConnections"] = request.Mcp.MaxConcurrentConnections
-                };
-                configDict["Mcp"] = JsonSerializer.SerializeToElement(mcpDict);
-            }
-
-            // Update CORS settings
-            if (request.Cors != null)
-            {
-                var corsDict = new Dictionary<string, object>
-                {
-                    ["AllowedOrigins"] = request.Cors.AllowedOrigins,
-                    ["AllowedMethods"] = request.Cors.AllowedMethods,
-                    ["AllowedHeaders"] = request.Cors.AllowedHeaders
-                };
-                configDict["Cors"] = JsonSerializer.SerializeToElement(corsDict);
-            }
-
-            // Update Rate Limit settings
-            if (request.RateLimit != null)
-            {
-                var rateLimitDict = new Dictionary<string, object>
-                {
-                    ["Enabled"] = request.RateLimit.Enabled,
-                    ["RequestsPerMinute"] = request.RateLimit.RequestsPerMinute,
-                    ["RequestsPerHour"] = request.RateLimit.RequestsPerHour
-                };
-                configDict["RateLimit"] = JsonSerializer.SerializeToElement(rateLimitDict);
-            }
-
-            // Write back to file with formatting
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-            var updatedJson = JsonSerializer.Serialize(configDict, options);
+            var updatedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
             await System.IO.File.WriteAllTextAsync(_configFilePath, updatedJson);
 
             _logger.LogInformation("Configuration updated successfully");
