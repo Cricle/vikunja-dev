@@ -7,24 +7,48 @@ A dual-mode server for Vikunja task management system, built with .NET 10 Native
 
 ## Features
 
-- 🚀 **Dual Mode**: MCP Server (stdio) + Webhook API (HTTP)
+- 🚀 **Three Modes**: Webhook-only, MCP-only, or Dual mode
 - 📦 **Ultra Small**: Docker image 28MB, binary ~5MB
 - ⚡ **Native AOT**: Fast startup (<100ms), low memory (~20MB)
 - 🛠️ **54 MCP Tools**: Complete Vikunja API coverage
-- 🔔 **Webhook Support**: Real-time event notifications
+- 🔔 **Webhook Support**: Real-time event notifications (26 events)
 
 ## Quick Start
 
-### Mode 1: MCP Server (for AI assistants)
+### Mode 1: Webhook API (default)
+
+```bash
+# Run webhook server only
+dotnet run --project src/VikunjaHook/VikunjaHook
+```
+
+Server starts at `http://localhost:5082`
+
+### Mode 2: MCP Server (for AI assistants)
 
 ```bash
 # Set environment variables
 export VIKUNJA_API_URL="https://vikunja.example.com/api/v1"
 export VIKUNJA_API_TOKEN="your_token_here"
 
-# Run in MCP mode
+# Run in MCP-only mode
+dotnet run --project src/VikunjaHook/VikunjaHook -- --mcp-only
+```
+
+### Mode 3: Dual Mode (MCP + Webhook)
+
+```bash
+# Set environment variables
+export VIKUNJA_API_URL="https://vikunja.example.com/api/v1"
+export VIKUNJA_API_TOKEN="your_token_here"
+
+# Run in dual mode
 dotnet run --project src/VikunjaHook/VikunjaHook -- --mcp
 ```
+
+This starts both:
+- MCP Server on stdin/stdout
+- Webhook API on http://localhost:5082
 
 **Kiro IDE Configuration** (`.kiro/settings/mcp.json`):
 ```json
@@ -32,7 +56,7 @@ dotnet run --project src/VikunjaHook/VikunjaHook -- --mcp
   "mcpServers": {
     "vikunja": {
       "command": "dotnet",
-      "args": ["run", "--project", "src/VikunjaHook/VikunjaHook", "--", "--mcp"],
+      "args": ["run", "--project", "src/VikunjaHook/VikunjaHook", "--", "--mcp-only"],
       "env": {
         "VIKUNJA_API_URL": "https://vikunja.example.com/api/v1",
         "VIKUNJA_API_TOKEN": "your_token_here"

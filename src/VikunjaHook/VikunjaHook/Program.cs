@@ -8,13 +8,48 @@ using VikunjaHook.Mcp.Services;
 using VikunjaHook.Mcp.Tools;
 using VikunjaHook.Mcp.Models;
 
-// 检查是否为 MCP stdio 模式（通过环境变量或命令行参数）
-var mcpMode = args.Contains("--mcp") || 
+// 检查运行模式
+var mcpOnlyMode = args.Contains("--mcp-only");
+var webhookOnlyMode = args.Contains("--webhook-only");
+var mcpMode = args.Contains("--mcp") || mcpOnlyMode || 
               Environment.GetEnvironmentVariable("MCP_MODE")?.ToLower() == "true";
+var webhookMode = !mcpOnlyMode; // 默认启用 webhook，除非指定 --mcp-only
 
-if (mcpMode)
+// 如果同时启用两种模式，需要在不同线程运行
+if (mcpMode && webhookMode)
 {
-    // ===== MCP Server Mode (stdio) =====
+    Console.Error.WriteLine("Starting in dual mode: MCP Server (stdio) + Webhook API (HTTP)");
+    
+    // 在后台线程启动 Webhook API
+    var webhookTask = Task.Run(async () =>
+    {
+        await StartWebhookServerAsync();
+    });
+    
+    // 在主线程运行 MCP Server (需要 stdio)
+    await StartMcpServerAsync();
+    
+    await webhookTask;
+    return 0;
+}
+else if (mcpMode)
+{
+    // ===== MCP Server Only Mode =====
+    Console.Error.WriteLine("Starting in MCP-only mode (stdio)");
+    await StartMcpServerAsync();
+    return 0;
+}
+else
+{
+    // ===== Webhook API Only Mode =====
+    Console.WriteLine("Starting in Webhook-only mode (HTTP)");
+    await StartWebhookServerAsync();
+    return 0;
+}
+
+// ===== MCP Server =====
+async Task StartMcpServerAsync()
+{
     var builder = Host.CreateApplicationBuilder(args);
 
     // Configure all logs to go to stderr (stdout is used for the MCP protocol messages)
@@ -30,7 +65,7 @@ if (mcpMode)
         Console.Error.WriteLine("Example:");
         Console.Error.WriteLine("  VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
         Console.Error.WriteLine("  VIKUNJA_API_TOKEN=your_api_token_here");
-        return 1;
+        throw new InvalidOperationException("Missing required environment variables");
     }
 
     // Register core services
@@ -61,11 +96,11 @@ if (mcpMode)
         .WithTools<SavedFiltersTools>();
 
     await builder.Build().RunAsync();
-    return 0;
 }
-else
+
+// ===== Webhook API Server =====
+async Task StartWebhookServerAsync()
 {
-    // ===== Webhook API Mode (HTTP) =====
     var builder = WebApplication.CreateSlimBuilder(args);
 
     // 配置JSON序列化（支持AOT）
@@ -157,6 +192,5 @@ else
         "VikunjaHook"
     )));
 
-    app.Run();
-    return 0;
+    await app.RunAsync();
 }
