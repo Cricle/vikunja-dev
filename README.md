@@ -40,7 +40,24 @@
 - [Node.js 20.x](https://nodejs.org/)
 - 一个运行中的 Vikunja 实例
 
-### 运行 MCP 服务器
+### 部署方式
+
+#### 方式 1: Docker 部署（推荐）
+
+使用 Docker 快速部署，支持 .NET 10 AOT 编译：
+
+```bash
+# 使用 Docker Compose
+docker-compose up -d
+
+# 或使用 Docker 命令
+docker build -t vikunja-mcp:latest .
+docker run -d -p 5082:5082 --name vikunja-mcp-server vikunja-mcp:latest
+```
+
+[查看 Docker 完整文档 →](DOCKER.md)
+
+#### 方式 2: 本地运行
 
 ```bash
 cd src/VikunjaHook/VikunjaHook

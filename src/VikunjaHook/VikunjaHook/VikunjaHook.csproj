@@ -6,6 +6,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>false</InvariantGlobalization>
+    
+    <!-- AOT 优化设置 -->
+    <StripSymbols>true</StripSymbols>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
   </PropertyGroup>
 
   <ItemGroup>

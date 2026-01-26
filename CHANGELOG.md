@@ -4,6 +4,39 @@
 
 ## [未发布] - 2026-01-26
 
+### 新增 ✨
+
+#### Docker 支持
+- 添加 Dockerfile（.NET 10 AOT 编译）
+  - 多阶段构建优化镜像大小
+  - Alpine Linux 基础镜像（~50-80MB）
+  - 非 root 用户运行
+  - 内置健康检查
+- 添加 docker-compose.yml 配置
+  - 环境变量配置
+  - 日志持久化
+  - 网络隔离
+- 添加 .dockerignore 文件
+- 添加 Docker 构建脚本
+  - `docker-build.sh` (Linux/macOS)
+  - `docker-build.ps1` (Windows)
+- 添加 Docker 部署文档 (`DOCKER.md`)
+  - 快速开始指南
+  - 配置选项说明
+  - 生产部署建议
+  - 故障排查指南
+- 添加 GitHub Actions Docker workflow
+  - 自动构建 Docker 镜像
+  - 推送到 GitHub Container Registry
+  - 多标签支持（latest, version, sha）
+
+#### AOT 优化
+- 在 csproj 中添加 AOT 优化设置
+  - `StripSymbols=true` - 剥离调试符号
+  - `EnableCompressionInSingleFile=true` - 单文件压缩
+  - `IlcOptimizationPreference=Speed` - 优化速度
+  - `IlcGenerateStackTraceData=false` - 减小体积
+
 ### 修复 🐛
 
 #### AOT 兼容性
