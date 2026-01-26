@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using VikunjaHook.Mcp.Models;
 
 namespace VikunjaHook.Mcp.Services;
@@ -12,25 +13,29 @@ public class VikunjaClientFactory : IVikunjaClientFactory
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<VikunjaClientFactory> _logger;
+    private readonly string _apiUrl;
+    private readonly string _apiToken;
 
     public VikunjaClientFactory(
         IHttpClientFactory httpClientFactory,
-        ILogger<VikunjaClientFactory> logger)
+        ILogger<VikunjaClientFactory> logger,
+        string apiUrl,
+        string apiToken)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _apiUrl = apiUrl.TrimEnd('/') + "/";
+        _apiToken = apiToken;
     }
 
     /// <summary>
     /// Get or create HTTP client for Vikunja API
     /// </summary>
-    public HttpClient GetClient(AuthSession session)
+    public HttpClient GetClient()
     {
         var client = _httpClientFactory.CreateClient();
-        // Ensure trailing slash for proper relative path resolution
-        var baseUrl = session.ApiUrl.TrimEnd('/') + "/";
-        client.BaseAddress = new Uri(baseUrl);
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {session.ApiToken}");
+        client.BaseAddress = new Uri(_apiUrl);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiToken}");
         client.Timeout = TimeSpan.FromSeconds(30);
         
         return client;
@@ -40,11 +45,10 @@ public class VikunjaClientFactory : IVikunjaClientFactory
     /// Execute GET request to Vikunja API
     /// </summary>
     public async Task<T> GetAsync<T>(
-        AuthSession session, 
         string endpoint, 
         CancellationToken cancellationToken = default)
     {
-        var client = GetClient(session);
+        var client = GetClient();
         
         _logger.LogDebug("GET request to {Endpoint}", endpoint);
         
@@ -71,12 +75,11 @@ public class VikunjaClientFactory : IVikunjaClientFactory
     /// Execute POST request to Vikunja API
     /// </summary>
     public async Task<T> PostAsync<T>(
-        AuthSession session, 
         string endpoint, 
         object body, 
         CancellationToken cancellationToken = default)
     {
-        var client = GetClient(session);
+        var client = GetClient();
         
         _logger.LogDebug("POST request to {Endpoint}", endpoint);
         
@@ -107,12 +110,11 @@ public class VikunjaClientFactory : IVikunjaClientFactory
     /// Execute PUT request to Vikunja API
     /// </summary>
     public async Task<T> PutAsync<T>(
-        AuthSession session, 
         string endpoint, 
         object body, 
         CancellationToken cancellationToken = default)
     {
-        var client = GetClient(session);
+        var client = GetClient();
         
         _logger.LogDebug("PUT request to {Endpoint}", endpoint);
         
@@ -143,11 +145,10 @@ public class VikunjaClientFactory : IVikunjaClientFactory
     /// Execute DELETE request to Vikunja API
     /// </summary>
     public async Task DeleteAsync(
-        AuthSession session, 
         string endpoint, 
         CancellationToken cancellationToken = default)
     {
-        var client = GetClient(session);
+        var client = GetClient();
         
         _logger.LogDebug("DELETE request to {Endpoint}", endpoint);
         

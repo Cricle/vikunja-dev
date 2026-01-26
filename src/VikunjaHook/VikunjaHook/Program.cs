@@ -1,478 +1,154 @@
-using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using VikunjaHook;
 using VikunjaHook.Models;
 using VikunjaHook.Services;
 using VikunjaHook.Mcp.Services;
-using VikunjaHook.Mcp.Models;
 using VikunjaHook.Mcp.Tools;
-using VikunjaHook.Mcp.Middleware;
+using VikunjaHook.Mcp.Models;
 
-var builder = WebApplication.CreateSlimBuilder(args);
+// 检查是否为 MCP stdio 模式（通过环境变量或命令行参数）
+var mcpMode = args.Contains("--mcp") || 
+              Environment.GetEnvironmentVariable("MCP_MODE")?.ToLower() == "true";
 
-// 配置JSON序列化（支持AOT）
-builder.Services.ConfigureHttpJsonOptions(options =>
+if (mcpMode)
 {
-    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-});
+    // ===== MCP Server Mode (stdio) =====
+    var builder = Host.CreateApplicationBuilder(args);
 
-// 注册服务
-builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
-builder.Services.AddSingleton<IAuthenticationManager, AuthenticationManager>();
-builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
-builder.Services.AddSingleton<IResponseFactory, ResponseFactory>();
-builder.Services.AddSingleton<IVikunjaClientFactory, VikunjaClientFactory>();
-builder.Services.AddSingleton<IMcpServer, McpServer>();
-builder.Services.AddHttpClient();
+    // Configure all logs to go to stderr (stdout is used for the MCP protocol messages)
+    builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 
-// 注册MCP工具
-builder.Services.AddSingleton<TasksTool>();
-builder.Services.AddSingleton<ProjectsTool>();
-builder.Services.AddSingleton<LabelsTool>();
-builder.Services.AddSingleton<TeamsTool>();
-builder.Services.AddSingleton<UsersTool>();
+    // Validate required environment variables
+    var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
+    var apiToken = Environment.GetEnvironmentVariable("VIKUNJA_API_TOKEN");
 
-var app = builder.Build();
-
-// Use exception handling middleware
-app.UseExceptionHandling();
-
-var logger = app.Logger;
-logger.LogInformation("Vikunja MCP Server started");
-
-// Register shutdown handler
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-lifetime.ApplicationStopping.Register(() =>
-{
-    logger.LogInformation("Application shutting down");
-    app.Services.GetRequiredService<IAuthenticationManager>().DisconnectAll();
-});
-
-// 注册工具到MCP服务器
-var mcpServer = app.Services.GetRequiredService<IMcpServer>();
-mcpServer.RegisterTool(app.Services.GetRequiredService<TasksTool>());
-mcpServer.RegisterTool(app.Services.GetRequiredService<ProjectsTool>());
-mcpServer.RegisterTool(app.Services.GetRequiredService<LabelsTool>());
-mcpServer.RegisterTool(app.Services.GetRequiredService<TeamsTool>());
-mcpServer.RegisterTool(app.Services.GetRequiredService<UsersTool>());
-
-// ===== MCP Protocol Endpoints (JSON-RPC 2.0) =====
-
-// MCP Initialize - 初始化连接
-app.MapPost("/", async (HttpContext context, IMcpServer server, IToolRegistry toolRegistry) =>
-{
-    var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object?>>();
-    
-    if (request == null || !request.TryGetValue("method", out var method))
+    if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
     {
-        return Results.BadRequest(new { error = "Invalid JSON-RPC request" });
+        Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN environment variables are required");
+        Console.Error.WriteLine("Example:");
+        Console.Error.WriteLine("  VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
+        Console.Error.WriteLine("  VIKUNJA_API_TOKEN=your_api_token_here");
+        return 1;
     }
 
-    var methodStr = method?.ToString();
-    
-    return methodStr switch
+    // Register core services
+    builder.Services.AddSingleton<IVikunjaClientFactory>(sp =>
     {
-        "initialize" => Results.Ok(new
+        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+        var logger = sp.GetRequiredService<ILogger<VikunjaClientFactory>>();
+        return new VikunjaClientFactory(httpClientFactory, logger, apiUrl, apiToken);
+    });
+    builder.Services.AddHttpClient();
+
+    // Add the MCP services: the transport to use (stdio) and the tools to register
+    builder.Services
+        .AddMcpServer()
+        .WithStdioServerTransport()
+        .WithTools<TasksTools>()
+        .WithTools<ProjectsTools>()
+        .WithTools<LabelsTools>()
+        .WithTools<TeamsTools>()
+        .WithTools<UsersTools>();
+
+    await builder.Build().RunAsync();
+    return 0;
+}
+else
+{
+    // ===== Webhook API Mode (HTTP) =====
+    var builder = WebApplication.CreateSlimBuilder(args);
+
+    // 配置JSON序列化（支持AOT）
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+    });
+
+    // 注册服务
+    builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
+    builder.Services.AddHttpClient();
+
+    var app = builder.Build();
+
+    var logger = app.Logger;
+    logger.LogInformation("Vikunja Webhook Server started");
+
+    // ===== Webhook Endpoints =====
+
+    // Webhook endpoints
+    app.MapPost("/webhook/vikunja", async (
+        HttpContext context,
+        IWebhookHandler handler,
+        ILogger<Program> logger) =>
+    {
+        try
         {
-            jsonrpc = "2.0",
-            id = request.GetValueOrDefault("id"),
-            result = new
+            var payload = await context.Request.ReadFromJsonAsync(
+                AppJsonSerializerContext.Default.VikunjaWebhookPayload);
+
+            if (payload == null)
             {
-                protocolVersion = "2024-11-05",
-                capabilities = new
-                {
-                    tools = new { },
-                    resources = new { },
-                },
-                serverInfo = new
-                {
-                    name = "vikunja-mcp-server",
-                    version = "1.0.0"
-                }
+                logger.LogWarning("Empty webhook payload");
+                return Results.BadRequest(new ErrorMessage("Invalid payload"));
             }
-        }),
-        
-        "tools/list" => Results.Ok(new
-        {
-            jsonrpc = "2.0",
-            id = request.GetValueOrDefault("id"),
-            result = new
+
+            if (!VikunjaEventTypes.IsValidEvent(payload.EventName))
             {
-                tools = toolRegistry.GetAllTools().Select(t => new
-                {
-                    name = t.Name,
-                    description = t.Description,
-                    inputSchema = new
-                    {
-                        type = "object",
-                        properties = new { },
-                        required = new string[] { }
-                    }
-                })
+                logger.LogWarning("Unknown event: {EventName}", payload.EventName);
+                return Results.BadRequest(new ErrorMessage("Unknown event type"));
             }
-        }),
-        
-        _ => Results.BadRequest(new { error = $"Unknown method: {methodStr}" })
-    };
-});
 
-// ===== Legacy HTTP API Endpoints (for testing) =====
-
-// Webhook endpoints
-app.MapPost("/webhook/vikunja", async (
-    HttpContext context,
-    IWebhookHandler handler,
-    ILogger<Program> logger) =>
-{
-    try
-    {
-        var payload = await context.Request.ReadFromJsonAsync(
-            AppJsonSerializerContext.Default.VikunjaWebhookPayload);
-
-        if (payload == null)
-        {
-            logger.LogWarning("Empty webhook payload");
-            return Results.BadRequest(new ErrorMessage("Invalid payload"));
+            await handler.HandleWebhookAsync(payload);
+            return Results.Ok(new WebhookSuccessResponse("success", payload.EventName));
         }
-
-        if (!VikunjaEventTypes.IsValidEvent(payload.EventName))
+        catch (Exception ex)
         {
-            logger.LogWarning("Unknown event: {EventName}", payload.EventName);
-            return Results.BadRequest(new ErrorMessage("Unknown event type"));
+            logger.LogError(ex, "Webhook error");
+            return Results.Problem("Internal error");
         }
+    });
 
-        await handler.HandleWebhookAsync(payload);
-        return Results.Ok(new WebhookSuccessResponse("success", payload.EventName));
-    }
-    catch (JsonException ex)
-    {
-        logger.LogError(ex, "JSON parse error");
-        return Results.BadRequest(new ErrorMessage("Invalid JSON"));
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Webhook error");
-        return Results.Problem("Internal error");
-    }
-});
-
-app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsResponse(
-    new[]
-    {
-        VikunjaEventTypes.TaskCreated,
-        VikunjaEventTypes.TaskUpdated,
-        VikunjaEventTypes.TaskDeleted,
-        VikunjaEventTypes.ProjectCreated,
-        VikunjaEventTypes.ProjectUpdated,
-        VikunjaEventTypes.ProjectDeleted,
-        VikunjaEventTypes.TaskAssigneeCreated,
-        VikunjaEventTypes.TaskAssigneeDeleted,
-        VikunjaEventTypes.TaskCommentCreated,
-        VikunjaEventTypes.TaskCommentUpdated,
-        VikunjaEventTypes.TaskCommentDeleted,
-        VikunjaEventTypes.TaskAttachmentCreated,
-        VikunjaEventTypes.TaskAttachmentDeleted,
-        VikunjaEventTypes.TaskRelationCreated,
-        VikunjaEventTypes.TaskRelationDeleted,
-        VikunjaEventTypes.LabelCreated,
-        VikunjaEventTypes.LabelUpdated,
-        VikunjaEventTypes.LabelDeleted,
-        VikunjaEventTypes.TaskLabelCreated,
-        VikunjaEventTypes.TaskLabelDeleted,
-        VikunjaEventTypes.UserCreated,
-        VikunjaEventTypes.TeamCreated,
-        VikunjaEventTypes.TeamUpdated,
-        VikunjaEventTypes.TeamDeleted,
-        VikunjaEventTypes.TeamMemberAdded,
-        VikunjaEventTypes.TeamMemberRemoved
-    }
-)));
-
-// MCP endpoints (legacy HTTP API for testing)
-app.MapPost("/mcp/auth", async (
-    HttpContext context,
-    IAuthenticationManager authManager,
-    ILogger<Program> logger) =>
-{
-    try
-    {
-        var authRequest = await context.Request.ReadFromJsonAsync<Dictionary<string, string>>();
-        if (authRequest == null || !authRequest.TryGetValue("apiUrl", out var apiUrl) || !authRequest.TryGetValue("apiToken", out var apiToken))
+    app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsResponse(
+        new[]
         {
-            return Results.BadRequest(new ErrorMessage("apiUrl and apiToken required"));
+            VikunjaEventTypes.TaskCreated,
+            VikunjaEventTypes.TaskUpdated,
+            VikunjaEventTypes.TaskDeleted,
+            VikunjaEventTypes.ProjectCreated,
+            VikunjaEventTypes.ProjectUpdated,
+            VikunjaEventTypes.ProjectDeleted,
+            VikunjaEventTypes.TaskAssigneeCreated,
+            VikunjaEventTypes.TaskAssigneeDeleted,
+            VikunjaEventTypes.TaskCommentCreated,
+            VikunjaEventTypes.TaskCommentUpdated,
+            VikunjaEventTypes.TaskCommentDeleted,
+            VikunjaEventTypes.TaskAttachmentCreated,
+            VikunjaEventTypes.TaskAttachmentDeleted,
+            VikunjaEventTypes.TaskRelationCreated,
+            VikunjaEventTypes.TaskRelationDeleted,
+            VikunjaEventTypes.LabelCreated,
+            VikunjaEventTypes.LabelUpdated,
+            VikunjaEventTypes.LabelDeleted,
+            VikunjaEventTypes.TaskLabelCreated,
+            VikunjaEventTypes.TaskLabelDeleted,
+            VikunjaEventTypes.UserCreated,
+            VikunjaEventTypes.TeamCreated,
+            VikunjaEventTypes.TeamUpdated,
+            VikunjaEventTypes.TeamDeleted,
+            VikunjaEventTypes.TeamMemberAdded,
+            VikunjaEventTypes.TeamMemberRemoved
         }
+    )));
 
-        var session = await authManager.AuthenticateAsync(apiUrl, apiToken);
-        return Results.Ok(new AuthResponse(session.SessionId, session.AuthType.ToString()));
-    }
-    catch (AuthenticationException ex)
-    {
-        logger.LogWarning(ex, "Auth failed");
-        return Results.Unauthorized();
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Auth error");
-        return Results.Problem("Internal error");
-    }
-});
-
-app.MapPost("/mcp/request", async (
-    HttpContext context,
-    IMcpServer mcpServer,
-    ILogger<Program> logger) =>
-{
-    try
-    {
-        var request = await context.Request.ReadFromJsonAsync(
-            AppJsonSerializerContext.Default.McpRequest);
-
-        if (request == null)
-        {
-            return Results.BadRequest(new ErrorMessage("Invalid request"));
-        }
-
-        var response = await mcpServer.HandleRequestAsync(request);
-        return Results.Ok(response);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "MCP request error");
-        return Results.Problem("Internal error");
-    }
-});
-
-app.MapGet("/mcp/info", (IMcpServer mcpServer) =>
-{
-    var info = mcpServer.GetServerInfo();
-    return Results.Ok(info);
-});
-
-app.MapGet("/mcp/tools", (IToolRegistry toolRegistry) =>
-{
-    var tools = toolRegistry.GetAllTools();
-    var toolList = tools.Select(tool => new ToolInfo(
-        tool.Name,
-        tool.Description,
-        tool.Subcommands
-    )).ToList();
-
-    return Results.Ok(new ToolsListResponse(toolList, toolList.Count));
-});
-
-app.MapPost("/mcp/tools/{toolName}/{subcommand}", async (
-    string toolName,
-    string subcommand,
-    HttpContext context,
-    IToolRegistry toolRegistry,
-    IAuthenticationManager authManager,
-    ILogger<Program> logger) =>
-{
-    try
-    {
-        if (!context.Request.Headers.TryGetValue("Authorization", out var authHeader))
-        {
-            return Results.Unauthorized();
-        }
-
-        var authValue = authHeader.ToString();
-        if (!authValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            return Results.Unauthorized();
-        }
-
-        var sessionId = authValue.Substring("Bearer ".Length).Trim();
-
-        if (!authManager.IsAuthenticated(sessionId))
-        {
-            return Results.Unauthorized();
-        }
-
-        var tool = toolRegistry.GetTool(toolName);
-        if (tool == null)
-        {
-            return Results.NotFound(new ErrorMessage($"Tool '{toolName}' not found"));
-        }
-
-        if (!tool.Subcommands.Contains(subcommand))
-        {
-            return Results.BadRequest(new ErrorMessage($"Subcommand '{subcommand}' not found"));
-        }
-
-        Dictionary<string, object?>? parameters = null;
-        if (context.Request.ContentLength > 0)
-        {
-            parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object?>>();
-        }
-
-        parameters ??= new Dictionary<string, object?>();
-        var result = await tool.ExecuteAsync(subcommand, parameters, sessionId);
-
-        return Results.Ok(new ToolExecutionResponse(true, toolName, subcommand, result));
-    }
-    catch (AuthenticationException ex)
-    {
-        logger.LogWarning(ex, "Auth error");
-        return Results.Unauthorized();
-    }
-    catch (ValidationException ex)
-    {
-        logger.LogWarning(ex, "Validation error");
-        return Results.BadRequest(new ErrorMessage(ex.Message));
-    }
-    catch (ResourceNotFoundException ex)
-    {
-        logger.LogWarning(ex, "Not found");
-        return Results.NotFound(new ErrorMessage(ex.Message));
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Tool error");
-        return Results.Problem("Internal error");
-    }
-});
-
-app.MapGet("/mcp/health", (IMcpServer mcpServer) =>
-{
-    var info = mcpServer.GetServerInfo();
-    return Results.Ok(new McpHealthResponse(
+    // Health check
+    app.MapGet("/health", () => Results.Ok(new HealthResponse(
         "healthy",
         DateTime.UtcNow,
-        info.Name,
-        info.Version
-    ));
-});
+        "VikunjaHook"
+    )));
 
-// Admin endpoints
-app.MapGet("/admin/sessions", (IAuthenticationManager authManager) =>
-{
-    var sessions = authManager.GetAllSessions();
-    var sessionList = sessions.Select(s => new SessionInfo(
-        s.SessionId,
-        s.ApiUrl,
-        s.AuthType.ToString(),
-        s.Created,
-        s.LastAccessed,
-        s.IsExpired
-    )).ToList();
-
-    return Results.Ok(new SessionsResponse(sessionList, sessionList.Count));
-});
-
-app.MapDelete("/admin/sessions/{sessionId}", (
-    string sessionId,
-    IAuthenticationManager authManager,
-    ILogger<Program> logger) =>
-{
-    var success = authManager.Disconnect(sessionId);
-    if (!success)
-    {
-        return Results.NotFound(new { error = "Session not found" });
-    }
-
-    logger.LogInformation("Session {SessionId} disconnected", sessionId);
-    return Results.Ok(new MessageResponse("Session disconnected"));
-});
-
-app.MapDelete("/admin/sessions", (IAuthenticationManager authManager, ILogger<Program> logger) =>
-{
-    authManager.DisconnectAll();
-    logger.LogInformation("All sessions disconnected");
-    return Results.Ok(new MessageResponse("All sessions disconnected"));
-});
-
-app.MapGet("/admin/stats", (
-    IAuthenticationManager authManager,
-    IToolRegistry toolRegistry,
-    IMcpServer mcpServer) =>
-{
-    var sessions = authManager.GetAllSessions();
-    var tools = toolRegistry.GetAllTools();
-    var serverInfo = mcpServer.GetServerInfo();
-    var process = System.Diagnostics.Process.GetCurrentProcess();
-
-    var stats = new ServerStatsResponse(
-        new ServerInfoStats(
-            serverInfo.Name,
-            serverInfo.Version,
-            (DateTime.UtcNow - process.StartTime.ToUniversalTime()).ToString(@"hh\:mm\:ss")
-        ),
-        new SessionStats(
-            sessions.Count,
-            sessions.Count(s => !s.IsExpired)
-        ),
-        new ToolStats(
-            tools.Count,
-            tools.Sum(t => t.Subcommands.Count)
-        ),
-        new MemoryStats(
-            process.WorkingSet64,
-            process.PrivateMemorySize64
-        )
-    );
-
-    return Results.Ok(stats);
-});
-
-app.MapPost("/admin/tools/{toolName}/{subcommand}", async (
-    string toolName,
-    string subcommand,
-    HttpContext context,
-    IToolRegistry toolRegistry,
-    IAuthenticationManager authManager,
-    ILogger<Program> logger) =>
-{
-    try
-    {
-        if (!context.Request.Headers.TryGetValue("X-Session-Id", out var sessionIdHeader))
-        {
-            return Results.BadRequest(new { error = "X-Session-Id header required" });
-        }
-
-        var sessionId = sessionIdHeader.ToString();
-        if (!authManager.IsAuthenticated(sessionId))
-        {
-            return Results.Unauthorized();
-        }
-
-        var tool = toolRegistry.GetTool(toolName);
-        if (tool == null)
-        {
-            return Results.NotFound(new { error = $"Tool '{toolName}' not found" });
-        }
-
-        if (!tool.Subcommands.Contains(subcommand))
-        {
-            return Results.BadRequest(new { error = $"Subcommand '{subcommand}' not found" });
-        }
-
-        Dictionary<string, object?>? parameters = null;
-        if (context.Request.ContentLength > 0)
-        {
-            parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object?>>();
-        }
-
-        parameters ??= new Dictionary<string, object?>();
-        var result = await tool.ExecuteAsync(subcommand, parameters, sessionId);
-
-        return Results.Ok(new AdminToolExecutionResponse(true, toolName, subcommand, result));
-    }
-    catch (ValidationException ex)
-    {
-        logger.LogWarning(ex, "Validation error");
-        return Results.BadRequest(new { error = ex.Message });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Tool error");
-        return Results.Problem("Internal error");
-    }
-});
-
-// Health check
-app.MapGet("/health", () => Results.Ok(new HealthResponse(
-    "healthy",
-    DateTime.UtcNow,
-    "VikunjaHook"
-)));
-
-app.Run();
+    app.Run();
+    return 0;
+}

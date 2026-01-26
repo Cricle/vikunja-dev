@@ -1,0 +1,33 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "description": "MCP server for Vikunja with 20+ tools for tasks, projects, labels, teams, and users",
+  "name": "io.github.cricle/vikunja-mcp-server",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "Cricle.VikunjaHook.McpServer",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "VIKUNJA_API_URL",
+          "description": "Vikunja API URL (e.g., https://vikunja.example.com/api/v1)",
+          "required": true
+        },
+        {
+          "name": "VIKUNJA_API_TOKEN",
+          "description": "Vikunja API token for authentication",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/Cricle/vikunja-dev",
+    "source": "github"
+  }
+}

@@ -122,6 +122,12 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]
 
+// Webhook response types
+[JsonSerializable(typeof(VikunjaHook.Mcp.Models.ErrorMessage))]
+[JsonSerializable(typeof(VikunjaHook.Mcp.Models.WebhookSuccessResponse))]
+[JsonSerializable(typeof(VikunjaHook.Mcp.Models.SupportedEventsResponse))]
+[JsonSerializable(typeof(VikunjaHook.Mcp.Models.HealthResponse))]
+
 // ASP.NET Core types
 [JsonSerializable(typeof(Microsoft.AspNetCore.Mvc.ProblemDetails))]
 
