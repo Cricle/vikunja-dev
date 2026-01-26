@@ -122,6 +122,14 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]
 
+// New tool types
+[JsonSerializable(typeof(VikunjaHook.Mcp.Tools.VikunjaAttachment))]
+[JsonSerializable(typeof(List<VikunjaHook.Mcp.Tools.VikunjaAttachment>))]
+[JsonSerializable(typeof(VikunjaHook.Mcp.Tools.VikunjaBucket))]
+[JsonSerializable(typeof(List<VikunjaHook.Mcp.Tools.VikunjaBucket>))]
+[JsonSerializable(typeof(VikunjaHook.Mcp.Tools.VikunjaSavedFilter))]
+[JsonSerializable(typeof(List<VikunjaHook.Mcp.Tools.VikunjaSavedFilter>))]
+
 // Webhook response types
 [JsonSerializable(typeof(VikunjaHook.Mcp.Models.ErrorMessage))]
 [JsonSerializable(typeof(VikunjaHook.Mcp.Models.WebhookSuccessResponse))]
