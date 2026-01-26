@@ -39,6 +39,25 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(ToolsListResponse))]
 [JsonSerializable(typeof(McpHealthResponse))]
 
+// Tool response models
+[JsonSerializable(typeof(ToolResponse))]
+[JsonSerializable(typeof(ProjectResponse))]
+[JsonSerializable(typeof(ProjectListResponse))]
+[JsonSerializable(typeof(TaskResponse))]
+[JsonSerializable(typeof(TaskListResponse))]
+[JsonSerializable(typeof(LabelResponse))]
+[JsonSerializable(typeof(LabelListResponse))]
+[JsonSerializable(typeof(TeamResponse))]
+[JsonSerializable(typeof(TeamListResponse))]
+[JsonSerializable(typeof(UserResponse))]
+[JsonSerializable(typeof(UserListResponse))]
+[JsonSerializable(typeof(CommentResponse))]
+[JsonSerializable(typeof(CommentListResponse))]
+[JsonSerializable(typeof(TaskRelationResponse))]
+[JsonSerializable(typeof(TaskRelationListResponse))]
+[JsonSerializable(typeof(ReminderListResponse))]
+[JsonSerializable(typeof(BulkOperationResponse))]
+
 // MCP Vikunja entity models
 [JsonSerializable(typeof(VikunjaTask))]
 [JsonSerializable(typeof(VikunjaProject))]

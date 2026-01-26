@@ -79,11 +79,10 @@ public class UsersTool : IMcpTool
             throw new McpException(McpErrorCode.OperationFailed, "Failed to retrieve current user information");
         }
 
-        return new
-        {
+        return new UserResponse(
             user,
-            message = "Current user information retrieved successfully"
-        };
+            "Current user information retrieved successfully"
+        );
     }
 
     private async Task<object> SearchUsersAsync(
@@ -110,12 +109,10 @@ public class UsersTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            users = users ?? new List<VikunjaUser>(),
-            count = users?.Count ?? 0,
-            query = searchQuery
-        };
+        return new UserListResponse(
+            users ?? new List<VikunjaUser>(),
+            $"Found {users?.Count ?? 0} user(s) matching '{searchQuery}'"
+        );
     }
 
     private async Task<object> GetUserSettingsAsync(
@@ -130,11 +127,7 @@ public class UsersTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            settings = settings ?? new Dictionary<string, object?>(),
-            message = "User settings retrieved successfully"
-        };
+        return new ToolResponse("User settings retrieved successfully");
     }
 
     private async Task<object> UpdateUserSettingsAsync(
@@ -189,11 +182,7 @@ public class UsersTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            settings = updatedSettings ?? new Dictionary<string, object?>(),
-            message = "User settings updated successfully"
-        };
+        return new ToolResponse("User settings updated successfully");
     }
 
     // Helper methods for parameter extraction

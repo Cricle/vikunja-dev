@@ -91,13 +91,10 @@ public class LabelsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            labels = labels ?? new List<VikunjaLabel>(),
-            count = labels?.Count ?? 0,
-            page,
-            perPage
-        };
+        return new LabelListResponse(
+            labels ?? new List<VikunjaLabel>(),
+            $"Found {labels?.Count ?? 0} label(s) (page {page}, {perPage} per page)"
+        );
     }
 
     private async Task<object> CreateLabelAsync(
@@ -140,11 +137,10 @@ public class LabelsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new LabelResponse(
             label,
-            message = $"Label '{title}' created successfully"
-        };
+            $"Label '{title}' created successfully"
+        );
     }
 
     private async Task<object> GetLabelAsync(
@@ -169,7 +165,7 @@ public class LabelsTool : IMcpTool
             throw new ResourceNotFoundException("Label", labelId);
         }
 
-        return new { label };
+        return new LabelResponse(label, "Label retrieved successfully");
     }
 
     private async Task<object> UpdateLabelAsync(
@@ -225,11 +221,10 @@ public class LabelsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new LabelResponse(
             label,
-            message = "Label updated successfully"
-        };
+            "Label updated successfully"
+        );
     }
 
     private async Task<object> DeleteLabelAsync(
@@ -261,13 +256,7 @@ public class LabelsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            message = $"Deleted label: {label.Title}",
-            deleted = true,
-            labelId,
-            labelTitle = label.Title
-        };
+        return new ToolResponse($"Deleted label: {label.Title}");
     }
 
     // Helper methods for parameter extraction

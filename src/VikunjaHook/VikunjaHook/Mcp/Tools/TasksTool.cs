@@ -128,13 +128,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            tasks = tasks ?? new List<VikunjaTask>(),
-            count = tasks?.Count ?? 0,
-            page,
-            perPage
-        };
+        return new TaskListResponse(
+            tasks ?? new List<VikunjaTask>(),
+            $"Found {tasks?.Count ?? 0} task(s) (page {page}, {perPage} per page)"
+        );
     }
 
     private async Task<object> CreateTaskAsync(
@@ -170,11 +167,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Task '{title}' created successfully"
-        };
+            $"Task '{title}' created successfully"
+        );
     }
 
     private async Task<object> GetTaskAsync(
@@ -199,7 +195,7 @@ public class TasksTool : IMcpTool
             throw new ResourceNotFoundException("Task", taskId);
         }
 
-        return new { task };
+        return new TaskResponse(task, "Task retrieved successfully");
     }
 
     private async Task<object> UpdateTaskAsync(
@@ -232,11 +228,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = "Task updated successfully"
-        };
+            "Task updated successfully"
+        );
     }
 
     private async Task<object> DeleteTaskAsync(
@@ -256,10 +251,7 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            message = $"Task {taskId} deleted successfully"
-        };
+        return new ToolResponse($"Task {taskId} deleted successfully");
     }
 
     private async Task<object> AssignUsersAsync(
@@ -297,12 +289,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Assigned {assigneeIds.Count} user(s) to task {taskId}",
-            assignedCount = assigneeIds.Count
-        };
+            $"Assigned {assigneeIds.Count} user(s) to task {taskId}"
+        );
     }
 
     private async Task<object> UnassignUsersAsync(
@@ -350,13 +340,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Removed {removedCount} user(s) from task {taskId}",
-            removedCount,
-            requestedCount = userIds.Count
-        };
+            $"Removed {removedCount} user(s) from task {taskId}"
+        );
     }
 
     private async Task<object> ListAssigneesAsync(
@@ -383,13 +370,10 @@ public class TasksTool : IMcpTool
 
         var assignees = task.Assignees ?? new List<VikunjaUser>();
 
-        return new
-        {
-            taskId = task.Id,
-            taskTitle = task.Title,
+        return new UserListResponse(
             assignees,
-            count = assignees.Count
-        };
+            $"Task '{task.Title}' has {assignees.Count} assignee(s)"
+        );
     }
 
     private async Task<object> AddCommentAsync(
@@ -419,11 +403,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new CommentResponse(
             comment,
-            message = "Comment added successfully"
-        };
+            "Comment added successfully"
+        );
     }
 
     private async Task<object> ListCommentsAsync(
@@ -443,12 +426,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            taskId,
-            comments = comments ?? new List<VikunjaComment>(),
-            count = comments?.Count ?? 0
-        };
+        return new CommentListResponse(
+            comments ?? new List<VikunjaComment>(),
+            $"Found {comments?.Count ?? 0} comment(s) for task {taskId}"
+        );
     }
 
     private async Task<object> RelateTasksAsync(
@@ -492,11 +473,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Successfully created {relationKind} relation between task {taskId} and task {otherTaskId}"
-        };
+            $"Successfully created {relationKind} relation between task {taskId} and task {otherTaskId}"
+        );
     }
 
     private async Task<object> UnrelateTasksAsync(
@@ -533,11 +513,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Successfully removed {relationKind} relation between task {taskId} and task {otherTaskId}"
-        };
+            $"Successfully removed {relationKind} relation between task {taskId} and task {otherTaskId}"
+        );
     }
 
     private async Task<object> ListRelationsAsync(
@@ -565,13 +544,10 @@ public class TasksTool : IMcpTool
 
         var relatedTasks = task.RelatedTasks ?? new List<VikunjaTaskRelation>();
 
-        return new
-        {
-            taskId = task.Id,
-            taskTitle = task.Title,
+        return new TaskRelationListResponse(
             relatedTasks,
-            count = relatedTasks.Count
-        };
+            $"Task '{task.Title}' has {relatedTasks.Count} relation(s)"
+        );
     }
 
     private async Task<object> AddReminderAsync(
@@ -627,11 +603,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            task = updatedTask,
-            message = $"Reminder added successfully for {reminderDate:yyyy-MM-dd HH:mm:ss}"
-        };
+        return new TaskResponse(
+            updatedTask,
+            $"Reminder added successfully for {reminderDate:yyyy-MM-dd HH:mm:ss}"
+        );
     }
 
     private async Task<object> RemoveReminderAsync(
@@ -697,11 +672,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            task = updatedTask,
-            message = $"Reminder removed successfully"
-        };
+        return new TaskResponse(
+            updatedTask,
+            $"Reminder removed successfully"
+        );
     }
 
     private async Task<object> ListRemindersAsync(
@@ -728,13 +702,10 @@ public class TasksTool : IMcpTool
 
         var reminders = task.Reminders ?? new List<VikunjaReminder>();
 
-        return new
-        {
-            taskId = task.Id,
-            taskTitle = task.Title,
+        return new ReminderListResponse(
             reminders,
-            count = reminders.Count
-        };
+            $"Task '{task.Title}' has {reminders.Count} reminder(s)"
+        );
     }
 
     private async Task<object> ApplyLabelsAsync(
@@ -788,13 +759,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Applied {appliedCount} label(s) to task {taskId}",
-            appliedCount,
-            requestedCount = labelIds.Count
-        };
+            $"Applied {appliedCount} label(s) to task {taskId}"
+        );
     }
 
     private async Task<object> RemoveLabelsAsync(
@@ -842,13 +810,10 @@ public class TasksTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TaskResponse(
             task,
-            message = $"Removed {removedCount} label(s) from task {taskId}",
-            removedCount,
-            requestedCount = labelIds.Count
-        };
+            $"Removed {removedCount} label(s) from task {taskId}"
+        );
     }
 
     private async Task<object> ListTaskLabelsAsync(
@@ -875,13 +840,10 @@ public class TasksTool : IMcpTool
 
         var labels = task.Labels ?? new List<VikunjaLabel>();
 
-        return new
-        {
-            taskId = task.Id,
-            taskTitle = task.Title,
+        return new LabelListResponse(
             labels,
-            count = labels.Count
-        };
+            $"Task '{task.Title}' has {labels.Count} label(s)"
+        );
     }
 
     private const int MaxBulkOperationTasks = 100;
@@ -980,14 +942,10 @@ public class TasksTool : IMcpTool
             }
         }
 
-        return new
-        {
-            tasks = createdTasks,
-            message = $"Successfully created {createdTasks.Count} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}",
-            successCount = createdTasks.Count,
-            failedCount,
-            totalRequested = tasksList.Count
-        };
+        return new TaskListResponse(
+            createdTasks,
+            $"Successfully created {createdTasks.Count} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}"
+        );
     }
 
     // Helper methods for parameter extraction
@@ -1166,16 +1124,10 @@ public class TasksTool : IMcpTool
             }
         }
 
-        return new
-        {
-            tasks = updatedTasks,
-            message = $"Successfully updated {updatedTasks.Count} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}",
-            successCount = updatedTasks.Count,
-            failedCount,
-            totalRequested = taskIds.Count,
-            field,
-            value
-        };
+        return new TaskListResponse(
+            updatedTasks,
+            $"Successfully updated {updatedTasks.Count} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}"
+        );
     }
 
     private async Task<object> BulkDeleteTasksAsync(
@@ -1222,14 +1174,9 @@ public class TasksTool : IMcpTool
             }
         }
 
-        return new
-        {
-            message = $"Successfully deleted {deletedCount} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}",
+        return new BulkOperationResponse(
             deletedCount,
-            failedCount,
-            totalRequested = taskIds.Count,
-            deletedTaskIds = taskIds.Except(failedIds).ToList(),
-            failedTaskIds = failedIds
-        };
+            $"Successfully deleted {deletedCount} tasks{(failedCount > 0 ? $", {failedCount} failed" : "")}"
+        );
     }
 }

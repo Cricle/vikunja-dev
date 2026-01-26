@@ -86,13 +86,10 @@ public class TeamsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            teams = teams ?? new List<VikunjaTeam>(),
-            count = teams?.Count ?? 0,
-            page,
-            perPage
-        };
+        return new TeamListResponse(
+            teams ?? new List<VikunjaTeam>(),
+            $"Found {teams?.Count ?? 0} team(s) (page {page}, {perPage} per page)"
+        );
     }
 
     private async Task<object> CreateTeamAsync(
@@ -132,11 +129,10 @@ public class TeamsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new TeamResponse(
             team,
-            message = $"Team '{name}' created successfully"
-        };
+            $"Team '{name}' created successfully"
+        );
     }
 
     private async Task<object> DeleteTeamAsync(
@@ -168,13 +164,7 @@ public class TeamsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            message = $"Deleted team: {team.Name}",
-            deleted = true,
-            teamId,
-            teamName = team.Name
-        };
+        return new ToolResponse($"Deleted team: {team.Name}");
     }
 
     // Helper methods for parameter extraction

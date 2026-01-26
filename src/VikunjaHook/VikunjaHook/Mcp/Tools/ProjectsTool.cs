@@ -109,13 +109,10 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            projects = projects ?? new List<VikunjaProject>(),
-            count = projects?.Count ?? 0,
-            page,
-            perPage
-        };
+        return new ProjectListResponse(
+            projects ?? new List<VikunjaProject>(),
+            $"Found {projects?.Count ?? 0} project(s) (page {page}, {perPage} per page)"
+        );
     }
 
     private async Task<object> CreateProjectAsync(
@@ -160,11 +157,10 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new ProjectResponse(
             project,
-            message = $"Project '{title}' created successfully"
-        };
+            $"Project '{title}' created successfully"
+        );
     }
 
     private async Task<object> GetProjectAsync(
@@ -189,7 +185,7 @@ public class ProjectsTool : IMcpTool
             throw new ResourceNotFoundException("Project", projectId);
         }
 
-        return new { project };
+        return new ProjectResponse(project, "Project retrieved successfully");
     }
 
     private async Task<object> UpdateProjectAsync(
@@ -251,11 +247,10 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new ProjectResponse(
             project,
-            message = "Project updated successfully"
-        };
+            "Project updated successfully"
+        );
     }
 
     private async Task<object> DeleteProjectAsync(
@@ -287,13 +282,7 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
-            message = $"Deleted project: {project.Title}",
-            deleted = true,
-            projectId,
-            projectTitle = project.Title
-        };
+        return new ToolResponse($"Deleted project: {project.Title}");
     }
 
     private async Task<object> ArchiveProjectAsync(
@@ -322,11 +311,10 @@ public class ProjectsTool : IMcpTool
         // Check if project is already archived
         if (currentProject.IsArchived)
         {
-            return new
-            {
-                project = currentProject,
-                message = $"Project '{currentProject.Title}' is already archived"
-            };
+            return new ProjectResponse(
+                currentProject,
+                $"Project '{currentProject.Title}' is already archived"
+            );
         }
 
         // Archive the project
@@ -343,11 +331,10 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new ProjectResponse(
             project,
-            message = $"Project '{project?.Title}' archived successfully"
-        };
+            $"Project '{project?.Title}' archived successfully"
+        );
     }
 
     private async Task<object> UnarchiveProjectAsync(
@@ -376,11 +363,10 @@ public class ProjectsTool : IMcpTool
         // Check if project is already active (not archived)
         if (!currentProject.IsArchived)
         {
-            return new
-            {
-                project = currentProject,
-                message = $"Project '{currentProject.Title}' is already active (not archived)"
-            };
+            return new ProjectResponse(
+                currentProject,
+                $"Project '{currentProject.Title}' is already active (not archived)"
+            );
         }
 
         // Unarchive the project
@@ -397,11 +383,10 @@ public class ProjectsTool : IMcpTool
             cancellationToken
         );
 
-        return new
-        {
+        return new ProjectResponse(
             project,
-            message = $"Project '{project?.Title}' unarchived successfully"
-        };
+            $"Project '{project?.Title}' unarchived successfully"
+        );
     }
 
     // Helper methods for parameter extraction
