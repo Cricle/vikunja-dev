@@ -6,10 +6,24 @@
 
 ### 新增 ✨
 
+#### Docker 镜像大幅优化 🚀
+- **镜像大小从 418MB 降低到 84.6MB**（减少 79.8%）
+  - 使用 Alpine Linux 3.21 基础镜像（12MB vs Debian 180MB）
+  - 使用 musl libc 替代 glibc
+  - .NET 10 AOT 编译针对 linux-musl-x64
+  - UPX 压缩二进制文件（23MB → 7.5MB，67% 压缩率）
+  - 多阶段构建优化
+- 添加 `DOCKER_OPTIMIZATION.md` 详细文档
+  - 优化历程和技术详解
+  - 性能影响分析
+  - 镜像组成分析
+  - 进一步优化建议
+
 #### Docker 支持
 - 添加 Dockerfile（.NET 10 AOT 编译）
   - 多阶段构建优化镜像大小
-  - Alpine Linux 基础镜像（~50-80MB）
+  - Alpine Linux 基础镜像（84.6MB）
+  - 前端和后端集成构建
   - 非 root 用户运行
   - 内置健康检查
 - 添加 docker-compose.yml 配置
@@ -23,9 +37,8 @@
 - Docker 支持（.NET 10 AOT 编译）
   - 多阶段构建优化
   - Alpine Linux 基础镜像
-  - 镜像大小 ~50-80MB
-  - 启动时间 ~50ms
-
+  - 镜像大小 84.6MB
+  - 启动时间 ~1-2 秒（包含 UPX 解压）
   - 多标签支持（latest, version, sha）
 
 #### AOT 优化

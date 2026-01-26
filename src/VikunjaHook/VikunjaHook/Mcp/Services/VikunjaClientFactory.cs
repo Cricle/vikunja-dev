@@ -1,21 +1,17 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Polly;
-using Polly.CircuitBreaker;
-using Polly.Retry;
 using VikunjaHook.Mcp.Models;
 
 namespace VikunjaHook.Mcp.Services;
 
 /// <summary>
-/// Factory for creating and managing HTTP clients for Vikunja API with retry logic
+/// Factory for creating and managing HTTP clients for Vikunja API
 /// </summary>
 public class VikunjaClientFactory : IVikunjaClientFactory
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<VikunjaClientFactory> _logger;
-    private readonly ResiliencePipeline _resiliencePipeline;
 
     public VikunjaClientFactory(
         IHttpClientFactory httpClientFactory,
@@ -23,26 +19,6 @@ public class VikunjaClientFactory : IVikunjaClientFactory
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-
-        // Create resilience pipeline with retry and circuit breaker
-        _resiliencePipeline = new ResiliencePipelineBuilder()
-            .AddRetry(new RetryStrategyOptions
-            {
-                MaxRetryAttempts = 3,
-                Delay = TimeSpan.FromSeconds(1),
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true,
-                ShouldHandle = new PredicateBuilder().Handle<HttpRequestException>()
-            })
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
-            {
-                FailureRatio = 0.5,
-                SamplingDuration = TimeSpan.FromSeconds(30),
-                MinimumThroughput = 5,
-                BreakDuration = TimeSpan.FromSeconds(30),
-                ShouldHandle = new PredicateBuilder().Handle<HttpRequestException>()
-            })
-            .Build();
     }
 
     /// <summary>
@@ -62,28 +38,23 @@ public class VikunjaClientFactory : IVikunjaClientFactory
 
     /// <summary>
     /// Execute GET request to Vikunja API
-    /// Note: Returns object to avoid AOT issues with generic deserialization
-    /// Caller should cast to expected type
     /// </summary>
     public async Task<T> GetAsync<T>(
         AuthSession session, 
         string endpoint, 
         CancellationToken cancellationToken = default)
     {
-        var json = await _resiliencePipeline.ExecuteAsync(async token =>
-        {
-            var client = GetClient(session);
-            
-            _logger.LogDebug("GET request to {Endpoint}", endpoint);
-            
-            var response = await client.GetAsync(endpoint, token);
-            
-            await EnsureSuccessStatusCodeAsync(response);
-            
-            return await response.Content.ReadAsStringAsync(token);
-        }, cancellationToken);
+        var client = GetClient(session);
+        
+        _logger.LogDebug("GET request to {Endpoint}", endpoint);
+        
+        var response = await client.GetAsync(endpoint, cancellationToken);
+        
+        await EnsureSuccessStatusCodeAsync(response);
+        
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        // Deserialize using the context - caller must ensure T is registered
+        // Deserialize using the context
         var result = JsonSerializer.Deserialize(json, typeof(T), AppJsonSerializerContext.Default);
         
         if (result is not T typedResult)
@@ -105,22 +76,19 @@ public class VikunjaClientFactory : IVikunjaClientFactory
         object body, 
         CancellationToken cancellationToken = default)
     {
-        var json = await _resiliencePipeline.ExecuteAsync(async token =>
-        {
-            var client = GetClient(session);
-            
-            _logger.LogDebug("POST request to {Endpoint}", endpoint);
-            
-            // Serialize body
-            var bodyJson = JsonSerializer.Serialize(body, body.GetType(), AppJsonSerializerContext.Default);
-            var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
-            
-            var response = await client.PostAsync(endpoint, content, token);
-            
-            await EnsureSuccessStatusCodeAsync(response);
-            
-            return await response.Content.ReadAsStringAsync(token);
-        }, cancellationToken);
+        var client = GetClient(session);
+        
+        _logger.LogDebug("POST request to {Endpoint}", endpoint);
+        
+        // Serialize body
+        var bodyJson = JsonSerializer.Serialize(body, body.GetType(), AppJsonSerializerContext.Default);
+        var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+        
+        var response = await client.PostAsync(endpoint, content, cancellationToken);
+        
+        await EnsureSuccessStatusCodeAsync(response);
+        
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
         // Deserialize using the context
         var result = JsonSerializer.Deserialize(json, typeof(T), AppJsonSerializerContext.Default);
@@ -144,22 +112,19 @@ public class VikunjaClientFactory : IVikunjaClientFactory
         object body, 
         CancellationToken cancellationToken = default)
     {
-        var json = await _resiliencePipeline.ExecuteAsync(async token =>
-        {
-            var client = GetClient(session);
-            
-            _logger.LogDebug("PUT request to {Endpoint}", endpoint);
-            
-            // Serialize body
-            var bodyJson = JsonSerializer.Serialize(body, body.GetType(), AppJsonSerializerContext.Default);
-            var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
-            
-            var response = await client.PutAsync(endpoint, content, token);
-            
-            await EnsureSuccessStatusCodeAsync(response);
-            
-            return await response.Content.ReadAsStringAsync(token);
-        }, cancellationToken);
+        var client = GetClient(session);
+        
+        _logger.LogDebug("PUT request to {Endpoint}", endpoint);
+        
+        // Serialize body
+        var bodyJson = JsonSerializer.Serialize(body, body.GetType(), AppJsonSerializerContext.Default);
+        var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+        
+        var response = await client.PutAsync(endpoint, content, cancellationToken);
+        
+        await EnsureSuccessStatusCodeAsync(response);
+        
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
         // Deserialize using the context
         var result = JsonSerializer.Deserialize(json, typeof(T), AppJsonSerializerContext.Default);
@@ -182,16 +147,13 @@ public class VikunjaClientFactory : IVikunjaClientFactory
         string endpoint, 
         CancellationToken cancellationToken = default)
     {
-        await _resiliencePipeline.ExecuteAsync(async token =>
-        {
-            var client = GetClient(session);
-            
-            _logger.LogDebug("DELETE request to {Endpoint}", endpoint);
-            
-            var response = await client.DeleteAsync(endpoint, token);
-            
-            await EnsureSuccessStatusCodeAsync(response);
-        }, cancellationToken);
+        var client = GetClient(session);
+        
+        _logger.LogDebug("DELETE request to {Endpoint}", endpoint);
+        
+        var response = await client.DeleteAsync(endpoint, cancellationToken);
+        
+        await EnsureSuccessStatusCodeAsync(response);
     }
 
     /// <summary>

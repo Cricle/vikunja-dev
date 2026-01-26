@@ -44,7 +44,7 @@
 
 #### 方式 1: Docker 部署（推荐）
 
-使用 Docker 快速部署，支持 .NET 10 AOT 编译：
+使用 Docker 快速部署，支持 .NET 10 AOT 编译。镜像大小仅 **84.6MB**（使用 Alpine + UPX 压缩）：
 
 ```bash
 # 使用 Docker Compose
@@ -54,6 +54,8 @@ docker-compose up -d
 docker build -t vikunja-mcp:latest .
 docker run -d -p 5082:5082 --name vikunja-mcp-server vikunja-mcp:latest
 ```
+
+[查看 Docker 优化详情 →](DOCKER_OPTIMIZATION.md)
 
 #### 方式 2: 本地运行
 
