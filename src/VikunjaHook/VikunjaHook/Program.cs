@@ -47,10 +47,18 @@ if (mcpMode)
         .AddMcpServer()
         .WithStdioServerTransport()
         .WithTools<TasksTools>()
+        .WithTools<TaskAssigneesTools>()
+        .WithTools<TaskCommentsTools>()
+        .WithTools<TaskAttachmentsTools>()
+        .WithTools<TaskRelationsTools>()
+        .WithTools<TaskLabelsTools>()
         .WithTools<ProjectsTools>()
         .WithTools<LabelsTools>()
         .WithTools<TeamsTools>()
-        .WithTools<UsersTools>();
+        .WithTools<UsersTools>()
+        .WithTools<BucketsTools>()
+        .WithTools<WebhooksTools>()
+        .WithTools<SavedFiltersTools>();
 
     await builder.Build().RunAsync();
     return 0;

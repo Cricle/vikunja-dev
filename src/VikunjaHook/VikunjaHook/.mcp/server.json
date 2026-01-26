@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
-  "description": "MCP server for Vikunja with 20+ tools for tasks, projects, labels, teams, and users",
+  "description": "MCP server for Vikunja with 54 tools covering all API features",
   "name": "io.github.cricle/vikunja-mcp-server",
   "version": "1.0.0",
   "packages": [

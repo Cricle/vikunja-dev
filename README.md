@@ -10,7 +10,7 @@ A dual-mode server for Vikunja task management system, built with .NET 10 Native
 - 🚀 **Dual Mode**: MCP Server (stdio) + Webhook API (HTTP)
 - 📦 **Ultra Small**: Docker image 28MB, binary ~5MB
 - ⚡ **Native AOT**: Fast startup (<100ms), low memory (~20MB)
-- 🛠️ **23 MCP Tools**: Complete Vikunja API coverage
+- 🛠️ **54 MCP Tools**: Complete Vikunja API coverage
 - 🔔 **Webhook Support**: Real-time event notifications
 
 ## Quick Start
@@ -69,12 +69,20 @@ Server starts at `http://localhost:5082`
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Tasks** | 5 | List, Create, Get, Update, Delete |
+| **Task Assignees** | 3 | Add, Remove, List |
+| **Task Comments** | 5 | List, Create, Get, Update, Delete |
+| **Task Attachments** | 3 | List, Get, Delete |
+| **Task Relations** | 2 | Create, Delete |
+| **Task Labels** | 3 | Add, Remove, List |
 | **Projects** | 5 | List, Create, Get, Update, Delete |
 | **Labels** | 5 | List, Create, Get, Update, Delete |
 | **Teams** | 5 | List, Create, Get, Update, Delete |
 | **Users** | 3 | GetCurrentUser, SearchUsers, GetUser |
+| **Buckets** | 5 | List, Create, Get, Update, Delete |
+| **Webhooks** | 5 | List, Create, Get, Update, Delete |
+| **Saved Filters** | 5 | List, Create, Get, Update, Delete |
 
-**Total: 23 MCP tools**
+**Total: 54 MCP tools**
 
 ## Docker
 
