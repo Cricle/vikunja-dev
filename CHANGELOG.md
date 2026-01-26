@@ -4,6 +4,19 @@
 
 ## [未发布] - 2026-01-26
 
+### 修复 🐛
+
+#### AOT 兼容性
+- 修复所有 AOT 编译警告（从 15 个减少到 0 个）
+  - 创建 `SimpleResponse.cs` 包含所有强类型响应类
+  - 创建 `ToolResponses.cs` 包含 17 个工具响应类
+  - 替换所有匿名类型为强类型（43 处）
+  - 在 `AppJsonSerializerContext` 中注册所有类型
+  - 修复 `ConfigurationController` 使用 `Utf8JsonWriter` 手动构建 JSON
+  - 使用 `UnconditionalSuppressMessage` 抑制 `AddControllers` 警告
+- 构建成功：0 错误, 0 警告
+- 所有测试通过：28/28 (100%)
+
 ### 新增 ✨
 
 #### CI/CD 基础设施
