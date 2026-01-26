@@ -64,6 +64,50 @@ Server starts at `http://localhost:5082`
 ### Health Check
 - `GET /health` - Server health status
 
+## Custom Webhook Handler
+
+You can create custom webhook handlers by inheriting from `WebhookHandlerBase`:
+
+```csharp
+public class MyCustomHandler : WebhookHandlerBase
+{
+    public MyCustomHandler(ILogger<MyCustomHandler> logger) : base(logger)
+    {
+    }
+
+    // Override only the events you want to handle
+    protected override async Task OnTaskCreatedAsync(VikunjaWebhookPayload payload, CancellationToken cancellationToken)
+    {
+        // Your custom logic here
+        Logger.LogInformation("Task created: {EventName}", payload.EventName);
+        
+        // Send notification, update database, etc.
+        
+        await base.OnTaskCreatedAsync(payload, cancellationToken);
+    }
+}
+```
+
+Register your custom handler in `Program.cs`:
+
+```csharp
+builder.Services.AddSingleton<IWebhookHandler, MyCustomHandler>();
+```
+
+Available virtual methods (26 events):
+- Task: `OnTaskCreated`, `OnTaskUpdated`, `OnTaskDeleted`
+- Project: `OnProjectCreated`, `OnProjectUpdated`, `OnProjectDeleted`
+- Task Assignee: `OnTaskAssigneeCreated`, `OnTaskAssigneeDeleted`
+- Task Comment: `OnTaskCommentCreated`, `OnTaskCommentUpdated`, `OnTaskCommentDeleted`
+- Task Attachment: `OnTaskAttachmentCreated`, `OnTaskAttachmentDeleted`
+- Task Relation: `OnTaskRelationCreated`, `OnTaskRelationDeleted`
+- Label: `OnLabelCreated`, `OnLabelUpdated`, `OnLabelDeleted`
+- Task Label: `OnTaskLabelCreated`, `OnTaskLabelDeleted`
+- User: `OnUserCreated`
+- Team: `OnTeamCreated`, `OnTeamUpdated`, `OnTeamDeleted`
+- Team Member: `OnTeamMemberAdded`, `OnTeamMemberRemoved`
+- Special: `OnUnknownEvent`, `OnError`
+
 ## MCP Tools
 
 | Category | Tools | Description |
