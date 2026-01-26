@@ -1,162 +1,75 @@
-# Vikunja Development Tools
+# Vikunja MCP Server
 
-[![CI - Build and Test](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml)
+[![CI - Build and Test](https://github.com/Cricle/vikunja-dev/actions/workflows/ci.yml/badge.svg)](https://github.com/Cricle/vikunja-dev/actions/workflows/ci.yml)
 [![.NET Version](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![Node.js Version](https://img.shields.io/badge/Node.js-20.x-339933)](https://nodejs.org/)
+[![Docker Image](https://img.shields.io/badge/Docker-28MB-2496ED)](https://hub.docker.com/)
 
-这个仓库包含 Vikunja 任务管理系统的开发工具和扩展。
+一个用 C# 和 .NET 10 AOT 构建的高性能 Model Context Protocol (MCP) 服务器，用于 Vikunja 任务管理系统。
 
-## 项目组成
+## ✨ 特性
 
-### 1. Vikunja MCP C# Server
-**路径**: `src/VikunjaHook/`
+- 🚀 **极致性能**: .NET 10 Native AOT 编译，启动时间 < 2 秒
+- 📦 **超小镜像**: Docker 镜像仅 28MB（从 418MB 优化 93.3%）
+- 🛠️ **完整工具集**: 5 个工具，45+ 子命令
+- 🔐 **双重认证**: 支持 API Token 和 JWT
+- 🎯 **Minimal API**: 轻量级架构，无冗余依赖
+- 🐳 **生产就绪**: 遵循微软官方最佳实践
 
-一个用 C# 和 ASP.NET Core 构建的 Model Context Protocol (MCP) 服务器，支持 Native AOT 编译。
+## 📊 工具列表
 
-**特性**:
-- ✅ 5 个工具，45+ 子命令
-- ✅ Tasks 工具（22 个子命令）：完整的任务管理
-- ✅ Projects 工具（11 个子命令）：项目管理和层级操作
-- ✅ Labels、Teams、Users 工具
-- ✅ Native AOT 编译支持
-- ✅ HTTP/RESTful API
-- ✅ 双重认证（API Token 和 JWT）
-- ✅ 弹性 HTTP 客户端（Polly 重试和熔断）
+| 工具 | 子命令数 | 功能 |
+|------|---------|------|
+| **tasks** | 22 | 完整的任务管理（CRUD、批量操作、分配、评论、标签、提醒、关系） |
+| **projects** | 11 | 项目管理和层级操作 |
+| **labels** | 5 | 标签管理 |
+| **teams** | 3 | 团队管理 |
+| **users** | 4 | 用户管理 |
 
-[查看详细文档 →](src/VikunjaHook/README.md)
+## 🚀 快速开始
 
-### 2. Vikunja MCP Admin
-**路径**: `src/vikunja-mcp-admin/`
-
-一个用 Vue 3 + TypeScript 构建的 Web 管理界面。
-
-[查看详细文档 →](src/vikunja-mcp-admin/README.md)
-
-## 快速开始
-
-### 前置要求
-
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 20.x](https://nodejs.org/)
-- 一个运行中的 Vikunja 实例
-
-### 部署方式
-
-#### 方式 1: Docker 部署（推荐）
-
-使用 Docker 快速部署，支持 .NET 10 AOT 编译。镜像大小仅 **84.6MB**（使用 Alpine + UPX 压缩）：
+### 使用 Docker（推荐）
 
 ```bash
-# 使用 Docker Compose
-docker-compose up -d
+# 拉取镜像
+docker pull ghcr.io/cricle/vikunja-mcp-server:latest
 
-# 或使用 Docker 命令
-docker build -t vikunja-mcp:latest .
-docker run -d -p 5082:5082 --name vikunja-mcp-server vikunja-mcp:latest
+# 运行
+docker run -d -p 5082:5082 \
+  -e VIKUNJA_API_URL=https://your-vikunja.com/api/v1 \
+  -e VIKUNJA_API_TOKEN=your-token \
+  ghcr.io/cricle/vikunja-mcp-server:latest
 ```
 
-[查看 Docker 优化详情 →](DOCKER_OPTIMIZATION.md)
+### 使用 Docker Compose
 
-#### 方式 2: 本地运行
+```yaml
+version: '3.8'
+services:
+  vikunja-mcp:
+    image: ghcr.io/cricle/vikunja-mcp-server:latest
+    ports:
+      - "5082:5082"
+    environment:
+      - VIKUNJA_API_URL=https://your-vikunja.com/api/v1
+      - VIKUNJA_API_TOKEN=your-token
+    restart: unless-stopped
+```
+
+### 本地运行
 
 ```bash
+# 克隆仓库
+git clone https://github.com/Cricle/vikunja-dev.git
+cd vikunja-dev
+
+# 运行
 cd src/VikunjaHook/VikunjaHook
 dotnet run
 ```
 
 服务器将在 `http://localhost:5082` 启动。
 
-### 运行测试
-
-#### 使用自动化脚本（推荐）
-
-**Linux/macOS:**
-```bash
-chmod +x run-tests.sh
-./run-tests.sh "https://your-vikunja.com/api/v1" "tk_your_token"
-```
-
-**Windows PowerShell:**
-```powershell
-.\run-tests.ps1 -VikunjaUrl "https://your-vikunja.com/api/v1" -VikunjaToken "tk_your_token"
-```
-
-#### 使用环境变量
-
-```bash
-# Linux/macOS
-export VIKUNJA_URL="https://your-vikunja.com/api/v1"
-export VIKUNJA_TOKEN="tk_your_token"
-./run-tests.sh
-
-# Windows PowerShell
-$env:VIKUNJA_URL="https://your-vikunja.com/api/v1"
-$env:VIKUNJA_TOKEN="tk_your_token"
-.\run-tests.ps1
-```
-
-[查看完整测试指南 →](TESTING.md)
-
-## 测试覆盖
-
-完整测试套件包含 **28 项测试**，覆盖所有核心功能：
-
-- ✅ 基础功能测试 (8 项)
-- ✅ Tasks 工具测试 (22 项)
-  - 任务 CRUD 操作
-  - 批量操作
-  - 任务分配
-  - 评论功能
-  - 标签功能
-  - 提醒功能
-  - 任务关系
-
-**当前测试通过率: 100% (28/28)**
-
-## 持续集成
-
-项目配置了 GitHub Actions CI，会在每次推送和 PR 时自动运行：
-
-- ✅ 多平台构建检查 (Ubuntu, Windows, macOS)
-- ✅ 完整的测试套件
-- ✅ 构建警告检查
-
-### 设置 CI
-
-在 GitHub 仓库中配置以下 secrets：
-- `VIKUNJA_URL`: Vikunja API URL（包含 `/api/v1`）
-- `VIKUNJA_TOKEN`: Vikunja API Token
-
-[查看 Secrets 设置指南 →](.github/SETUP_SECRETS.md)
-
-## 项目结构
-
-```
-vikunja-dev/
-├── .github/
-│   ├── workflows/
-│   │   └── ci.yml                    # GitHub Actions CI 配置
-│   └── SETUP_SECRETS.md              # Secrets 设置指南
-├── src/
-│   ├── VikunjaHook/                  # MCP C# 服务器
-│   │   ├── VikunjaHook/              # 主项目
-│   │   │   ├── Mcp/                  # MCP 实现
-│   │   │   │   ├── Models/           # 数据模型
-│   │   │   │   ├── Services/         # 核心服务
-│   │   │   │   └── Tools/            # MCP 工具
-│   │   │   └── Program.cs            # 入口点
-│   │   └── VikunjaHook.sln           # 解决方案文件
-│   └── vikunja-mcp-admin/            # Web 管理界面
-├── docker-compose.yml                # Docker Compose 配置
-├── Dockerfile                        # Docker 镜像构建
-├── run-tests.sh                      # Linux/macOS 测试脚本
-├── run-tests.ps1                     # Windows 测试脚本
-├── test-complete.js                  # 完整测试套件
-├── CHANGELOG.md                      # 更新日志
-└── README.md                         # 本文档
-```
-
-## API 使用示例
+## 📖 API 使用
 
 ### 认证
 
@@ -169,11 +82,19 @@ curl -X POST http://localhost:5082/mcp/auth \
   }'
 ```
 
+响应：
+```json
+{
+  "sessionId": "abc123...",
+  "authType": "ApiToken"
+}
+```
+
 ### 创建任务
 
 ```bash
 curl -X POST http://localhost:5082/mcp/tools/tasks/create \
-  -H "Authorization: Bearer your-session-id" \
+  -H "Authorization: Bearer <session-id>" \
   -H "Content-Type: application/json" \
   -d '{
     "projectId": 1,
@@ -187,7 +108,7 @@ curl -X POST http://localhost:5082/mcp/tools/tasks/create \
 
 ```bash
 curl -X POST http://localhost:5082/mcp/tools/tasks/list \
-  -H "Authorization: Bearer your-session-id" \
+  -H "Authorization: Bearer <session-id>" \
   -H "Content-Type: application/json" \
   -d '{
     "projectId": 1,
@@ -196,24 +117,96 @@ curl -X POST http://localhost:5082/mcp/tools/tasks/list \
   }'
 ```
 
-[查看更多 API 示例 →](src/VikunjaHook/README.md#usage-examples)
-
-## 开发
-
-### 构建项目
+### 获取工具列表
 
 ```bash
-# MCP 服务器
-cd src/VikunjaHook
-dotnet build
-
-# Web 管理界面
-cd src/vikunja-mcp-admin
-npm install
-npm run dev
+curl http://localhost:5082/mcp/tools
 ```
 
-### 发布生产版本
+### 健康检查
+
+```bash
+curl http://localhost:5082/health
+```
+
+## 🐳 Docker 镜像优化
+
+我们的 Docker 镜像经过极致优化：
+
+| 指标 | 初始版本 | 最终版本 | 改进 |
+|------|----------|----------|------|
+| 镜像大小 | 418MB | **28MB** | **-93.3%** |
+| 二进制大小 | 81MB | **5.1MB** | **-93.7%** |
+| 基础镜像 | Debian 180MB | Alpine 23MB | -87.2% |
+| 依赖库 | 7 个 | **1 个** | -85.7% |
+
+### 优化技术
+
+- ✅ 使用官方 `sdk:10.0-alpine-aot`（预装 AOT 工具）
+- ✅ 使用 `runtime-deps:10.0-alpine`（包含所有运行时依赖）
+- ✅ UPX 压缩二进制（15MB → 5.1MB）
+- ✅ BuildKit 缓存加速构建
+- ✅ 最小化依赖（仅保留 AI 抽象库）
+- ✅ 非 root 用户运行
+
+详见 [Docker 优化文档](DOCKER_SIZE_REDUCTION_SUMMARY.md)
+
+## 🏗️ 架构
+
+```
+vikunja-mcp-server/
+├── Minimal API          # 轻量级 HTTP 端点
+├── MCP Server           # Model Context Protocol 实现
+├── Tools                # 5 个工具，45+ 子命令
+│   ├── TasksTool       # 任务管理
+│   ├── ProjectsTool    # 项目管理
+│   ├── LabelsTool      # 标签管理
+│   ├── TeamsTool       # 团队管理
+│   └── UsersTool       # 用户管理
+├── Services             # 核心服务
+│   ├── AuthenticationManager
+│   ├── VikunjaClientFactory
+│   └── ToolRegistry
+└── Webhook Handler      # Vikunja Webhook 处理
+```
+
+## 🧪 测试
+
+### 运行测试
+
+```bash
+# Linux/macOS
+./run-tests.sh "https://your-vikunja.com/api/v1" "your-token"
+
+# Windows
+.\run-tests.ps1 -VikunjaUrl "https://your-vikunja.com/api/v1" -VikunjaToken "your-token"
+```
+
+### 测试覆盖
+
+- ✅ 基础功能测试 (8 项)
+- ✅ Tasks 工具测试 (22 项)
+- ✅ 批量操作测试
+- ✅ 任务关系测试
+- ✅ 评论和标签测试
+
+**当前测试通过率: 100% (28/28)**
+
+## 🔧 开发
+
+### 前置要求
+
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
+- [Docker](https://www.docker.com/) (可选)
+
+### 构建
+
+```bash
+cd src/VikunjaHook
+dotnet build
+```
+
+### 发布
 
 ```bash
 # Windows x64
@@ -226,23 +219,62 @@ dotnet publish -c Release -r linux-x64
 dotnet publish -c Release -r osx-arm64
 ```
 
-## 性能
+### Docker 构建
 
-- **启动时间**: ~50ms (Native AOT)
+```bash
+docker build -t vikunja-mcp-server:latest .
+```
+
+## 📊 性能指标
+
+- **启动时间**: ~1-2 秒（包含 UPX 解压）
 - **内存占用**: ~30-50MB
-- **测试执行**: ~30-45 秒（28 项测试）
-- **请求延迟**: <100ms (本地网络)
+- **请求延迟**: <100ms（本地网络）
+- **镜像大小**: 28MB
+- **二进制大小**: 5.1MB
 
-## 文档
+## 🛠️ 技术栈
 
+- **.NET 10**: Native AOT 编译
+- **Alpine Linux**: 轻量级基础镜像
+- **Minimal API**: 无 Controllers 开销
+- **UPX**: 二进制压缩
+- **BuildKit**: Docker 构建缓存
+- **Microsoft.Extensions.AI.Abstractions**: 唯一的第三方依赖
+
+## 📝 端点列表
+
+### MCP 端点
+- `POST /mcp/auth` - 认证
+- `POST /mcp/request` - MCP 请求
+- `GET /mcp/info` - 服务器信息
+- `GET /mcp/tools` - 工具列表
+- `POST /mcp/tools/{tool}/{subcommand}` - 执行工具
+- `GET /mcp/health` - MCP 健康检查
+
+### Webhook 端点
+- `POST /webhook/vikunja` - Vikunja Webhook
+- `GET /webhook/vikunja/events` - 支持的事件列表
+
+### Admin 端点
+- `GET /admin/sessions` - 会话列表
+- `DELETE /admin/sessions/{id}` - 断开会话
+- `DELETE /admin/sessions` - 断开所有会话
+- `GET /admin/stats` - 服务器统计
+- `POST /admin/tools/{tool}/{subcommand}` - 测试工具
+
+### 通用端点
+- `GET /health` - 健康检查
+
+## 📚 文档
+
+- [Docker 优化详解](DOCKER_SIZE_REDUCTION_SUMMARY.md)
+- [Docker 优化技术](DOCKER_OPTIMIZATION.md)
+- [更新日志](CHANGELOG.md)
 - [MCP 服务器文档](src/VikunjaHook/README.md)
-- [测试指南](TESTING.md)
-- [CI 配置报告](CI_SETUP_COMPLETE.md)
-- [Secrets 设置指南](.github/SETUP_SECRETS.md)
-- [实现总结](src/VikunjaHook/IMPLEMENTATION_SUMMARY.md)
-- [完成报告](FINAL_COMPLETION_REPORT.md)
+- [Webhook 处理指南](src/VikunjaHook/WEBHOOK_HANDLER_GUIDE.md)
 
-## 贡献
+## 🤝 贡献
 
 欢迎贡献！请随时提交 Pull Request。
 
@@ -254,31 +286,23 @@ dotnet publish -c Release -r osx-arm64
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
-### 代码规范
+## 📄 许可证
 
-- 遵循 C# 编码规范
-- 添加适当的注释
-- 确保所有测试通过
-- 更新相关文档
+MIT License
 
-## 许可证
-
-[Your License Here]
-
-## 相关链接
+## 🔗 相关链接
 
 - [Vikunja 官网](https://vikunja.io/)
 - [Vikunja API 文档](https://vikunja.io/docs/api-tokens/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [.NET 文档](https://docs.microsoft.com/en-us/dotnet/)
 
-## 支持
+## 💬 支持
 
 如有问题或建议，请：
-- 提交 [Issue](https://github.com/YOUR_USERNAME/YOUR_REPO/issues)
-- 查看 [文档](TESTING.md)
-- 参考 [故障排查指南](TESTING.md#故障排查)
+- 提交 [Issue](https://github.com/Cricle/vikunja-dev/issues)
+- 查看 [文档](DOCKER_SIZE_REDUCTION_SUMMARY.md)
 
 ---
 
-**注意**: 请将 `YOUR_USERNAME/YOUR_REPO` 替换为你的实际 GitHub 用户名和仓库名。
+**Made with ❤️ using .NET 10 AOT**

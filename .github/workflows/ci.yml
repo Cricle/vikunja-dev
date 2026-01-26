@@ -9,7 +9,6 @@ on:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  NODE_VERSION: '20.x'
 
 jobs:
   build-and-test:
@@ -24,11 +23,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
     
     - name: Restore dependencies
       run: dotnet restore src/VikunjaHook/VikunjaHook.sln
@@ -62,15 +56,6 @@ jobs:
         if [ -f src/VikunjaHook/VikunjaHook/server.pid ]; then
           kill $(cat src/VikunjaHook/VikunjaHook/server.pid) || true
         fi
-    
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: |
-          src/VikunjaHook/VikunjaHook/logs/
-        retention-days: 7
 
   build-check:
     name: Build Check (Multiple Platforms)
