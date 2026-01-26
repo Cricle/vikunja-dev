@@ -3,7 +3,6 @@ using VikunjaHook.Models;
 using VikunjaHook.Mcp.Models;
 using VikunjaHook.Mcp.Models.Requests;
 using VikunjaHook.Mcp.Models.Configuration;
-using VikunjaHook.Mcp.Controllers;
 
 namespace VikunjaHook;
 
@@ -104,8 +103,6 @@ namespace VikunjaHook;
 [JsonSerializable(typeof(McpConfiguration))]
 [JsonSerializable(typeof(CorsConfiguration))]
 [JsonSerializable(typeof(RateLimitConfiguration))]
-[JsonSerializable(typeof(ConfigurationResponse))]
-[JsonSerializable(typeof(ConfigurationUpdateRequest))]
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(ErrorDetail))]
 
