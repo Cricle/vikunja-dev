@@ -14,8 +14,10 @@ app.use(createVuestic({
   config: {
     icons: [
       {
-        name: 'md',
-        resolve: ({ name }) => ({ class: 'material-icons', content: name })
+        name: '{icon}',
+        class: 'material-icons',
+        content: '{icon}',
+        tag: 'span'
       }
     ]
   }
