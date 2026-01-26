@@ -37,7 +37,7 @@ var app = builder.Build();
 app.UseExceptionHandling();
 
 var logger = app.Logger;
-logger.LogInformation("VikunjaHook MCP Server started");
+logger.LogInformation("Vikunja MCP Server started");
 
 // Register shutdown handler
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -55,7 +55,69 @@ mcpServer.RegisterTool(app.Services.GetRequiredService<LabelsTool>());
 mcpServer.RegisterTool(app.Services.GetRequiredService<TeamsTool>());
 mcpServer.RegisterTool(app.Services.GetRequiredService<UsersTool>());
 
-// ===== Webhook 端点 =====
+// ===== MCP Protocol Endpoints (JSON-RPC 2.0) =====
+
+// MCP Initialize - 初始化连接
+app.MapPost("/", async (HttpContext context, IMcpServer server, IToolRegistry toolRegistry) =>
+{
+    var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object?>>();
+    
+    if (request == null || !request.TryGetValue("method", out var method))
+    {
+        return Results.BadRequest(new { error = "Invalid JSON-RPC request" });
+    }
+
+    var methodStr = method?.ToString();
+    
+    return methodStr switch
+    {
+        "initialize" => Results.Ok(new
+        {
+            jsonrpc = "2.0",
+            id = request.GetValueOrDefault("id"),
+            result = new
+            {
+                protocolVersion = "2024-11-05",
+                capabilities = new
+                {
+                    tools = new { },
+                    resources = new { },
+                },
+                serverInfo = new
+                {
+                    name = "vikunja-mcp-server",
+                    version = "1.0.0"
+                }
+            }
+        }),
+        
+        "tools/list" => Results.Ok(new
+        {
+            jsonrpc = "2.0",
+            id = request.GetValueOrDefault("id"),
+            result = new
+            {
+                tools = toolRegistry.GetAllTools().Select(t => new
+                {
+                    name = t.Name,
+                    description = t.Description,
+                    inputSchema = new
+                    {
+                        type = "object",
+                        properties = new { },
+                        required = new string[] { }
+                    }
+                })
+            }
+        }),
+        
+        _ => Results.BadRequest(new { error = $"Unknown method: {methodStr}" })
+    };
+});
+
+// ===== Legacy HTTP API Endpoints (for testing) =====
+
+// Webhook endpoints
 app.MapPost("/webhook/vikunja", async (
     HttpContext context,
     IWebhookHandler handler,
@@ -125,7 +187,7 @@ app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsRespon
     }
 )));
 
-// ===== MCP 端点 =====
+// MCP endpoints (legacy HTTP API for testing)
 app.MapPost("/mcp/auth", async (
     HttpContext context,
     IAuthenticationManager authManager,
@@ -280,7 +342,7 @@ app.MapGet("/mcp/health", (IMcpServer mcpServer) =>
     ));
 });
 
-// ===== Admin 端点 =====
+// Admin endpoints
 app.MapGet("/admin/sessions", (IAuthenticationManager authManager) =>
 {
     var sessions = authManager.GetAllSessions();
@@ -406,7 +468,7 @@ app.MapPost("/admin/tools/{toolName}/{subcommand}", async (
     }
 });
 
-// ===== 健康检查 =====
+// Health check
 app.MapGet("/health", () => Results.Ok(new HealthResponse(
     "healthy",
     DateTime.UtcNow,
