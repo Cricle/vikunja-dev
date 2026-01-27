@@ -1,16 +1,38 @@
 import axios from 'axios'
 
-// Get Vikunja API URL and token from environment or config
-const VIKUNJA_API_URL = import.meta.env.VITE_VIKUNJA_API_URL || 'https://vtodo.site/api/v1'
-const VIKUNJA_API_TOKEN = import.meta.env.VITE_VIKUNJA_API_TOKEN || 'tk_8de21f609961d6782e5c7334d2e3bbf1d576aad6'
+// MCP endpoint for Vikunja operations
+const MCP_API_URL = '/mcp'
 
-const vikunjaApi = axios.create({
-  baseURL: VIKUNJA_API_URL,
+const mcpClient = axios.create({
+  baseURL: MCP_API_URL,
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${VIKUNJA_API_TOKEN}`
+    'Content-Type': 'application/json'
   }
 })
+
+// Helper function to call MCP tools
+async function callMcpTool<T>(toolName: string, args: Record<string, any> = {}): Promise<T> {
+  try {
+    const response = await mcpClient.post('', {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'tools/call',
+      params: {
+        name: toolName,
+        arguments: args
+      }
+    })
+    
+    if (response.data.error) {
+      throw new Error(response.data.error.message)
+    }
+    
+    return response.data.result.content[0].text ? JSON.parse(response.data.result.content[0].text) : response.data.result
+  } catch (error) {
+    console.error(`MCP tool call failed: ${toolName}`, error)
+    throw error
+  }
+}
 
 export interface VikunjaProject {
   id: number
@@ -64,8 +86,7 @@ export const vikunjaService = {
   // Projects
   async getProjects(): Promise<VikunjaProject[]> {
     try {
-      const response = await vikunjaApi.get('/projects')
-      return response.data
+      return await callMcpTool<VikunjaProject[]>('projects_list', {})
     } catch (error) {
       console.error('Failed to fetch projects:', error)
       return []
@@ -74,8 +95,7 @@ export const vikunjaService = {
 
   async getProject(id: number): Promise<VikunjaProject | null> {
     try {
-      const response = await vikunjaApi.get(`/projects/${id}`)
-      return response.data
+      return await callMcpTool<VikunjaProject>('projects_get', { projectId: id })
     } catch (error) {
       console.error(`Failed to fetch project ${id}:`, error)
       return null
@@ -85,9 +105,11 @@ export const vikunjaService = {
   // Tasks
   async getTasks(projectId?: number): Promise<VikunjaTask[]> {
     try {
-      const url = projectId ? `/projects/${projectId}/tasks` : '/tasks/all'
-      const response = await vikunjaApi.get(url)
-      return response.data
+      if (projectId) {
+        return await callMcpTool<VikunjaTask[]>('tasks_list', { projectId })
+      } else {
+        return await callMcpTool<VikunjaTask[]>('tasks_list_all', {})
+      }
     } catch (error) {
       console.error('Failed to fetch tasks:', error)
       return []
@@ -96,8 +118,7 @@ export const vikunjaService = {
 
   async getTask(id: number): Promise<VikunjaTask | null> {
     try {
-      const response = await vikunjaApi.get(`/tasks/${id}`)
-      return response.data
+      return await callMcpTool<VikunjaTask>('tasks_get', { taskId: id })
     } catch (error) {
       console.error(`Failed to fetch task ${id}:`, error)
       return null
@@ -107,8 +128,7 @@ export const vikunjaService = {
   // Users
   async getCurrentUser(): Promise<VikunjaUser | null> {
     try {
-      const response = await vikunjaApi.get('/user')
-      return response.data
+      return await callMcpTool<VikunjaUser>('users_get_current', {})
     } catch (error) {
       console.error('Failed to fetch current user:', error)
       return null
@@ -117,8 +137,7 @@ export const vikunjaService = {
 
   async getUsers(): Promise<VikunjaUser[]> {
     try {
-      const response = await vikunjaApi.get('/users')
-      return response.data
+      return await callMcpTool<VikunjaUser[]>('users_list', {})
     } catch (error) {
       console.error('Failed to fetch users:', error)
       return []
@@ -128,8 +147,7 @@ export const vikunjaService = {
   // Labels
   async getLabels(): Promise<VikunjaLabel[]> {
     try {
-      const response = await vikunjaApi.get('/labels')
-      return response.data
+      return await callMcpTool<VikunjaLabel[]>('labels_list', {})
     } catch (error) {
       console.error('Failed to fetch labels:', error)
       return []
@@ -139,8 +157,8 @@ export const vikunjaService = {
   // Statistics
   async getStatistics(): Promise<any> {
     try {
-      const response = await vikunjaApi.get('/user/settings/general')
-      return response.data
+      // Use current user as a proxy for statistics
+      return await this.getCurrentUser()
     } catch (error) {
       console.error('Failed to fetch statistics:', error)
       return null

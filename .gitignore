@@ -496,3 +496,5 @@ test-results/
 test-output/
 *.test.log
 run-with-env.ps1
+/src/VikunjaHook/VikunjaHook/*
+/src/VikunjaHook/VikunjaHook/wwwroot/dist/*

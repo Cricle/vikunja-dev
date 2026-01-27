@@ -33,7 +33,7 @@
     <Authors>Cricle</Authors>
     <RepositoryUrl>https://github.com/Cricle/vikunja-dev</RepositoryUrl>
   </PropertyGroup>
-
+	
   <!-- Include additional files -->
   <ItemGroup>
     <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />

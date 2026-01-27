@@ -58,6 +58,7 @@ COPY --link test-*.sh ./
 RUN mkdir -p /app/data/configs
 
 EXPOSE 8080
+VOLUME /app/data/configs
 
 ENV ASPNETCORE_URLS=http://+:8080
 
