@@ -234,8 +234,9 @@ onMounted(() => {
 
 <style scoped>
 .settings-container {
-  padding: 1.5rem;
-  width: 100%;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .settings-header {
@@ -258,7 +259,6 @@ onMounted(() => {
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: var(--va-primary);
 }
 
 .settings-subtitle {
@@ -267,7 +267,6 @@ onMounted(() => {
   opacity: 0.7;
 }
 
-/* Settings Content */
 .settings-content {
   display: flex;
   flex-direction: column;
@@ -276,7 +275,6 @@ onMounted(() => {
 
 .settings-card {
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .card-title-content {
@@ -299,24 +297,16 @@ onMounted(() => {
   opacity: 0.7;
 }
 
-/* Theme Toggle */
 .theme-toggle {
   align-self: flex-start;
 }
 
-/* Language Toggle */
 .language-toggle {
   align-self: flex-start;
 }
 
-/* User ID Input */
 .user-id-input {
   max-width: 400px;
-}
-
-/* Backup Card */
-.backup-card {
-  background: linear-gradient(135deg, var(--va-background-element) 0%, var(--va-background-secondary) 100%);
 }
 
 .backup-grid {
@@ -367,7 +357,6 @@ onMounted(() => {
   align-self: flex-start;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .settings-container {
     padding: 1rem;
@@ -410,6 +399,10 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
+  .settings-container {
+    padding: 0.75rem;
+  }
+
   .backup-header {
     gap: 0.5rem;
   }

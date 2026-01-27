@@ -234,11 +234,11 @@
             <div class="setup-content">
               <va-icon name="dashboard" size="4rem" color="primary" class="setup-icon" />
               <h2 class="setup-title">{{ t('dashboard.welcome') }}</h2>
-              <p class="setup-description">Enter your User ID to get started</p>
+              <p class="setup-description">{{ t('dashboard.setupDescription') }}</p>
               <va-input
                 v-model="userIdInput"
-                label="User ID"
-                placeholder="default"
+                :label="t('dashboard.userIdLabel')"
+                :placeholder="t('dashboard.userIdPlaceholder')"
                 @keyup.enter="loadUserConfig"
                 class="setup-input"
               />

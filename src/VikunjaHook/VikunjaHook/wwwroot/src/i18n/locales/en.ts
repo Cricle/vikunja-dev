@@ -43,6 +43,9 @@ export default {
     title: 'Dashboard',
     welcome: 'Welcome to Vikunja Webhook Notification System',
     description: 'Configure and manage your webhook notifications',
+    setupDescription: 'Enter your User ID to get started',
+    userIdLabel: 'User ID',
+    userIdPlaceholder: 'default',
     stats: {
       providers: 'Providers',
       rules: 'Project Rules',
@@ -88,7 +91,9 @@ export default {
     settings: 'Settings',
     pushkey: 'Push Key',
     save: 'Save',
-    cancel: 'Cancel'
+    cancel: 'Cancel',
+    noProviders: 'No Providers Configured',
+    noProvidersDescription: 'Add your first notification provider to get started'
   },
   projects: {
     title: 'Project Rules',

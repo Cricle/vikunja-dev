@@ -43,6 +43,9 @@ export default {
     title: '仪表板',
     welcome: '欢迎使用 Vikunja Webhook 通知系统',
     description: '配置和管理您的 webhook 通知',
+    setupDescription: '输入您的用户 ID 以开始使用',
+    userIdLabel: '用户 ID',
+    userIdPlaceholder: 'default',
     stats: {
       providers: '通知提供者',
       rules: '项目规则',
@@ -94,7 +97,9 @@ export default {
     testSuccess: '测试通知发送成功',
     testFailed: '测试通知发送失败',
     saveSuccess: '保存成功',
-    saveFailed: '保存失败'
+    saveFailed: '保存失败',
+    noProviders: '暂无提供者配置',
+    noProvidersDescription: '添加您的第一个通知提供者以开始使用'
   },
   projects: {
     title: '项目规则配置',

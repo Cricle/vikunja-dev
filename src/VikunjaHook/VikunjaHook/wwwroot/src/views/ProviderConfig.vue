@@ -92,8 +92,8 @@
         <va-card-content>
           <div class="empty-state">
             <va-icon name="notifications_off" size="4rem" color="secondary" />
-            <h3 class="empty-title">No Providers Configured</h3>
-            <p class="empty-description">Add your first notification provider to get started</p>
+            <h3 class="empty-title">{{ t('providers.noProviders') }}</h3>
+            <p class="empty-description">{{ t('providers.noProvidersDescription') }}</p>
             <va-button @click="showAddModal = true" icon="add" color="primary" size="large">
               {{ t('providers.add') }}
             </va-button>
