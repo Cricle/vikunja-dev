@@ -57,6 +57,10 @@ COPY --link test-*.sh ./
 # Create data directory
 RUN mkdir -p /app/data/configs
 
+EXPOSE 8080
+
+ENV ASPNETCORE_URLS=http://+:8080
+
 USER $APP_UID
 
 ENTRYPOINT ["./VikunjaHook"]
