@@ -18,28 +18,24 @@
             <va-button-group>
               <va-button
                 :to="{ name: 'dashboard' }"
-                :preset="$route.name === 'dashboard' ? 'primary' : 'plain'"
                 icon="dashboard"
               >
                 {{ t('nav.dashboard') }}
               </va-button>
               <va-button
                 :to="{ name: 'providers' }"
-                :preset="$route.name === 'providers' ? 'primary' : 'plain'"
                 icon="notifications"
               >
                 {{ t('nav.providers') }}
               </va-button>
               <va-button
                 :to="{ name: 'projects' }"
-                :preset="$route.name === 'projects' ? 'primary' : 'plain'"
                 icon="folder"
               >
                 {{ t('nav.projects') }}
               </va-button>
               <va-button
                 :to="{ name: 'templates' }"
-                :preset="$route.name === 'templates' ? 'primary' : 'plain'"
                 icon="edit_note"
               >
                 {{ t('nav.templates') }}
@@ -260,15 +256,15 @@ onMounted(() => {
 }
 
 :deep(.va-list-item) {
-  --va-list-item-color: inherit;
+  color: var(--va-text-primary);
 }
 
 :deep(.va-list-item .va-icon) {
-  color: inherit;
+  color: var(--va-text-primary);
 }
 
 :deep(.va-list-item .va-list-item-label) {
-  color: inherit;
+  color: var(--va-text-primary);
 }
 
 @media (max-width: 768px) {
