@@ -259,6 +259,18 @@ onMounted(() => {
 :deep(.active-menu-item) {
 }
 
+:deep(.va-list-item) {
+  --va-list-item-color: inherit;
+}
+
+:deep(.va-list-item .va-icon) {
+  color: inherit;
+}
+
+:deep(.va-list-item .va-list-item-label) {
+  color: inherit;
+}
+
 @media (max-width: 768px) {
   .navbar-item-mobile {
     display: flex;
