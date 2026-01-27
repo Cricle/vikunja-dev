@@ -41,10 +41,10 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Login to Docker Hub (if credentials provided)
-      if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+      if: ${{ vars.DOCKER_USERNAME != '' }}
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
+        username: ${{ vars.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
     - name: Extract metadata
@@ -53,7 +53,7 @@ jobs:
       with:
         images: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          ${{ secrets.DOCKER_USERNAME != '' && format('{0}/vikunja-mcp', secrets.DOCKER_USERNAME) || '' }}
+          ${{ vars.DOCKER_USERNAME != '' && format('{0}/vikunja-mcp', vars.DOCKER_USERNAME) || '' }}
         tags: |
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
@@ -95,11 +95,11 @@ jobs:
           echo "\`\`\`bash"
           echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
           echo "\`\`\`"
-          if [ -n "${{ secrets.DOCKER_USERNAME }}" ]; then
+          if [ -n "${{ vars.DOCKER_USERNAME }}" ]; then
             echo ""
             echo "### Docker Hub"
             echo "\`\`\`bash"
-            echo "docker pull ${{ secrets.DOCKER_USERNAME }}/vikunja-mcp:${{ steps.version.outputs.version }}"
+            echo "docker pull ${{ vars.DOCKER_USERNAME }}/vikunja-mcp:${{ steps.version.outputs.version }}"
             echo "\`\`\`"
           fi
           echo ""
