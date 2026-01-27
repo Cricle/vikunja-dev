@@ -115,13 +115,6 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = ""
 });
 
-// Fallback to index.html for SPA routing
-app.MapFallbackToFile("index.html", new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(app.Environment.ContentRootPath, "wwwroot", "dist"))
-});
-
 // Map MCP endpoints (HTTP with SSE transport)
 app.MapMcp("/mcp");
 
@@ -412,6 +405,13 @@ app.MapGet("/api/vikunja/projects/{id:int}", async (
         logger.LogError(ex, "Error fetching Vikunja project {ProjectId}", id);
         return Results.Problem("Error fetching project");
     }
+});
+
+// SPA fallback - must be last to not interfere with API routes
+app.MapFallbackToFile("index.html", new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(app.Environment.ContentRootPath, "wwwroot", "dist"))
 });
 
 await app.RunAsync();
