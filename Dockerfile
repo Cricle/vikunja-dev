@@ -52,17 +52,10 @@ WORKDIR /app
 COPY --link --from=backend-build /app .
 
 # Copy test scripts for container testing
-COPY --link test-*.ps1 ./
 COPY --link test-*.sh ./
 
 # Create data directory
 RUN mkdir -p /app/data/configs
-
-EXPOSE 5082
-
-ENV ASPNETCORE_URLS=http://+:5082 \
-    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true \
-    ASPNETCORE_ENVIRONMENT=Production
 
 USER $APP_UID
 
