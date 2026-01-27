@@ -420,15 +420,11 @@ onMounted(async () => {
 }
 
 .rules-title {
-  font-size: 2rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
 }
 
 .rules-subtitle {
-  font-size: 1rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 .rules-content {
@@ -465,15 +461,11 @@ onMounted(async () => {
 }
 
 .collapse-title {
-  font-size: 1.125rem;
-  font-weight: 600;
   margin: 0 0 0.25rem 0;
 }
 
 .collapse-subtitle {
-  font-size: 0.875rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 .collapse-header-right {
@@ -500,8 +492,6 @@ onMounted(async () => {
 }
 
 .events-title {
-  font-size: 1rem;
-  font-weight: 600;
   margin: 0;
 }
 
@@ -518,14 +508,11 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
   margin: 0 0 0.75rem 0;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  opacity: 0.8;
 }
 
 .events-list {
@@ -558,14 +545,11 @@ onMounted(async () => {
 }
 
 .empty-title {
-  font-size: 1.5rem;
-  font-weight: 600;
   margin: 1.5rem 0 0.5rem 0;
 }
 
 .empty-description {
   margin: 0 0 2rem 0;
-  opacity: 0.7;
 }
 
 .modal-form {
@@ -584,7 +568,6 @@ onMounted(async () => {
   }
 
   .rules-title {
-    font-size: 1.5rem;
   }
 
   .events-list {

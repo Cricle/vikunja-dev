@@ -256,15 +256,11 @@ onMounted(() => {
 }
 
 .settings-title {
-  font-size: 2rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
 }
 
 .settings-subtitle {
-  font-size: 1rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 .settings-content {
@@ -281,8 +277,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 .setting-section {
@@ -293,8 +287,6 @@ onMounted(() => {
 
 .setting-description {
   margin: 0;
-  font-size: 0.875rem;
-  opacity: 0.7;
 }
 
 .theme-toggle {
@@ -333,15 +325,11 @@ onMounted(() => {
 }
 
 .backup-title {
-  font-size: 1.125rem;
-  font-weight: 600;
   margin: 0 0 0.5rem 0;
 }
 
 .backup-description {
   margin: 0;
-  font-size: 0.875rem;
-  opacity: 0.7;
 }
 
 .backup-button {
@@ -363,7 +351,6 @@ onMounted(() => {
   }
 
   .settings-title {
-    font-size: 1.5rem;
   }
 
   .backup-grid {
@@ -408,7 +395,6 @@ onMounted(() => {
   }
 
   .backup-title {
-    font-size: 1rem;
   }
 }
 </style>

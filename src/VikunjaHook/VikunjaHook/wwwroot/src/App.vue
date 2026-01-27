@@ -247,12 +247,9 @@ onMounted(() => {
 }
 
 .brand-icon {
-  font-size: 1.5rem;
 }
 
 .brand-title {
-  font-weight: 700;
-  font-size: 1.25rem;
 }
 
 .navbar-item-mobile {
@@ -269,7 +266,6 @@ onMounted(() => {
   }
 
   .brand-title {
-    font-size: 1rem;
   }
 }
 
@@ -279,7 +275,6 @@ onMounted(() => {
   }
 
   .brand-icon {
-    font-size: 1.25rem;
   }
 }
 </style>

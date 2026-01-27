@@ -138,7 +138,7 @@
                   </div>
                 </template>
                 <template #cell(description)="{ rowData }">
-                  <span style="opacity: 0.7;">{{ rowData.description || '-' }}</span>
+                  <span>{{ rowData.description || '-' }}</span>
                 </template>
                 <template #cell(owner)="{ rowData }">
                   <va-chip v-if="rowData.owner" size="small" color="primary">
@@ -187,7 +187,7 @@
                   </va-chip>
                 </template>
                 <template #cell(dueDate)="{ rowData }">
-                  <span v-if="rowData.dueDate" style="opacity: 0.7;">
+                  <span v-if="rowData.dueDate">
                     {{ formatDate(rowData.dueDate) }}
                   </span>
                   <span v-else>-</span>
@@ -377,16 +377,11 @@ onMounted(() => {
 }
 
 .dashboard-title {
-  font-size: 2rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: var(--va-primary);
 }
 
 .dashboard-subtitle {
-  font-size: 1rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 .error-alert {
@@ -418,23 +413,15 @@ onMounted(() => {
 }
 
 .stats-card--primary {
-  background: linear-gradient(135deg, var(--va-primary) 0%, var(--va-primary-dark) 100%);
-  color: white;
 }
 
 .stats-card--success {
-  background: linear-gradient(135deg, var(--va-success) 0%, var(--va-success-dark) 100%);
-  color: white;
 }
 
 .stats-card--info {
-  background: linear-gradient(135deg, var(--va-info) 0%, var(--va-info-dark) 100%);
-  color: white;
 }
 
 .stats-card--warning {
-  background: linear-gradient(135deg, var(--va-warning) 0%, var(--va-warning-dark) 100%);
-  color: white;
 }
 
 .stats-content {
@@ -449,7 +436,6 @@ onMounted(() => {
   justify-content: center;
   width: 60px;
   height: 60px;
-  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
 }
 
@@ -458,15 +444,10 @@ onMounted(() => {
 }
 
 .stats-number {
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1;
   margin-bottom: 0.25rem;
 }
 
 .stats-label {
-  font-size: 0.875rem;
-  opacity: 0.9;
 }
 
 /* Content Cards */
@@ -479,8 +460,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 /* User Card */
@@ -500,14 +479,11 @@ onMounted(() => {
 }
 
 .user-name {
-  font-size: 1.25rem;
-  font-weight: 600;
   margin: 0 0 0.25rem 0;
 }
 
 .user-email {
   margin: 0 0 0.75rem 0;
-  opacity: 0.7;
 }
 
 .user-badges {
@@ -558,14 +534,11 @@ onMounted(() => {
 }
 
 .setup-title {
-  font-size: 1.75rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
 }
 
 .setup-description {
   margin: 0 0 2rem 0;
-  opacity: 0.7;
 }
 
 .setup-input {
@@ -580,7 +553,6 @@ onMounted(() => {
   }
 
   .dashboard-title {
-    font-size: 1.5rem;
   }
 
   .stats-grid {
@@ -595,7 +567,6 @@ onMounted(() => {
   }
 
   .stats-number {
-    font-size: 1.5rem;
   }
 
   .user-info {

@@ -372,15 +372,11 @@ onMounted(async () => {
 }
 
 .config-title {
-  font-size: 2rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
 }
 
 .config-subtitle {
-  font-size: 1rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 .providers-list {
@@ -426,17 +422,12 @@ onMounted(async () => {
 }
 
 .provider-name {
-  font-size: 1.125rem;
-  font-weight: 600;
   margin: 0;
 }
 
 .provider-type {
-  font-size: 0.875rem;
   margin: 0 0 0.5rem 0;
   text-transform: uppercase;
-  font-weight: 500;
-  opacity: 0.7;
 }
 
 .provider-settings-inline {
@@ -465,14 +456,11 @@ onMounted(async () => {
 }
 
 .empty-title {
-  font-size: 1.5rem;
-  font-weight: 600;
   margin: 1.5rem 0 0.5rem 0;
 }
 
 .empty-description {
   margin: 0 0 2rem 0;
-  opacity: 0.7;
 }
 
 .modal-form {
@@ -496,9 +484,7 @@ onMounted(async () => {
 }
 
 .error-message {
-  font-size: 0.875rem;
   margin-top: 0.5rem;
-  opacity: 0.9;
 }
 
 @media (max-width: 768px) {
@@ -507,7 +493,6 @@ onMounted(async () => {
   }
 
   .config-title {
-    font-size: 1.5rem;
   }
 
   .provider-content {

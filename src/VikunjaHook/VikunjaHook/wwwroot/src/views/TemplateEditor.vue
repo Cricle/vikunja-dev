@@ -579,16 +579,11 @@ onUnmounted(() => {
 }
 
 .editor-title {
-  font-size: 2rem;
-  font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: var(--va-primary);
 }
 
 .editor-subtitle {
-  font-size: 1rem;
   margin: 0;
-  opacity: 0.7;
 }
 
 /* Layout */
@@ -614,8 +609,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.125rem;
-  font-weight: 600;
 }
 
 .sidebar-content {
@@ -626,8 +619,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
   width: 100%;
 }
 
@@ -665,8 +656,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 .form-section {
@@ -675,10 +664,7 @@ onUnmounted(() => {
 
 .editor-label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
   margin-bottom: 0.5rem;
-  color: var(--va-text-primary);
 }
 
 .markdown-editor {
@@ -688,34 +674,26 @@ onUnmounted(() => {
 
 /* EasyMDE Dark Mode Support */
 :deep(.EasyMDEContainer) {
-  background: var(--va-background-element);
 }
 
 :deep(.CodeMirror) {
-  background: var(--va-background-element);
-  color: var(--va-text-primary);
   border: 1px solid var(--va-background-border);
   border-radius: 4px;
 }
 
 :deep(.CodeMirror-cursor) {
-  border-left-color: var(--va-text-primary);
 }
 
 :deep(.editor-toolbar) {
-  background: var(--va-background-element);
   border: 1px solid var(--va-background-border);
   border-bottom: none;
-  opacity: 1;
 }
 
 :deep(.editor-toolbar button) {
-  color: var(--va-text-primary) !important;
 }
 
 :deep(.editor-toolbar button:hover),
 :deep(.editor-toolbar button.active) {
-  background: var(--va-background-secondary);
   border-color: var(--va-background-border);
 }
 
@@ -726,8 +704,6 @@ onUnmounted(() => {
 
 :deep(.editor-preview),
 :deep(.editor-preview-side) {
-  background: var(--va-background-element);
-  color: var(--va-text-primary);
 }
 
 .action-buttons {
@@ -747,14 +723,11 @@ onUnmounted(() => {
 }
 
 .empty-title {
-  font-size: 1.5rem;
-  font-weight: 600;
   margin: 1.5rem 0 0.5rem 0;
 }
 
 .empty-description {
   margin: 0;
-  opacity: 0.7;
 }
 
 /* Placeholders Panel */
@@ -774,9 +747,7 @@ onUnmounted(() => {
 }
 
 .placeholders-hint {
-  font-size: 0.875rem;
   margin: 0 0 1rem 0;
-  opacity: 0.7;
 }
 
 .placeholder-list {
@@ -798,7 +769,6 @@ onUnmounted(() => {
 }
 
 .placeholder-chip code {
-  font-size: 0.875rem;
   font-family: 'Courier New', monospace;
 }
 
@@ -826,7 +796,6 @@ onUnmounted(() => {
   }
 
   .editor-title {
-    font-size: 1.5rem;
   }
 
   .action-buttons {
