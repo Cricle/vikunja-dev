@@ -285,7 +285,7 @@ import { useConfigStore } from '@/stores/configStore'
 import { useEventStore } from '@/stores/eventStore'
 import { vikunjaService } from '@/services/vikunjaApi'
 import type { VikunjaProject } from '@/services/vikunjaApi'
-import { PlaceholdersByEventType } from '@/types/events'
+import { PlaceholdersByEventType, type EventType } from '@/types/events'
 import type { NotificationTemplate } from '@/types/config'
 import { NotificationFormat } from '@/types/config'
 import EasyMDE from 'easymde'
@@ -332,7 +332,7 @@ const projectOptions = computed(() => {
 const availablePlaceholders = computed(() => {
   if (!selectedEvent.value) return []
   
-  const metadata = eventStore.getEventMetadata(selectedEvent.value as any)
+  const metadata = eventStore.getEventMetadata(selectedEvent.value as EventType)
   return PlaceholdersByEventType[metadata.category] || []
 })
 
@@ -343,7 +343,7 @@ function getEventLabel(eventType: string): string {
 }
 
 function getEventMetadata(eventType: string) {
-  return eventStore.getEventMetadata(eventType as any)
+  return eventStore.getEventMetadata(eventType as EventType)
 }
 
 function initMarkdownEditor() {
@@ -428,10 +428,10 @@ async function saveTemplate() {
       message: t('templates.saved'),
       color: 'success'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to save template:', error)
     notify({
-      message: t('common.error') + ': ' + (error.message || 'Unknown error'),
+      message: t('common.error') + ': ' + (error instanceof Error ? error.message : 'Unknown error'),
       color: 'danger'
     })
   }
@@ -449,10 +449,10 @@ async function resetTemplate() {
       message: t('templates.saved'),
       color: 'success'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to reset template:', error)
     notify({
-      message: t('common.error') + ': ' + (error.message || 'Unknown error'),
+      message: t('common.error') + ': ' + (error instanceof Error ? error.message : 'Unknown error'),
       color: 'danger'
     })
   }

@@ -31,9 +31,10 @@ export const useConfigStore = defineStore('config', () => {
       } else {
         config.value = loadedConfig
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If 404, create default config
-      if (err.response?.status === 404) {
+      const isAxiosError = err && typeof err === 'object' && 'response' in err
+      if (isAxiosError && (err as { response?: { status?: number } }).response?.status === 404) {
         config.value = {
           userId: userId,
           providers: [],
@@ -42,7 +43,7 @@ export const useConfigStore = defineStore('config', () => {
           lastModified: new Date().toISOString()
         }
       } else {
-        error.value = err.message || 'Failed to load configuration'
+        error.value = err instanceof Error ? err.message : 'Failed to load configuration'
         throw err
       }
     } finally {
@@ -61,8 +62,8 @@ export const useConfigStore = defineStore('config', () => {
       // Update lastModified before saving
       config.value.lastModified = new Date().toISOString()
       config.value = await apiService.updateUserConfig(config.value.userId, config.value)
-    } catch (err: any) {
-      error.value = err.message || 'Failed to save configuration'
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to save configuration'
       throw err
     } finally {
       loading.value = false

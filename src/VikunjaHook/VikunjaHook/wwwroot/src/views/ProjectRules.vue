@@ -230,6 +230,7 @@ import { useRouter } from 'vue-router'
 import { useConfigStore } from '@/stores/configStore'
 import { useEventStore } from '@/stores/eventStore'
 import { vikunjaService, type VikunjaProject } from '@/services/vikunjaApi'
+import type { EventType } from '@/types/events'
 
 const { t } = useI18n()
 const configStore = useConfigStore()
@@ -282,7 +283,7 @@ function getEventLabel(eventType: string): string {
 }
 
 function getEventMetadata(eventType: string) {
-  return eventStore.getEventMetadata(eventType as any)
+  return eventStore.getEventMetadata(eventType as EventType)
 }
 
 function goToTemplates(projectId: string) {

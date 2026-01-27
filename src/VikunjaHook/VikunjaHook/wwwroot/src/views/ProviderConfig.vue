@@ -215,7 +215,7 @@ const columns = computed(() => [
 
 const showAddModal = ref(false)
 const showTestModal = ref(false)
-const editingProvider = ref<any>(null)
+const editingProvider = ref<typeof formData.value | null>(null)
 const testResult = ref<NotificationResult | null>(null)
 
 const formData = ref({
@@ -240,7 +240,7 @@ function maskSensitive(key: string, value: string): string {
   return value
 }
 
-function editProvider(provider: any) {
+function editProvider(provider: typeof formData.value) {
   editingProvider.value = provider
   formData.value = {
     providerType: provider.providerType,
@@ -286,16 +286,16 @@ async function saveProvider() {
     
     cancelEdit()
     showAddModal.value = false
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to save provider:', error)
     notify({
-      message: t('providers.saveFailed') + ': ' + (error.message || 'Unknown error'),
+      message: t('providers.saveFailed') + ': ' + (error instanceof Error ? error.message : 'Unknown error'),
       color: 'danger'
     })
   }
 }
 
-async function confirmDelete(provider: any) {
+async function confirmDelete(provider: typeof formData.value) {
   if (confirm(t('providers.confirmDelete'))) {
     try {
       configStore.removeProvider(provider.providerType)
@@ -305,17 +305,17 @@ async function confirmDelete(provider: any) {
         message: t('common.success'),
         color: 'success'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete provider:', error)
       notify({
-        message: t('common.error') + ': ' + (error.message || 'Unknown error'),
+        message: t('common.error') + ': ' + (error instanceof Error ? error.message : 'Unknown error'),
         color: 'danger'
       })
     }
   }
 }
 
-async function testProvider(provider: any) {
+async function testProvider(provider: typeof formData.value) {
   try {
     testResult.value = await apiService.testNotification(configStore.userId, {
       providerType: provider.providerType,
@@ -323,11 +323,11 @@ async function testProvider(provider: any) {
       body: 'This is a test notification from Vikunja Webhook System'
     })
     showTestModal.value = true
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Test notification error:', err)
     testResult.value = {
       success: false,
-      errorMessage: err.response?.data?.detail || err.message || 'Unknown error',
+      errorMessage: err instanceof Error ? err.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }
     showTestModal.value = true

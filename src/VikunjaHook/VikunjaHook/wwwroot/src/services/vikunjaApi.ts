@@ -11,7 +11,7 @@ const mcpClient = axios.create({
 })
 
 // Helper function to call MCP tools
-async function callMcpTool<T>(toolName: string, args: Record<string, any> = {}): Promise<T> {
+async function callMcpTool<T>(toolName: string, args: Record<string, unknown> = {}): Promise<T> {
   try {
     const response = await mcpClient.post('', {
       jsonrpc: '2.0',
@@ -155,7 +155,7 @@ export const vikunjaService = {
   },
 
   // Statistics
-  async getStatistics(): Promise<any> {
+  async getStatistics(): Promise<VikunjaUser | null> {
     try {
       // Use current user as a proxy for statistics
       return await this.getCurrentUser()
