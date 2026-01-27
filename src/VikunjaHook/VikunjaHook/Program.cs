@@ -1,12 +1,11 @@
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using VikunjaHook;
-using VikunjaHook.Models;
-using VikunjaHook.Services;
-using VikunjaHook.Mcp.Services;
-using VikunjaHook.Mcp.Tools;
-using VikunjaHook.Mcp.Models;
+using Vikunja.Core;
+using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Services;
+using Vikunja.Core.Mcp.Tools;
+using Vikunja.Core.Models;
+using Vikunja.Core.Services;
 
 // Validate required environment variables for MCP
 var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
