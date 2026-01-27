@@ -3,15 +3,16 @@ using Vikunja.Core.Models;
 using Vikunja.Core.Mcp.Models;
 using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Models.Configuration;
+using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core;
 
 // Webhook models
 [JsonSerializable(typeof(VikunjaWebhookPayload))]
 [JsonSerializable(typeof(WebhookData))]
-[JsonSerializable(typeof(TaskData))]
-[JsonSerializable(typeof(ProjectData))]
-[JsonSerializable(typeof(UserData))]
+[JsonSerializable(typeof(Vikunja.Core.Models.TaskData))]
+[JsonSerializable(typeof(Vikunja.Core.Models.ProjectData))]
+[JsonSerializable(typeof(Vikunja.Core.Models.UserData))]
 [JsonSerializable(typeof(CommentData))]
 [JsonSerializable(typeof(LabelData))]
 [JsonSerializable(typeof(RelationData))]
@@ -106,6 +107,16 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(ErrorDetail))]
 
+// Notification models
+[JsonSerializable(typeof(UserConfig))]
+[JsonSerializable(typeof(ProviderConfig))]
+[JsonSerializable(typeof(ProjectRule))]
+[JsonSerializable(typeof(NotificationTemplate))]
+[JsonSerializable(typeof(NotificationMessage))]
+[JsonSerializable(typeof(NotificationResult))]
+[JsonSerializable(typeof(WebhookEvent))]
+[JsonSerializable(typeof(Vikunja.Core.Notifications.Models.TestNotificationRequest))]
+
 // Collections
 [JsonSerializable(typeof(List<VikunjaTask>))]
 [JsonSerializable(typeof(List<VikunjaProject>))]
@@ -116,8 +127,11 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(List<VikunjaComment>))]
 [JsonSerializable(typeof(List<VikunjaTaskRelation>))]
 [JsonSerializable(typeof(List<VikunjaReminder>))]
+[JsonSerializable(typeof(List<ProviderConfig>))]
+[JsonSerializable(typeof(List<ProjectRule>))]
 [JsonSerializable(typeof(Dictionary<string, object?>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(Dictionary<string, NotificationTemplate>))]
 [JsonSerializable(typeof(List<Dictionary<string, object?>>))]
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]

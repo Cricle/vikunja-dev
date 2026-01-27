@@ -1,0 +1,137 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { UserConfig, ProviderConfig, ProjectRule, NotificationTemplate } from '@/types/config'
+import { apiService } from '@/services/api'
+
+export const useConfigStore = defineStore('config', () => {
+  const config = ref<UserConfig | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  const userId = computed(() => config.value?.userId || '')
+  const providers = computed(() => config.value?.providers || [])
+  const projectRules = computed(() => config.value?.projectRules || [])
+  const templates = computed(() => config.value?.templates || {})
+
+  async function loadConfig(userId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const loadedConfig = await apiService.getUserConfig(userId)
+      
+      // If config doesn't exist, create a default one
+      if (!loadedConfig) {
+        config.value = {
+          userId: userId,
+          providers: [],
+          projectRules: [],
+          templates: {},
+          lastModified: new Date().toISOString()
+        }
+      } else {
+        config.value = loadedConfig
+      }
+    } catch (err: any) {
+      // If 404, create default config
+      if (err.response?.status === 404) {
+        config.value = {
+          userId: userId,
+          providers: [],
+          projectRules: [],
+          templates: {},
+          lastModified: new Date().toISOString()
+        }
+      } else {
+        error.value = err.message || 'Failed to load configuration'
+        throw err
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function saveConfig() {
+    if (!config.value) {
+      throw new Error('No configuration to save')
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      // Update lastModified before saving
+      config.value.lastModified = new Date().toISOString()
+      config.value = await apiService.updateUserConfig(config.value.userId, config.value)
+    } catch (err: any) {
+      error.value = err.message || 'Failed to save configuration'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function addProvider(provider: ProviderConfig) {
+    if (!config.value) return
+    config.value.providers.push(provider)
+  }
+
+  function removeProvider(providerType: string) {
+    if (!config.value) return
+    config.value.providers = config.value.providers.filter(p => p.providerType !== providerType)
+  }
+
+  function updateProvider(providerType: string, updates: Partial<ProviderConfig>) {
+    if (!config.value) return
+    const provider = config.value.providers.find(p => p.providerType === providerType)
+    if (provider) {
+      Object.assign(provider, updates)
+    }
+  }
+
+  function addProjectRule(rule: ProjectRule) {
+    if (!config.value) return
+    config.value.projectRules.push(rule)
+  }
+
+  function removeProjectRule(projectId: string) {
+    if (!config.value) return
+    config.value.projectRules = config.value.projectRules.filter(r => r.projectId !== projectId)
+  }
+
+  function updateProjectRule(projectId: string, updates: Partial<ProjectRule>) {
+    if (!config.value) return
+    const rule = config.value.projectRules.find(r => r.projectId === projectId)
+    if (rule) {
+      Object.assign(rule, updates)
+    }
+  }
+
+  function setTemplate(eventType: string, template: NotificationTemplate) {
+    if (!config.value) return
+    config.value.templates[eventType] = template
+  }
+
+  function removeTemplate(eventType: string) {
+    if (!config.value) return
+    delete config.value.templates[eventType]
+  }
+
+  return {
+    config,
+    loading,
+    error,
+    userId,
+    providers,
+    projectRules,
+    templates,
+    loadConfig,
+    saveConfig,
+    addProvider,
+    removeProvider,
+    updateProvider,
+    addProjectRule,
+    removeProjectRule,
+    updateProjectRule,
+    setTemplate,
+    removeTemplate
+  }
+})

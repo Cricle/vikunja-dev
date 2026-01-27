@@ -9,7 +9,7 @@ docker rm -f vikunja-mcp-test 2>$null
 
 # 构建镜像
 Write-Host ""
-Write-Host "构建 Docker 镜像..." -ForegroundColor Cyan
+Write-Host "构建 Docker 镜像（包含前端编译）..." -ForegroundColor Cyan
 docker build -t vikunja-mcp:test .
 
 if ($LASTEXITCODE -ne 0) {
@@ -24,6 +24,8 @@ docker run -d `
   --name vikunja-mcp-test `
   -p 5083:5082 `
   -e ASPNETCORE_ENVIRONMENT=Production `
+  -e VIKUNJA_API_URL=http://host.docker.internal:8080/api/v1 `
+  -e VIKUNJA_API_TOKEN=test_token `
   vikunja-mcp:test
 
 # 等待容器启动
@@ -46,6 +48,8 @@ for ($i = 1; $i -le 10; $i++) {
     } catch {
         if ($i -eq 10) {
             Write-Host "❌ 健康检查失败！" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "容器日志:" -ForegroundColor Yellow
             docker logs vikunja-mcp-test
             docker rm -f vikunja-mcp-test
             exit 1
@@ -62,6 +66,18 @@ if (-not $success) {
     exit 1
 }
 
+# 测试静态文件服务
+Write-Host ""
+Write-Host "测试静态文件服务..." -ForegroundColor Cyan
+try {
+    $response = Invoke-WebRequest -Uri "http://localhost:5083/" -UseBasicParsing -TimeoutSec 2
+    if ($response.StatusCode -eq 200) {
+        Write-Host "✅ 静态文件服务正常！" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "⚠ 静态文件服务可能有问题" -ForegroundColor Yellow
+}
+
 # 查看容器信息
 Write-Host ""
 Write-Host "容器信息:" -ForegroundColor Cyan
@@ -71,10 +87,16 @@ Write-Host ""
 Write-Host "镜像大小:" -ForegroundColor Cyan
 docker images vikunja-mcp:test
 
+# 显示容器日志（最后 20 行）
+Write-Host ""
+Write-Host "容器日志（最后 20 行）:" -ForegroundColor Cyan
+docker logs --tail 20 vikunja-mcp-test
+
 # 清理
 Write-Host ""
 Write-Host "清理测试容器..." -ForegroundColor Yellow
 docker rm -f vikunja-mcp-test
+Write-Host "✅ 测试容器已清理" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "✅ Docker 测试完成！" -ForegroundColor Green

@@ -495,3 +495,4 @@ server.pid
 test-results/
 test-output/
 *.test.log
+run-with-env.ps1

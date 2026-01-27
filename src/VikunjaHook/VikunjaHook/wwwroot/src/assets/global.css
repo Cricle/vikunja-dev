@@ -1,0 +1,42 @@
+/* Global Styles */
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reset */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Fix Vuestic list item label color in dark mode */
+.va-list-item-label {
+  color: inherit !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--va-background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--va-background-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--va-primary);
+}

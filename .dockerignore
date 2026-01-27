@@ -15,14 +15,16 @@
 *.suo
 
 # Node
-node_modules/
-npm-debug.log
+**/node_modules/
+**/npm-debug.log
 
-# Test files
-test-*.js
+# Frontend build output (will be built in Docker)
+**/wwwroot/dist/
+
+# Test files (except scripts we want to copy)
 *.http
 
-# Documentation
+# Documentation (keep test scripts)
 *.md
 !README.md
 
@@ -32,3 +34,6 @@ test-*.js
 # Misc
 **/.DS_Store
 **/Thumbs.db
+**/.env
+**/.env.*
+!**/.env.example
