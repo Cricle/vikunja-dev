@@ -15,15 +15,30 @@ using Vikunja.Core.Notifications.Adapters;
 using Vikunja.Core.Notifications.Models;
 
 // Validate required environment variables for MCP
+// If not found in environment, use command line arguments
 var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
 var apiToken = Environment.GetEnvironmentVariable("VIKUNJA_API_TOKEN");
 
+// Fallback to command line arguments if environment variables are not set
+if (string.IsNullOrWhiteSpace(apiUrl) && args.Length > 0)
+{
+    apiUrl = args[0];
+}
+
+if (string.IsNullOrWhiteSpace(apiToken) && args.Length > 1)
+{
+    apiToken = args[1];
+}
+
 if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
 {
-    Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN environment variables are required");
-    Console.Error.WriteLine("Example:");
-    Console.Error.WriteLine("  VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
-    Console.Error.WriteLine("  VIKUNJA_API_TOKEN=your_api_token_here");
+    Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN are required");
+    Console.Error.WriteLine("Provide them via:");
+    Console.Error.WriteLine("  1. Environment variables:");
+    Console.Error.WriteLine("     VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
+    Console.Error.WriteLine("     VIKUNJA_API_TOKEN=your_api_token_here");
+    Console.Error.WriteLine("  2. Command line arguments:");
+    Console.Error.WriteLine("     dotnet run <API_URL> <API_TOKEN>");
     return 1;
 }
 
