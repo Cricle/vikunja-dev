@@ -35,8 +35,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // Get API URL and Token from configuration (supports environment variables, command line args, etc.)
-var apiUrl = builder.Configuration["VIKUNJA_API_URL"] ?? args.ElementAtOrDefault(0);
-var apiToken = builder.Configuration["VIKUNJA_API_TOKEN"] ?? args.ElementAtOrDefault(1);
+var apiUrl = builder.Configuration["VIKUNJA_API_URL"];
+var apiToken = builder.Configuration["VIKUNJA_API_TOKEN"];
 
 if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
 {
@@ -46,7 +46,7 @@ if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
     Console.Error.WriteLine("     VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
     Console.Error.WriteLine("     VIKUNJA_API_TOKEN=your_api_token_here");
     Console.Error.WriteLine("  2. Command line arguments:");
-    Console.Error.WriteLine("     dotnet run <API_URL> <API_TOKEN>");
+    Console.Error.WriteLine("     dotnet run --VIKUNJA_API_URL=... --VIKUNJA_API_TOKEN=...");
     Console.Error.WriteLine("  3. Docker environment variables:");
     Console.Error.WriteLine("     docker run -e VIKUNJA_API_URL=... -e VIKUNJA_API_TOKEN=...");
     return 1;
