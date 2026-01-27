@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 env:
-  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/vikunja-hook
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/vikunja-mcp
 
 jobs:
   build-and-release:
