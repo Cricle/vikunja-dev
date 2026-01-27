@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using VikunjaHook;
 using VikunjaHook.Models;
 using VikunjaHook.Services;
@@ -8,189 +8,146 @@ using VikunjaHook.Mcp.Services;
 using VikunjaHook.Mcp.Tools;
 using VikunjaHook.Mcp.Models;
 
-// 检查运行模式
-var mcpOnlyMode = args.Contains("--mcp-only");
-var webhookOnlyMode = args.Contains("--webhook-only");
-var mcpMode = args.Contains("--mcp") || mcpOnlyMode || 
-              Environment.GetEnvironmentVariable("MCP_MODE")?.ToLower() == "true";
-var webhookMode = !mcpOnlyMode; // 默认启用 webhook，除非指定 --mcp-only
+// Validate required environment variables for MCP
+var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
+var apiToken = Environment.GetEnvironmentVariable("VIKUNJA_API_TOKEN");
 
-// 如果同时启用两种模式，需要在不同线程运行
-if (mcpMode && webhookMode)
+if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
 {
-    Console.Error.WriteLine("Starting in dual mode: MCP Server (stdio) + Webhook API (HTTP)");
-    
-    // 在后台线程启动 Webhook API
-    var webhookTask = Task.Run(async () =>
+    Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN environment variables are required");
+    Console.Error.WriteLine("Example:");
+    Console.Error.WriteLine("  VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
+    Console.Error.WriteLine("  VIKUNJA_API_TOKEN=your_api_token_here");
+    return 1;
+}
+
+var builder = WebApplication.CreateSlimBuilder(args);
+
+// Configure JSON serialization for AOT compatibility
+// Combine MCP SDK's JsonContext with our AppJsonSerializerContext
+var jsonOptions = new JsonSerializerOptions(ModelContextProtocol.McpJsonUtilities.DefaultOptions)
+{
+    TypeInfoResolver = JsonTypeInfoResolver.Combine(
+        AppJsonSerializerContext.Default,
+        ModelContextProtocol.McpJsonUtilities.DefaultOptions.TypeInfoResolver!)
+};
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.TypeInfoResolverChain.Clear();
+    options.SerializerOptions.TypeInfoResolverChain.Add(jsonOptions.TypeInfoResolver!);
+    options.SerializerOptions.PropertyNamingPolicy = jsonOptions.PropertyNamingPolicy;
+    options.SerializerOptions.DefaultIgnoreCondition = jsonOptions.DefaultIgnoreCondition;
+    options.SerializerOptions.NumberHandling = jsonOptions.NumberHandling;
+});
+
+// Register Vikunja client factory for MCP
+builder.Services.AddSingleton<IVikunjaClientFactory>(sp =>
+{
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var logger = sp.GetRequiredService<ILogger<VikunjaClientFactory>>();
+    return new VikunjaClientFactory(httpClientFactory, logger, apiUrl, apiToken);
+});
+
+// Register webhook handler
+builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
+builder.Services.AddHttpClient();
+
+// Add MCP server with HTTP transport (SSE) and all tools
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<TasksTools>(jsonOptions)
+    .WithTools<TaskAssigneesTools>(jsonOptions)
+    .WithTools<TaskCommentsTools>(jsonOptions)
+    .WithTools<TaskAttachmentsTools>(jsonOptions)
+    .WithTools<TaskRelationsTools>(jsonOptions)
+    .WithTools<TaskLabelsTools>(jsonOptions)
+    .WithTools<ProjectsTools>(jsonOptions)
+    .WithTools<LabelsTools>(jsonOptions)
+    .WithTools<TeamsTools>(jsonOptions)
+    .WithTools<UsersTools>(jsonOptions)
+    .WithTools<BucketsTools>(jsonOptions)
+    .WithTools<WebhooksTools>(jsonOptions)
+    .WithTools<SavedFiltersTools>(jsonOptions);
+
+var app = builder.Build();
+
+app.Logger.LogInformation("Starting VikunjaHook with MCP (HTTP/SSE) + Webhook (HTTP)");
+
+// Map MCP endpoints (HTTP with SSE transport)
+app.MapMcp("/mcp");
+
+// Map Webhook endpoints
+app.MapPost("/webhook/vikunja", async (
+    HttpContext context,
+    IWebhookHandler handler,
+    ILogger<Program> logger) =>
+{
+    try
     {
-        await StartWebhookServerAsync();
-    });
-    
-    // 在主线程运行 MCP Server (需要 stdio)
-    await StartMcpServerAsync();
-    
-    await webhookTask;
-    return 0;
-}
-else if (mcpMode)
-{
-    // ===== MCP Server Only Mode =====
-    Console.Error.WriteLine("Starting in MCP-only mode (stdio)");
-    await StartMcpServerAsync();
-    return 0;
-}
-else
-{
-    // ===== Webhook API Only Mode =====
-    Console.WriteLine("Starting in Webhook-only mode (HTTP)");
-    await StartWebhookServerAsync();
-    return 0;
-}
+        var payload = await context.Request.ReadFromJsonAsync(
+            AppJsonSerializerContext.Default.VikunjaWebhookPayload);
 
-// ===== MCP Server =====
-async Task StartMcpServerAsync()
-{
-    var builder = Host.CreateApplicationBuilder(args);
+        if (payload == null)
+        {
+            logger.LogWarning("Empty webhook payload");
+            return Results.BadRequest(new ErrorMessage("Invalid payload"));
+        }
 
-    // Configure all logs to go to stderr (stdout is used for the MCP protocol messages)
-    builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
+        if (!VikunjaEventTypes.IsValidEvent(payload.EventName))
+        {
+            logger.LogWarning("Unknown event: {EventName}", payload.EventName);
+            return Results.BadRequest(new ErrorMessage("Unknown event type"));
+        }
 
-    // Validate required environment variables
-    var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
-    var apiToken = Environment.GetEnvironmentVariable("VIKUNJA_API_TOKEN");
-
-    if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
-    {
-        Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN environment variables are required");
-        Console.Error.WriteLine("Example:");
-        Console.Error.WriteLine("  VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
-        Console.Error.WriteLine("  VIKUNJA_API_TOKEN=your_api_token_here");
-        throw new InvalidOperationException("Missing required environment variables");
+        await handler.HandleWebhookAsync(payload);
+        return Results.Ok(new WebhookSuccessResponse("success", payload.EventName));
     }
-
-    // Register core services
-    builder.Services.AddSingleton<IVikunjaClientFactory>(sp =>
+    catch (Exception ex)
     {
-        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-        var logger = sp.GetRequiredService<ILogger<VikunjaClientFactory>>();
-        return new VikunjaClientFactory(httpClientFactory, logger, apiUrl, apiToken);
-    });
-    builder.Services.AddHttpClient();
+        logger.LogError(ex, "Webhook error");
+        return Results.Problem("Internal error");
+    }
+});
 
-    // Add the MCP services: the transport to use (stdio) and the tools to register
-    builder.Services
-        .AddMcpServer()
-        .WithStdioServerTransport()
-        .WithTools<TasksTools>()
-        .WithTools<TaskAssigneesTools>()
-        .WithTools<TaskCommentsTools>()
-        .WithTools<TaskAttachmentsTools>()
-        .WithTools<TaskRelationsTools>()
-        .WithTools<TaskLabelsTools>()
-        .WithTools<ProjectsTools>()
-        .WithTools<LabelsTools>()
-        .WithTools<TeamsTools>()
-        .WithTools<UsersTools>()
-        .WithTools<BucketsTools>()
-        .WithTools<WebhooksTools>()
-        .WithTools<SavedFiltersTools>();
-
-    await builder.Build().RunAsync();
-}
-
-// ===== Webhook API Server =====
-async Task StartWebhookServerAsync()
-{
-    var builder = WebApplication.CreateSlimBuilder(args);
-
-    // 配置JSON序列化（支持AOT）
-    builder.Services.ConfigureHttpJsonOptions(options =>
+app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsResponse(
+    new[]
     {
-        options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
-    });
+        VikunjaEventTypes.TaskCreated,
+        VikunjaEventTypes.TaskUpdated,
+        VikunjaEventTypes.TaskDeleted,
+        VikunjaEventTypes.ProjectCreated,
+        VikunjaEventTypes.ProjectUpdated,
+        VikunjaEventTypes.ProjectDeleted,
+        VikunjaEventTypes.TaskAssigneeCreated,
+        VikunjaEventTypes.TaskAssigneeDeleted,
+        VikunjaEventTypes.TaskCommentCreated,
+        VikunjaEventTypes.TaskCommentUpdated,
+        VikunjaEventTypes.TaskCommentDeleted,
+        VikunjaEventTypes.TaskAttachmentCreated,
+        VikunjaEventTypes.TaskAttachmentDeleted,
+        VikunjaEventTypes.TaskRelationCreated,
+        VikunjaEventTypes.TaskRelationDeleted,
+        VikunjaEventTypes.LabelCreated,
+        VikunjaEventTypes.LabelUpdated,
+        VikunjaEventTypes.LabelDeleted,
+        VikunjaEventTypes.TaskLabelCreated,
+        VikunjaEventTypes.TaskLabelDeleted,
+        VikunjaEventTypes.UserCreated,
+        VikunjaEventTypes.TeamCreated,
+        VikunjaEventTypes.TeamUpdated,
+        VikunjaEventTypes.TeamDeleted,
+        VikunjaEventTypes.TeamMemberAdded,
+        VikunjaEventTypes.TeamMemberRemoved
+    }
+)));
 
-    // 注册服务
-    builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
-    builder.Services.AddHttpClient();
+app.MapGet("/health", () => Results.Ok(new HealthResponse(
+    "healthy",
+    DateTime.UtcNow,
+    "VikunjaHook"
+)));
 
-    var app = builder.Build();
-
-    var logger = app.Logger;
-    logger.LogInformation("Vikunja Webhook Server started");
-
-    // ===== Webhook Endpoints =====
-
-    // Webhook endpoints
-    app.MapPost("/webhook/vikunja", async (
-        HttpContext context,
-        IWebhookHandler handler,
-        ILogger<Program> logger) =>
-    {
-        try
-        {
-            var payload = await context.Request.ReadFromJsonAsync(
-                AppJsonSerializerContext.Default.VikunjaWebhookPayload);
-
-            if (payload == null)
-            {
-                logger.LogWarning("Empty webhook payload");
-                return Results.BadRequest(new ErrorMessage("Invalid payload"));
-            }
-
-            if (!VikunjaEventTypes.IsValidEvent(payload.EventName))
-            {
-                logger.LogWarning("Unknown event: {EventName}", payload.EventName);
-                return Results.BadRequest(new ErrorMessage("Unknown event type"));
-            }
-
-            await handler.HandleWebhookAsync(payload);
-            return Results.Ok(new WebhookSuccessResponse("success", payload.EventName));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Webhook error");
-            return Results.Problem("Internal error");
-        }
-    });
-
-    app.MapGet("/webhook/vikunja/events", () => Results.Ok(new SupportedEventsResponse(
-        new[]
-        {
-            VikunjaEventTypes.TaskCreated,
-            VikunjaEventTypes.TaskUpdated,
-            VikunjaEventTypes.TaskDeleted,
-            VikunjaEventTypes.ProjectCreated,
-            VikunjaEventTypes.ProjectUpdated,
-            VikunjaEventTypes.ProjectDeleted,
-            VikunjaEventTypes.TaskAssigneeCreated,
-            VikunjaEventTypes.TaskAssigneeDeleted,
-            VikunjaEventTypes.TaskCommentCreated,
-            VikunjaEventTypes.TaskCommentUpdated,
-            VikunjaEventTypes.TaskCommentDeleted,
-            VikunjaEventTypes.TaskAttachmentCreated,
-            VikunjaEventTypes.TaskAttachmentDeleted,
-            VikunjaEventTypes.TaskRelationCreated,
-            VikunjaEventTypes.TaskRelationDeleted,
-            VikunjaEventTypes.LabelCreated,
-            VikunjaEventTypes.LabelUpdated,
-            VikunjaEventTypes.LabelDeleted,
-            VikunjaEventTypes.TaskLabelCreated,
-            VikunjaEventTypes.TaskLabelDeleted,
-            VikunjaEventTypes.UserCreated,
-            VikunjaEventTypes.TeamCreated,
-            VikunjaEventTypes.TeamUpdated,
-            VikunjaEventTypes.TeamDeleted,
-            VikunjaEventTypes.TeamMemberAdded,
-            VikunjaEventTypes.TeamMemberRemoved
-        }
-    )));
-
-    // Health check
-    app.MapGet("/health", () => Results.Ok(new HealthResponse(
-        "healthy",
-        DateTime.UtcNow,
-        "VikunjaHook"
-    )));
-
-    await app.RunAsync();
-}
+await app.RunAsync();
+return 0;

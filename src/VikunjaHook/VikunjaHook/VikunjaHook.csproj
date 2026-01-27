@@ -19,7 +19,7 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     
-    <!-- AOT 优化设置 -->
+    <!-- AOT optimization settings -->
     <StripSymbols>true</StripSymbols>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
@@ -28,8 +28,8 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>Cricle.VikunjaHook.McpServer</PackageId>
     <PackageVersion>1.0.0</PackageVersion>
-    <PackageTags>AI;MCP;server;Vikunja;task-management;stdio</PackageTags>
-    <Description>An MCP server for Vikunja task management system with 45+ tools.</Description>
+    <PackageTags>AI;MCP;server;Vikunja;task-management;http;sse</PackageTags>
+    <Description>An MCP server for Vikunja task management system with 54 tools via HTTP/SSE transport.</Description>
     <Authors>Cricle</Authors>
     <RepositoryUrl>https://github.com/Cricle/vikunja-dev</RepositoryUrl>
   </PropertyGroup>
@@ -42,6 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="0.5.0-preview.1" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.5.0-preview.1" />
   </ItemGroup>
 
 </Project>

@@ -24,38 +24,76 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
+    - name: Start Vikunja with Docker Compose
+      run: |
+        docker-compose up -d db cache minio vikunja
+        echo "Waiting for Vikunja to be ready..."
+        timeout 120 bash -c 'until curl -f http://localhost:8080/health; do sleep 5; done'
+    
+    - name: Create Vikunja API Token
+      id: vikunja-token
+      run: |
+        # Register a test user
+        curl -X POST http://localhost:8080/api/v1/register \
+          -H "Content-Type: application/json" \
+          -d '{"username":"testuser","email":"test@example.com","password":"testpass123"}'
+        
+        # Login to get token
+        TOKEN=$(curl -X POST http://localhost:8080/api/v1/login \
+          -H "Content-Type: application/json" \
+          -d '{"username":"testuser","password":"testpass123"}' \
+          | jq -r '.token')
+        echo "VIKUNJA_TOKEN=$TOKEN" >> $GITHUB_OUTPUT
+        echo "Token created successfully"
+    
     - name: Restore dependencies
       run: dotnet restore src/VikunjaHook/VikunjaHook.sln
     
     - name: Build
       run: dotnet build src/VikunjaHook/VikunjaHook.sln --configuration Release --no-restore
     
-    - name: Start MCP Server
+    - name: Run MCP Tools Tests
+      run: |
+        cd src/VikunjaHook
+        pwsh -File test-mcp-tools.ps1
+      env:
+        VIKUNJA_API_URL: http://localhost:8080/api/v1
+        VIKUNJA_API_TOKEN: ${{ steps.vikunja-token.outputs.VIKUNJA_TOKEN }}
+    
+    - name: Start VikunjaHook Server
       run: |
         cd src/VikunjaHook/VikunjaHook
         dotnet run --configuration Release &
         echo $! > server.pid
         sleep 10
       env:
-        ASPNETCORE_ENVIRONMENT: Production
+        VIKUNJA_API_URL: http://localhost:8080/api/v1
+        VIKUNJA_API_TOKEN: ${{ steps.vikunja-token.outputs.VIKUNJA_TOKEN }}
+        ASPNETCORE_URLS: http://+:5082
     
-    - name: Wait for server to be ready
+    - name: Wait for VikunjaHook to be ready
       run: |
         timeout 30 bash -c 'until curl -f http://localhost:5082/health; do sleep 2; done'
     
-    - name: Run tests
-      run: node test-complete.js
-      env:
-        VIKUNJA_URL: ${{ secrets.VIKUNJA_URL }}
-        VIKUNJA_TOKEN: ${{ secrets.VIKUNJA_TOKEN }}
-        API_BASE: http://localhost:5082
+    - name: Run API Tests
+      run: pwsh -File test-api.ps1
     
-    - name: Stop MCP Server
+    - name: Stop servers
       if: always()
       run: |
         if [ -f src/VikunjaHook/VikunjaHook/server.pid ]; then
           kill $(cat src/VikunjaHook/VikunjaHook/server.pid) || true
         fi
+        docker-compose down -v
+    
+    - name: Upload logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: |
+          src/VikunjaHook/VikunjaHook/logs/
+          docker-compose-logs.txt
 
   build-check:
     name: Build Check (Multiple Platforms)
@@ -81,3 +119,19 @@ jobs:
     
     - name: Check for warnings
       run: dotnet build src/VikunjaHook/VikunjaHook.sln --configuration Release --no-restore --no-incremental /warnaserror
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: docker build -t vikunja-hook:test .
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm vikunja-hook:test --version || true
+

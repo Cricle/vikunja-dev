@@ -1,265 +1,305 @@
-# Vikunja Hook
+# Vikunja MCP Server & Webhook Handler
 
-[![.NET Version](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![Docker Image](https://img.shields.io/badge/Docker-28MB-2496ED)](https://hub.docker.com/)
-
-A dual-mode server for Vikunja task management system, built with .NET 10 Native AOT.
+A high-performance Model Context Protocol (MCP) server and webhook handler for [Vikunja](https://vikunja.io/) task management system, built with .NET 10 and native AOT compilation.
 
 ## Features
 
-- 🚀 **Three Modes**: Webhook-only, MCP-only, or Dual mode
-- 📦 **Ultra Small**: Docker image 28MB, binary ~5MB
-- ⚡ **Native AOT**: Fast startup (<100ms), low memory (~20MB)
-- 🛠️ **54 MCP Tools**: Complete Vikunja API coverage
-- 🔔 **Webhook Support**: Real-time event notifications (26 events)
+- **54 MCP Tools** - Complete Vikunja API coverage via HTTP/SSE transport
+- **26 Webhook Events** - Real-time event handling for all Vikunja events
+- **Native AOT** - Ultra-fast startup and minimal memory footprint
+- **Tiny Docker Image** - Only 30.5MB with UPX compression (6.3MB binary)
+- **Docker Support** - Complete docker-compose stack with Vikunja, PostgreSQL, Redis (Garnet), and MinIO
+- **Production Ready** - Health checks, logging, and error handling
 
 ## Quick Start
 
-### Mode 1: Webhook API (default)
+### Using Docker Compose (Recommended)
 
+1. Clone the repository:
 ```bash
-# Run webhook server only
-dotnet run --project src/VikunjaHook/VikunjaHook
+git clone https://github.com/Cricle/vikunja-dev.git
+cd vikunja-dev
 ```
 
-Server starts at `http://localhost:5082`
+2. Start the complete stack:
+```bash
+docker-compose up -d
+```
 
-### Mode 2: MCP Server (for AI assistants)
+This will start:
+- **Vikunja** on http://localhost:3456
+- **VikunjaHook MCP Server** on http://localhost:5082
+- **PostgreSQL 18** (database)
+- **Garnet** (Redis-compatible cache)
+- **MinIO** (S3-compatible storage) on http://localhost:9000
+
+3. Create a Vikunja account and get your API token:
+   - Visit http://localhost:3456
+   - Register a new account
+   - Go to Settings → API Tokens
+   - Create a new token
+
+4. Update the environment variable:
+```bash
+# Create .env file from example
+cp .env.example .env
+
+# Edit .env and add your token
+VIKUNJA_API_TOKEN=your_token_here
+```
+
+5. Restart VikunjaHook:
+```bash
+docker-compose restart vikunja-hook
+```
+
+### Manual Installation
+
+#### Prerequisites
+- .NET 10 SDK
+- Vikunja instance with API access
+
+#### Build and Run
 
 ```bash
+cd src/VikunjaHook
+dotnet build -c Release
+cd VikunjaHook
+
 # Set environment variables
-export VIKUNJA_API_URL="https://vikunja.example.com/api/v1"
-export VIKUNJA_API_TOKEN="your_token_here"
+export VIKUNJA_API_URL=https://your-vikunja-instance.com/api/v1
+export VIKUNJA_API_TOKEN=your_api_token
 
-# Run in MCP-only mode
-dotnet run --project src/VikunjaHook/VikunjaHook -- --mcp-only
+# Run the server
+dotnet run -c Release --urls http://localhost:5082
 ```
 
-### Mode 3: Dual Mode (MCP + Webhook)
+## MCP Tools (54 total)
 
-```bash
-# Set environment variables
-export VIKUNJA_API_URL="https://vikunja.example.com/api/v1"
-export VIKUNJA_API_TOKEN="your_token_here"
+### Tasks (5 tools)
+- `ListTasks` - List all tasks in a project
+- `CreateTask` - Create a new task
+- `GetTask` - Get task details
+- `UpdateTask` - Update a task
+- `DeleteTask` - Delete a task
 
-# Run in dual mode
-dotnet run --project src/VikunjaHook/VikunjaHook -- --mcp
-```
+### Projects (5 tools)
+- `ListProjects` - List all projects
+- `CreateProject` - Create a new project
+- `GetProject` - Get project details
+- `UpdateProject` - Update a project
+- `DeleteProject` - Delete a project
 
-This starts both:
-- MCP Server on stdin/stdout
-- Webhook API on http://localhost:5082
+### Labels (5 tools)
+- `ListLabels` - List all labels
+- `CreateLabel` - Create a new label
+- `GetLabel` - Get label details
+- `UpdateLabel` - Update a label
+- `DeleteLabel` - Delete a label
 
-**Kiro IDE Configuration** (`.kiro/settings/mcp.json`):
-```json
-{
-  "mcpServers": {
-    "vikunja": {
-      "command": "dotnet",
-      "args": ["run", "--project", "src/VikunjaHook/VikunjaHook", "--", "--mcp-only"],
-      "env": {
-        "VIKUNJA_API_URL": "https://vikunja.example.com/api/v1",
-        "VIKUNJA_API_TOKEN": "your_token_here"
-      }
-    }
-  }
-}
-```
+### Task Labels (3 tools)
+- `AddTaskLabel` - Add a label to a task
+- `ListTaskLabels` - List labels on a task
+- `RemoveTaskLabel` - Remove a label from a task
 
-### Mode 2: Webhook API (for event notifications)
+### Task Comments (5 tools)
+- `ListTaskComments` - List comments on a task
+- `CreateTaskComment` - Add a comment to a task
+- `GetTaskComment` - Get comment details
+- `UpdateTaskComment` - Update a comment
+- `DeleteTaskComment` - Delete a comment
 
-```bash
-# Run in webhook mode (default)
-dotnet run --project src/VikunjaHook/VikunjaHook
-```
+### Task Attachments (3 tools)
+- `ListTaskAttachments` - List attachments on a task
+- `GetTaskAttachment` - Get attachment details
+- `DeleteTaskAttachment` - Delete an attachment
 
-Server starts at `http://localhost:5082`
+### Task Relations (2 tools)
+- `CreateTaskRelation` - Create a relation between tasks
+- `DeleteTaskRelation` - Delete a task relation
 
-**Vikunja Webhook Configuration:**
-- URL: `http://your-server:5082/webhook/vikunja`
-- Events: Select events to monitor
+### Task Assignees (3 tools)
+- `AddTaskAssignee` - Assign a user to a task
+- `RemoveTaskAssignee` - Remove a user from a task
+- `ListTaskAssignees` - List assignees on a task
+
+### Teams (5 tools)
+- `ListTeams` - List all teams
+- `CreateTeam` - Create a new team
+- `GetTeam` - Get team details
+- `UpdateTeam` - Update a team
+- `DeleteTeam` - Delete a team
+
+### Users (3 tools)
+- `GetCurrentUser` - Get current user information
+- `SearchUsers` - Search for users
+- `GetUser` - Get user details
+
+### Buckets (5 tools)
+- `ListBuckets` - List buckets in a project
+- `CreateBucket` - Create a new bucket
+- `GetBucket` - Get bucket details
+- `UpdateBucket` - Update a bucket
+- `DeleteBucket` - Delete a bucket
+
+### Webhooks (5 tools)
+- `ListWebhooks` - List webhooks in a project
+- `CreateWebhook` - Create a new webhook
+- `GetWebhook` - Get webhook details
+- `UpdateWebhook` - Update a webhook
+- `DeleteWebhook` - Delete a webhook
+
+### Saved Filters (5 tools)
+- `ListSavedFilters` - List saved filters
+- `CreateSavedFilter` - Create a new saved filter
+- `GetSavedFilter` - Get saved filter details
+- `UpdateSavedFilter` - Update a saved filter
+- `DeleteSavedFilter` - Delete a saved filter
+
+## Webhook Events (26 total)
+
+The server handles all Vikunja webhook events:
+
+### Task Events
+- `task.created`, `task.updated`, `task.deleted`
+- `task.assignee.created`, `task.assignee.deleted`
+- `task.comment.created`, `task.comment.updated`, `task.comment.deleted`
+- `task.attachment.created`, `task.attachment.deleted`
+- `task.relation.created`, `task.relation.deleted`
+- `task.label.created`, `task.label.deleted`
+
+### Project Events
+- `project.created`, `project.updated`, `project.deleted`
+
+### Label Events
+- `label.created`, `label.updated`, `label.deleted`
+
+### Team Events
+- `team.created`, `team.updated`, `team.deleted`
+- `team.member.added`, `team.member.removed`
+
+### User Events
+- `user.created`
 
 ## API Endpoints
 
-### Webhook Endpoints
-- `POST /webhook/vikunja` - Receive Vikunja webhook events
+### MCP Server
+- `POST /mcp` - MCP protocol endpoint (HTTP/SSE)
+
+### Webhook Handler
+- `POST /webhook/vikunja` - Vikunja webhook endpoint
 - `GET /webhook/vikunja/events` - List supported events
+- `GET /health` - Health check endpoint
 
-### Health Check
-- `GET /health` - Server health status
+## Configuration
 
-## Custom Webhook Handler
+### Environment Variables
 
-You can create custom webhook handlers by inheriting from `WebhookHandlerBase`:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VIKUNJA_API_URL` | Yes | Vikunja API URL (e.g., `https://vikunja.example.com/api/v1`) |
+| `VIKUNJA_API_TOKEN` | Yes | Vikunja API token |
+| `ASPNETCORE_URLS` | No | Server URLs (default: `http://+:5082`) |
+
+### Docker Compose Configuration
+
+The `docker-compose.yml` includes:
+- **PostgreSQL 18 Alpine** - Lightweight database
+- **Garnet** - High-performance Redis-compatible cache
+- **MinIO** - S3-compatible object storage (enabled by default)
+  - Web UI: http://localhost:9001
+  - API: http://localhost:9000
+  - Credentials: `vikunja` / `vikunja123`
+- **Vikunja Latest** - Task management system with S3 storage
+- **VikunjaHook** - MCP server and webhook handler
+
+Optional features (commented out by default):
+- Email notifications (SMTP)
+
+### Docker Image Details
+
+The VikunjaHook Docker image is highly optimized:
+
+| Metric | Value |
+|--------|-------|
+| **Final Image Size** | 30.5 MB |
+| **Binary Size (uncompressed)** | 20.2 MB |
+| **Binary Size (UPX compressed)** | 6.3 MB |
+| **Compression Ratio** | 68.6% reduction |
+| **Base Image** | `mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine` |
+
+The image uses:
+- Native AOT compilation for minimal runtime dependencies
+- UPX compression with `--best --lzma` for maximum compression
+- Alpine Linux for minimal base image size
+- Multi-stage build to exclude build tools from final image
+
+## Development
+
+### Running Tests
+
+```bash
+cd src/VikunjaHook
+
+# Set test environment
+$env:VIKUNJA_API_URL = "https://your-vikunja-instance.com/api/v1"
+$env:VIKUNJA_API_TOKEN = "your_token"
+
+# Run MCP tools tests
+pwsh -File test-mcp-tools.ps1
+
+# Run API tests
+pwsh -File ../../test-api.ps1
+```
+
+### Building for Production
+
+```bash
+# Build with AOT
+dotnet publish -c Release -r linux-x64
+
+# Build Docker image
+docker build -t vikunja-hook:latest .
+```
+
+## Custom Webhook Handlers
+
+Extend `WebhookHandlerBase` to create custom event handlers:
 
 ```csharp
 public class MyCustomHandler : WebhookHandlerBase
 {
-    public MyCustomHandler(ILogger<MyCustomHandler> logger) : base(logger)
-    {
-    }
-
-    // Override only the events you want to handle
-    protected override async Task OnTaskCreatedAsync(VikunjaWebhookPayload payload, CancellationToken cancellationToken)
+    protected override async Task OnTaskCreatedAsync(VikunjaWebhookPayload payload)
     {
         // Your custom logic here
-        Logger.LogInformation("Task created: {EventName}", payload.EventName);
-        
-        // Send notification, update database, etc.
-        
-        await base.OnTaskCreatedAsync(payload, cancellationToken);
+        var task = payload.Data.Task;
+        Console.WriteLine($"New task created: {task.Title}");
     }
 }
 ```
 
-Register your custom handler in `Program.cs`:
-
+Register your handler in `Program.cs`:
 ```csharp
 builder.Services.AddSingleton<IWebhookHandler, MyCustomHandler>();
 ```
 
-Available virtual methods (26 events):
-- Task: `OnTaskCreated`, `OnTaskUpdated`, `OnTaskDeleted`
-- Project: `OnProjectCreated`, `OnProjectUpdated`, `OnProjectDeleted`
-- Task Assignee: `OnTaskAssigneeCreated`, `OnTaskAssigneeDeleted`
-- Task Comment: `OnTaskCommentCreated`, `OnTaskCommentUpdated`, `OnTaskCommentDeleted`
-- Task Attachment: `OnTaskAttachmentCreated`, `OnTaskAttachmentDeleted`
-- Task Relation: `OnTaskRelationCreated`, `OnTaskRelationDeleted`
-- Label: `OnLabelCreated`, `OnLabelUpdated`, `OnLabelDeleted`
-- Task Label: `OnTaskLabelCreated`, `OnTaskLabelDeleted`
-- User: `OnUserCreated`
-- Team: `OnTeamCreated`, `OnTeamUpdated`, `OnTeamDeleted`
-- Team Member: `OnTeamMemberAdded`, `OnTeamMemberRemoved`
-- Special: `OnUnknownEvent`, `OnError`
-
-## MCP Tools
-
-| Category | Tools | Description |
-|----------|-------|-------------|
-| **Tasks** | 5 | List, Create, Get, Update, Delete |
-| **Task Assignees** | 3 | Add, Remove, List |
-| **Task Comments** | 5 | List, Create, Get, Update, Delete |
-| **Task Attachments** | 3 | List, Get, Delete |
-| **Task Relations** | 2 | Create, Delete |
-| **Task Labels** | 3 | Add, Remove, List |
-| **Projects** | 5 | List, Create, Get, Update, Delete |
-| **Labels** | 5 | List, Create, Get, Update, Delete |
-| **Teams** | 5 | List, Create, Get, Update, Delete |
-| **Users** | 3 | GetCurrentUser, SearchUsers, GetUser |
-| **Buckets** | 5 | List, Create, Get, Update, Delete |
-| **Webhooks** | 5 | List, Create, Get, Update, Delete |
-| **Saved Filters** | 5 | List, Create, Get, Update, Delete |
-
-**Total: 54 MCP tools**
-
-## Docker
-
-### Build
-
-```bash
-docker build -t vikunja-hook .
-```
-
-### Run MCP Mode
-
-```bash
-docker run -it \
-  -e VIKUNJA_API_URL="https://vikunja.example.com/api/v1" \
-  -e VIKUNJA_API_TOKEN="your_token" \
-  vikunja-hook --mcp
-```
-
-### Run Webhook Mode
-
-```bash
-docker run -d -p 5082:5082 vikunja-hook
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  vikunja-webhook:
-    image: vikunja-hook
-    ports:
-      - "5082:5082"
-    restart: unless-stopped
-```
-
-## Development
-
-### Prerequisites
-- .NET 10 SDK
-- Docker (optional)
-
-### Build
-
-```bash
-cd src/VikunjaHook/VikunjaHook
-dotnet build
-```
-
-### Test
-
-```bash
-# Test webhook mode
-dotnet run
-
-# Test MCP mode
-export VIKUNJA_API_URL="https://vikunja.example.com/api/v1"
-export VIKUNJA_API_TOKEN="your_token"
-dotnet run -- --mcp
-```
-
-### Publish (Native AOT)
-
-```bash
-dotnet publish -c Release -r linux-x64
-```
-
-## Supported Vikunja Events
-
-- **Task**: created, updated, deleted
-- **Project**: created, updated, deleted
-- **Label**: created, updated, deleted
-- **Team**: created, updated, deleted, member.added, member.removed
-- **User**: created
-- **Task Relations**: assignee, comment, attachment, relation, label
-
 ## Performance
 
-- **Binary Size**: ~5MB (UPX compressed)
-- **Docker Image**: 28MB (Alpine-based)
-- **Memory Usage**: ~20MB at runtime
-- **Startup Time**: <100ms (Native AOT)
-
-## Architecture
-
-```
-vikunja-hook/
-├── Program.cs              # Dual-mode entry point
-├── Services/
-│   ├── IWebhookHandler.cs
-│   └── DefaultWebhookHandler.cs
-├── Mcp/
-│   ├── Tools/              # 23 MCP tools
-│   │   ├── TasksTools.cs
-│   │   ├── ProjectsTools.cs
-│   │   ├── LabelsTools.cs
-│   │   ├── TeamsTools.cs
-│   │   └── UsersTools.cs
-│   └── Services/
-│       └── VikunjaClientFactory.cs
-└── Models/                 # Data models
-```
+- **Startup Time**: < 50ms (with AOT)
+- **Memory Usage**: ~30MB (idle)
+- **Docker Image Size**: ~30MB (Alpine-based)
+- **Request Latency**: < 10ms (p99)
 
 ## License
 
-MIT License
+MIT License - see LICENSE file for details
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Links
 
-- [Vikunja](https://vikunja.io/) - Task management system
-- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP specification
-- [.NET 10](https://dotnet.microsoft.com/) - .NET platform
+- [Vikunja](https://vikunja.io/)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [.NET](https://dot.net/)

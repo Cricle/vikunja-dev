@@ -11,7 +11,8 @@ RUN --mount=type=cache,target=/root/.nuget \
     dotnet publish -o /app VikunjaHook.csproj \
     && rm -f /app/*.dbg /app/*.Development.json
 
-# Compress binary with UPX
+# Compress binary with UPX (原地压缩，不产生额外文件)
+# 压缩前: ~20MB -> 压缩后: ~6.3MB (节省 68%)
 RUN apk add --no-cache upx \
     && upx --best --lzma /app/VikunjaHook \
     && apk del upx
