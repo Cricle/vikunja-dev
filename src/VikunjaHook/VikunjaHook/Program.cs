@@ -366,10 +366,34 @@ app.MapPost("/api/webhook", async (
 });
 
 // SPA fallback - must be last to not interfere with API routes
-app.MapFallbackToFile("index.html", new StaticFileOptions
+// Only fallback for non-API routes
+app.MapFallback(async context =>
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(app.Environment.ContentRootPath, "wwwroot", "dist"))
+    // Don't fallback for API routes
+    if (context.Request.Path.StartsWithSegments("/api") || 
+        context.Request.Path.StartsWithSegments("/mcp") ||
+        context.Request.Path.StartsWithSegments("/webhook") ||
+        context.Request.Path.StartsWithSegments("/health"))
+    {
+        context.Response.StatusCode = 404;
+        return;
+    }
+    
+    // Serve index.html for SPA routes
+    var fileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(app.Environment.ContentRootPath, "wwwroot", "dist"));
+    var fileInfo = fileProvider.GetFileInfo("index.html");
+    
+    if (fileInfo.Exists)
+    {
+        context.Response.ContentType = "text/html";
+        await using var stream = fileInfo.CreateReadStream();
+        await stream.CopyToAsync(context.Response.Body);
+    }
+    else
+    {
+        context.Response.StatusCode = 404;
+    }
 });
 
 await app.RunAsync();
