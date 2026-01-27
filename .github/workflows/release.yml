@@ -68,7 +68,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
     
     - name: Generate changelog
       id: changelog
@@ -103,7 +103,7 @@ jobs:
             echo "\`\`\`"
           fi
           echo ""
-          echo "**Platforms**: linux/amd64, linux/arm64"
+          echo "**Platform**: linux/amd64"
           echo "**Image Size**: ~30MB"
           echo "EOF"
         } >> $GITHUB_OUTPUT
