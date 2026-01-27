@@ -55,7 +55,7 @@
               </template>
               <va-dropdown-content>
                 <va-list>
-                  <va-list-item :to="{ name: 'dashboard' }" clickable>
+                  <va-list-item :to="{ name: 'dashboard' }" :class="{ 'active-menu-item': $route.name === 'dashboard' }" clickable>
                     <va-list-item-section icon>
                       <va-icon name="dashboard" />
                     </va-list-item-section>
@@ -63,7 +63,7 @@
                       <va-list-item-label>{{ t('nav.dashboard') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
-                  <va-list-item :to="{ name: 'providers' }" clickable>
+                  <va-list-item :to="{ name: 'providers' }" :class="{ 'active-menu-item': $route.name === 'providers' }" clickable>
                     <va-list-item-section icon>
                       <va-icon name="notifications" />
                     </va-list-item-section>
@@ -71,7 +71,7 @@
                       <va-list-item-label>{{ t('nav.providers') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
-                  <va-list-item :to="{ name: 'projects' }" clickable>
+                  <va-list-item :to="{ name: 'projects' }" :class="{ 'active-menu-item': $route.name === 'projects' }" clickable>
                     <va-list-item-section icon>
                       <va-icon name="folder" />
                     </va-list-item-section>
@@ -79,7 +79,7 @@
                       <va-list-item-label>{{ t('nav.projects') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
-                  <va-list-item :to="{ name: 'templates' }" clickable>
+                  <va-list-item :to="{ name: 'templates' }" :class="{ 'active-menu-item': $route.name === 'templates' }" clickable>
                     <va-list-item-section icon>
                       <va-icon name="edit_note" />
                     </va-list-item-section>
@@ -88,7 +88,7 @@
                     </va-list-item-section>
                   </va-list-item>
                   <va-divider />
-                  <va-list-item :to="{ name: 'settings' }" clickable>
+                  <va-list-item :to="{ name: 'settings' }" :class="{ 'active-menu-item': $route.name === 'settings' }" clickable>
                     <va-list-item-section icon>
                       <va-icon name="settings" />
                     </va-list-item-section>
@@ -254,6 +254,9 @@ onMounted(() => {
 
 .navbar-item-mobile {
   display: none;
+}
+
+:deep(.active-menu-item) {
 }
 
 @media (max-width: 768px) {
