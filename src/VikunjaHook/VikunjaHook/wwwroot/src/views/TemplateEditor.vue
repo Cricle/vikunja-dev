@@ -674,26 +674,34 @@ onUnmounted(() => {
 
 /* EasyMDE Dark Mode Support */
 :deep(.EasyMDEContainer) {
+  background: var(--va-background-element);
 }
 
 :deep(.CodeMirror) {
+  background: var(--va-background-element);
+  color: var(--va-text-primary);
   border: 1px solid var(--va-background-border);
   border-radius: 4px;
 }
 
 :deep(.CodeMirror-cursor) {
+  border-left-color: var(--va-text-primary);
 }
 
 :deep(.editor-toolbar) {
+  background: var(--va-background-element);
   border: 1px solid var(--va-background-border);
   border-bottom: none;
+  opacity: 1;
 }
 
 :deep(.editor-toolbar button) {
+  color: var(--va-text-primary) !important;
 }
 
 :deep(.editor-toolbar button:hover),
 :deep(.editor-toolbar button.active) {
+  background: var(--va-background-secondary);
   border-color: var(--va-background-border);
 }
 
@@ -704,6 +712,8 @@ onUnmounted(() => {
 
 :deep(.editor-preview),
 :deep(.editor-preview-side) {
+  background: var(--va-background-element);
+  color: var(--va-text-primary);
 }
 
 .action-buttons {
