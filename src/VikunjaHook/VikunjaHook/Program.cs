@@ -14,34 +14,6 @@ using Vikunja.Core.Notifications.Routing;
 using Vikunja.Core.Notifications.Adapters;
 using Vikunja.Core.Notifications.Models;
 
-// Validate required environment variables for MCP
-// If not found in environment, use command line arguments
-var apiUrl = Environment.GetEnvironmentVariable("VIKUNJA_API_URL");
-var apiToken = Environment.GetEnvironmentVariable("VIKUNJA_API_TOKEN");
-
-// Fallback to command line arguments if environment variables are not set
-if (string.IsNullOrWhiteSpace(apiUrl) && args.Length > 0)
-{
-    apiUrl = args[0];
-}
-
-if (string.IsNullOrWhiteSpace(apiToken) && args.Length > 1)
-{
-    apiToken = args[1];
-}
-
-if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
-{
-    Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN are required");
-    Console.Error.WriteLine("Provide them via:");
-    Console.Error.WriteLine("  1. Environment variables:");
-    Console.Error.WriteLine("     VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
-    Console.Error.WriteLine("     VIKUNJA_API_TOKEN=your_api_token_here");
-    Console.Error.WriteLine("  2. Command line arguments:");
-    Console.Error.WriteLine("     dotnet run <API_URL> <API_TOKEN>");
-    return 1;
-}
-
 var builder = WebApplication.CreateSlimBuilder(args);
 
 // Configure JSON serialization for AOT compatibility
@@ -61,6 +33,24 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = jsonOptions.DefaultIgnoreCondition;
     options.SerializerOptions.NumberHandling = jsonOptions.NumberHandling;
 });
+
+// Get API URL and Token from configuration (supports environment variables, command line args, etc.)
+var apiUrl = builder.Configuration["VIKUNJA_API_URL"] ?? args.ElementAtOrDefault(0);
+var apiToken = builder.Configuration["VIKUNJA_API_TOKEN"] ?? args.ElementAtOrDefault(1);
+
+if (string.IsNullOrWhiteSpace(apiUrl) || string.IsNullOrWhiteSpace(apiToken))
+{
+    Console.Error.WriteLine("ERROR: VIKUNJA_API_URL and VIKUNJA_API_TOKEN are required");
+    Console.Error.WriteLine("Provide them via:");
+    Console.Error.WriteLine("  1. Environment variables:");
+    Console.Error.WriteLine("     VIKUNJA_API_URL=https://vikunja.example.com/api/v1");
+    Console.Error.WriteLine("     VIKUNJA_API_TOKEN=your_api_token_here");
+    Console.Error.WriteLine("  2. Command line arguments:");
+    Console.Error.WriteLine("     dotnet run <API_URL> <API_TOKEN>");
+    Console.Error.WriteLine("  3. Docker environment variables:");
+    Console.Error.WriteLine("     docker run -e VIKUNJA_API_URL=... -e VIKUNJA_API_TOKEN=...");
+    return 1;
+}
 
 // Register Vikunja client factory for MCP
 builder.Services.AddSingleton<IVikunjaClientFactory>(sp =>
