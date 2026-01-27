@@ -365,48 +365,6 @@ app.MapPost("/api/webhook", async (
     }
 });
 
-// Vikunja API proxy endpoints
-app.MapGet("/api/vikunja/projects", async (
-    IVikunjaClientFactory clientFactory,
-    ILogger<Program> logger,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var client = clientFactory.GetClient();
-        var response = await client.GetAsync("projects", cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return Results.Content(content, "application/json");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error fetching Vikunja projects");
-        return Results.Problem("Error fetching projects");
-    }
-});
-
-app.MapGet("/api/vikunja/projects/{id:int}", async (
-    int id,
-    IVikunjaClientFactory clientFactory,
-    ILogger<Program> logger,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var client = clientFactory.GetClient();
-        var response = await client.GetAsync($"projects/{id}", cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return Results.Content(content, "application/json");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error fetching Vikunja project {ProjectId}", id);
-        return Results.Problem("Error fetching project");
-    }
-});
-
 // SPA fallback - must be last to not interfere with API routes
 app.MapFallbackToFile("index.html", new StaticFileOptions
 {
