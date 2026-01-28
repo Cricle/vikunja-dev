@@ -54,9 +54,9 @@ COPY --link --from=backend-build /app .
 # Copy test scripts for container testing
 COPY --link test-*.sh ./
 
-# Create data directory with proper permissions
+# Create data directory with full permissions for configs
 RUN mkdir -p /app/data/configs \
-    && chmod -R 777 /app/data
+    && chmod -R 777 /app/data/configs
 
 EXPOSE 8080
 VOLUME /app/data/configs

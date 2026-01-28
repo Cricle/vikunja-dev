@@ -498,3 +498,8 @@ test-output/
 run-with-env.ps1
 /src/VikunjaHook/VikunjaHook/*
 /src/VikunjaHook/VikunjaHook/wwwroot/dist/*
+
+# Data directory
+data/
+/data/
+src/VikunjaHook/VikunjaHook/data/
