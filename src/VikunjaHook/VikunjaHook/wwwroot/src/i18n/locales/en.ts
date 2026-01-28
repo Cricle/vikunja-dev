@@ -145,25 +145,11 @@ export default {
     templateCopied: 'Template copied to clipboard',
     placeholderCopied: 'Placeholder copied',
     copyFailed: 'Failed to copy',
-    errorNoConfig: 'Configuration not loaded, please load user config first'
-  },
-  common: {
-    loading: 'Loading...',
-    save: 'Save',
-    cancel: 'Cancel',
-    delete: 'Delete',
-    edit: 'Edit',
-    add: 'Add',
-    confirm: 'Confirm',
-    success: 'Success',
-    error: 'Error',
-    warning: 'Warning',
-    info: 'Info',
-    close: 'Close',
-    actions: 'Actions',
-    clickToCopy: 'Click to copy',
-    selectAll: 'Select All',
-    deselectAll: 'Deselect All'
+    errorNoConfig: 'Configuration not loaded, please load user config first',
+    providers: 'Notification Providers',
+    providersHint: 'Select specific providers for this template. If not specified, default providers will be used.',
+    selectProviders: 'Select Providers',
+    useDefaultProviders: 'Use default providers'
   },
   events: {
     taskCreated: 'Task Created',
@@ -209,8 +195,7 @@ export default {
     failed: 'Failed',
     justNow: 'Just now',
     minutesAgo: '{count} minutes ago',
-    hoursAgo: '{count} hours ago',
-    refresh: 'Refresh'
+    hoursAgo: '{count} hours ago'
   },
   common: {
     loading: 'Loading...',

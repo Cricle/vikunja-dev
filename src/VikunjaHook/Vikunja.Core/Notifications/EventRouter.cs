@@ -12,6 +12,7 @@ public class EventRouter
     private readonly IEnumerable<PushDeerProvider> _providers;
     private readonly InMemoryPushEventHistory _pushHistory;
     private readonly ILogger<EventRouter> _logger;
+    private readonly string? _vikunjaUrl;
 
     public EventRouter(
         JsonFileConfigurationManager configManager,
@@ -19,7 +20,8 @@ public class EventRouter
         McpToolsAdapter mcpTools,
         IEnumerable<PushDeerProvider> providers,
         InMemoryPushEventHistory pushHistory,
-        ILogger<EventRouter> logger)
+        ILogger<EventRouter> logger,
+        string? vikunjaUrl = null)
     {
         _configManager = configManager;
         _templateEngine = templateEngine;
@@ -27,6 +29,7 @@ public class EventRouter
         _providers = providers;
         _pushHistory = pushHistory;
         _logger = logger;
+        _vikunjaUrl = vikunjaUrl?.TrimEnd('/');
     }
 
     public async Task RouteEventAsync(
@@ -84,13 +87,15 @@ public class EventRouter
         WebhookEvent webhookEvent,
         CancellationToken cancellationToken)
     {
+        var eventUrl = GenerateEventUrl(webhookEvent);
+        
         var context = new TemplateContext
         {
             Event = new EventData
             {
                 Type = webhookEvent.EventType,
                 Timestamp = webhookEvent.Timestamp,
-                Url = string.Empty // TODO: Generate URL based on Vikunja instance
+                Url = eventUrl
             }
         };
 
@@ -132,6 +137,29 @@ public class EventRouter
         }
 
         return context;
+    }
+
+    private string GenerateEventUrl(WebhookEvent webhookEvent)
+    {
+        if (string.IsNullOrWhiteSpace(_vikunjaUrl))
+        {
+            return string.Empty;
+        }
+
+        // Generate URL based on event type and data
+        if (webhookEvent.Task != null)
+        {
+            // Task-related events: link to task detail
+            return $"{_vikunjaUrl}/tasks/{webhookEvent.Task.Id}";
+        }
+        else if (webhookEvent.ProjectId > 0)
+        {
+            // Project-related events: link to project
+            return $"{_vikunjaUrl}/projects/{webhookEvent.ProjectId}";
+        }
+
+        // Default: link to home
+        return _vikunjaUrl;
     }
 
     private NotificationTemplate GetTemplate(UserConfig config, string eventType)

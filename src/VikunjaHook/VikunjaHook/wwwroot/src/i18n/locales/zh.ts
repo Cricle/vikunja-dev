@@ -146,25 +146,11 @@ export default {
     templateCopied: '模板已复制到剪贴板',
     placeholderCopied: '占位符已复制',
     copyFailed: '复制失败',
-    errorNoConfig: '配置未加载，请先加载用户配置'
-  },
-  common: {
-    loading: '加载中...',
-    save: '保存',
-    cancel: '取消',
-    delete: '删除',
-    edit: '编辑',
-    add: '添加',
-    confirm: '确认',
-    success: '成功',
-    error: '错误',
-    warning: '警告',
-    info: '信息',
-    close: '关闭',
-    actions: '操作',
-    clickToCopy: '点击复制',
-    selectAll: '全选',
-    deselectAll: '取消全选'
+    errorNoConfig: '配置未加载，请先加载用户配置',
+    providers: '通知提供者',
+    providersHint: '为此模板选择特定的提供者。如果未指定，将使用默认提供者。',
+    selectProviders: '选择提供者',
+    useDefaultProviders: '使用默认提供者'
   },
   events: {
     taskCreated: '任务已创建',
@@ -210,8 +196,7 @@ export default {
     failed: '失败',
     justNow: '刚刚',
     minutesAgo: '{count} 分钟前',
-    hoursAgo: '{count} 小时前',
-    refresh: '刷新'
+    hoursAgo: '{count} 小时前'
   },
   common: {
     loading: '加载中...',

@@ -78,7 +78,29 @@ builder.Services.AddSingleton<TasksTools>();
 builder.Services.AddSingleton<UsersTools>();
 
 builder.Services.AddSingleton<McpToolsAdapter>();
-builder.Services.AddSingleton<EventRouter>();
+
+// Register EventRouter with Vikunja URL from configuration
+builder.Services.AddSingleton(sp =>
+{
+    var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
+    var templateEngine = sp.GetRequiredService<SimpleTemplateEngine>();
+    var mcpTools = sp.GetRequiredService<McpToolsAdapter>();
+    var providers = sp.GetServices<PushDeerProvider>();
+    var pushHistory = sp.GetRequiredService<InMemoryPushEventHistory>();
+    var logger = sp.GetRequiredService<ILogger<EventRouter>>();
+    
+    // Get Vikunja URL from configuration (environment variable or appsettings)
+    var vikunjaUrl = builder.Configuration["VIKUNJA_URL"];
+    
+    return new EventRouter(
+        configManager,
+        templateEngine,
+        mcpTools,
+        providers,
+        pushHistory,
+        logger,
+        vikunjaUrl);
+});
 
 // Register notification providers
 builder.Services.AddHttpClient<PushDeerProvider>();
