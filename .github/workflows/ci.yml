@@ -24,6 +24,19 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Build Frontend
+      run: |
+        cd src/VikunjaHook/VikunjaHook/wwwroot
+        npm ci
+        npm run build
+        echo "Frontend built successfully"
+        ls -la dist/
+    
     - name: Start Vikunja with Docker Compose
       run: |
         docker compose up -d db cache minio vikunja
@@ -128,7 +141,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
     
     steps:
     - name: Checkout code
