@@ -15,32 +15,40 @@
         <template #right>
           <!-- Desktop Navigation -->
           <va-navbar-item class="navbar-item-desktop">
-            <va-button-group>
-              <va-button
+            <nav class="nav-links">
+              <router-link
                 :to="{ name: 'dashboard' }"
-                icon="dashboard"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'dashboard' }"
               >
-                {{ t('nav.dashboard') }}
-              </va-button>
-              <va-button
+                <va-icon name="dashboard" size="small" />
+                <span>{{ t('nav.dashboard') }}</span>
+              </router-link>
+              <router-link
                 :to="{ name: 'providers' }"
-                icon="notifications"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'providers' }"
               >
-                {{ t('nav.providers') }}
-              </va-button>
-              <va-button
+                <va-icon name="notifications" size="small" />
+                <span>{{ t('nav.providers') }}</span>
+              </router-link>
+              <router-link
                 :to="{ name: 'templates' }"
-                icon="edit_note"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'templates' }"
               >
-                {{ t('nav.templates') }}
-              </va-button>
-              <va-button
+                <va-icon name="edit_note" size="small" />
+                <span>{{ t('nav.templates') }}</span>
+              </router-link>
+              <router-link
                 :to="{ name: 'history' }"
-                icon="history"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'history' }"
               >
-                {{ t('nav.history') }}
-              </va-button>
-            </va-button-group>
+                <va-icon name="history" size="small" />
+                <span>{{ t('nav.history') }}</span>
+              </router-link>
+            </nav>
           </va-navbar-item>
 
           <!-- Mobile Navigation Dropdown -->
@@ -243,9 +251,53 @@ onMounted(() => {
 }
 
 .brand-icon {
+  font-size: 1.5rem;
 }
 
 .brand-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: var(--va-text-primary);
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  position: relative;
+}
+
+.nav-link:hover {
+  background: var(--va-background-element);
+  color: var(--va-primary);
+}
+
+.nav-link-active {
+  color: var(--va-primary);
+  background: var(--va-background-element);
+}
+
+.nav-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--va-primary);
+  border-radius: 2px 2px 0 0;
 }
 
 .navbar-item-mobile {
@@ -277,6 +329,7 @@ onMounted(() => {
   }
 
   .brand-title {
+    font-size: 1rem;
   }
 }
 
@@ -286,6 +339,7 @@ onMounted(() => {
   }
 
   .brand-icon {
+    font-size: 1.25rem;
   }
 }
 </style>
