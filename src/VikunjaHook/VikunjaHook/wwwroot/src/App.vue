@@ -29,12 +29,6 @@
                 {{ t('nav.providers') }}
               </va-button>
               <va-button
-                :to="{ name: 'projects' }"
-                icon="folder"
-              >
-                {{ t('nav.projects') }}
-              </va-button>
-              <va-button
                 :to="{ name: 'templates' }"
                 icon="edit_note"
               >
@@ -65,14 +59,6 @@
                     </va-list-item-section>
                     <va-list-item-section>
                       <va-list-item-label>{{ t('nav.providers') }}</va-list-item-label>
-                    </va-list-item-section>
-                  </va-list-item>
-                  <va-list-item :to="{ name: 'projects' }" :class="{ 'active-menu-item': $route.name === 'projects' }" clickable>
-                    <va-list-item-section icon>
-                      <va-icon name="folder" />
-                    </va-list-item-section>
-                    <va-list-item-section>
-                      <va-list-item-label>{{ t('nav.projects') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
                   <va-list-item :to="{ name: 'templates' }" :class="{ 'active-menu-item': $route.name === 'templates' }" clickable>

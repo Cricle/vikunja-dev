@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UserConfig, ProviderConfig, ProjectRule, NotificationTemplate } from '@/types/config'
+import type { UserConfig, ProviderConfig, NotificationTemplate } from '@/types/config'
 import { apiService } from '@/services/api'
 
 export const useConfigStore = defineStore('config', () => {
@@ -10,7 +10,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const userId = computed(() => config.value?.userId || '')
   const providers = computed(() => config.value?.providers || [])
-  const projectRules = computed(() => config.value?.projectRules || [])
+  const defaultProviders = computed(() => config.value?.defaultProviders || [])
   const templates = computed(() => config.value?.templates || {})
 
   async function loadConfig(userId: string) {
@@ -24,7 +24,7 @@ export const useConfigStore = defineStore('config', () => {
         config.value = {
           userId: userId,
           providers: [],
-          projectRules: [],
+          defaultProviders: [],
           templates: {},
           lastModified: new Date().toISOString()
         }
@@ -38,7 +38,7 @@ export const useConfigStore = defineStore('config', () => {
         config.value = {
           userId: userId,
           providers: [],
-          projectRules: [],
+          defaultProviders: [],
           templates: {},
           lastModified: new Date().toISOString()
         }
@@ -78,6 +78,8 @@ export const useConfigStore = defineStore('config', () => {
   function removeProvider(providerType: string) {
     if (!config.value) return
     config.value.providers = config.value.providers.filter(p => p.providerType !== providerType)
+    // Also remove from defaultProviders if present
+    config.value.defaultProviders = config.value.defaultProviders.filter(p => p !== providerType)
   }
 
   function updateProvider(providerType: string, updates: Partial<ProviderConfig>) {
@@ -88,22 +90,9 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  function addProjectRule(rule: ProjectRule) {
+  function setDefaultProviders(providerTypes: string[]) {
     if (!config.value) return
-    config.value.projectRules.push(rule)
-  }
-
-  function removeProjectRule(projectId: string) {
-    if (!config.value) return
-    config.value.projectRules = config.value.projectRules.filter(r => r.projectId !== projectId)
-  }
-
-  function updateProjectRule(projectId: string, updates: Partial<ProjectRule>) {
-    if (!config.value) return
-    const rule = config.value.projectRules.find(r => r.projectId === projectId)
-    if (rule) {
-      Object.assign(rule, updates)
-    }
+    config.value.defaultProviders = providerTypes
   }
 
   function setTemplate(eventType: string, template: NotificationTemplate) {
@@ -122,16 +111,14 @@ export const useConfigStore = defineStore('config', () => {
     error,
     userId,
     providers,
-    projectRules,
+    defaultProviders,
     templates,
     loadConfig,
     saveConfig,
     addProvider,
     removeProvider,
     updateProvider,
-    addProjectRule,
-    removeProjectRule,
-    updateProjectRule,
+    setDefaultProviders,
     setTemplate,
     removeTemplate
   }

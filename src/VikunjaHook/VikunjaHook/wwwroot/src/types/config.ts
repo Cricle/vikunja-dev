@@ -1,7 +1,7 @@
 export interface UserConfig {
   userId: string
   providers: ProviderConfig[]
-  projectRules: ProjectRule[]
+  defaultProviders: string[]
   templates: Record<string, NotificationTemplate>
   lastModified?: string
 }
@@ -11,17 +11,12 @@ export interface ProviderConfig {
   settings: Record<string, string>
 }
 
-export interface ProjectRule {
-  projectId: string
-  enabledEvents: string[]
-  providerType?: string
-}
-
 export interface NotificationTemplate {
   eventType: string
   title: string
   body: string
   format: NotificationFormat
+  providers: string[]
 }
 
 export enum NotificationFormat {

@@ -14,11 +14,6 @@ const router = createRouter({
       component: () => import('@/views/ProviderConfig.vue')
     },
     {
-      path: '/projects',
-      name: 'projects',
-      component: () => import('@/views/ProjectRules.vue')
-    },
-    {
       path: '/templates',
       name: 'templates',
       component: () => import('@/views/TemplateEditor.vue')
