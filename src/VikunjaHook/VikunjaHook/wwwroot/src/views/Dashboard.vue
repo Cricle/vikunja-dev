@@ -115,18 +115,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/configStore'
-import { vikunjaService, type VikunjaTask } from '@/services/vikunjaApi'
+import { vikunjaService, type VikunjaTask, type VikunjaProject, type VikunjaLabel } from '@/services/vikunjaApi'
 
 const { t } = useI18n()
 const configStore = useConfigStore()
 const vikunjaTasks = ref<VikunjaTask[]>([])
+const vikunjaProjects = ref<VikunjaProject[]>([])
+const vikunjaLabels = ref<VikunjaLabel[]>([])
 const loadingTasks = ref(false)
 
 const loading = computed(() => configStore.loading)
 const error = computed(() => configStore.error)
 const providers = computed(() => configStore.providers)
-const vikunjaProjects = computed(() => configStore.config?.vikunjaProjects || [])
-const vikunjaLabels = computed(() => configStore.config?.vikunjaLabels || [])
 
 const taskColumns = computed(() => [
   { key: 'title', label: t('dashboard.taskTitle'), sortable: true },
@@ -156,10 +156,15 @@ function formatDate(dateString: string): string {
 async function loadVikunjaData() {
   loadingTasks.value = true
   try {
-    const allTasks: VikunjaTask[] = []
-    const projects = await vikunjaService.getProjects()
+    // Load projects
+    vikunjaProjects.value = await vikunjaService.getProjects()
     
-    for (const project of projects) {
+    // Load labels
+    vikunjaLabels.value = await vikunjaService.getLabels()
+    
+    // Load tasks from all projects
+    const allTasks: VikunjaTask[] = []
+    for (const project of vikunjaProjects.value) {
       try {
         const projectTasks = await vikunjaService.getTasks(project.id)
         allTasks.push(...projectTasks)
@@ -169,7 +174,7 @@ async function loadVikunjaData() {
     }
     vikunjaTasks.value = allTasks
   } catch (err) {
-    console.error('Failed to load Vikunja tasks:', err)
+    console.error('Failed to load Vikunja data:', err)
   } finally {
     loadingTasks.value = false
   }
