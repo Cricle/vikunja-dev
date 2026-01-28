@@ -193,16 +193,6 @@ public class JsonFileConfigurationManager : IConfigurationManager
             }
         }
 
-        // Validate project rules
-        foreach (var rule in config.ProjectRules)
-        {
-            if (string.IsNullOrWhiteSpace(rule.ProjectId))
-            {
-                _logger.LogWarning("Configuration validation failed: ProjectId is empty");
-                return false;
-            }
-        }
-
         // Validate templates
         foreach (var template in config.Templates.Values)
         {
@@ -222,14 +212,6 @@ public class JsonFileConfigurationManager : IConfigurationManager
         {
             UserId = userId,
             Providers = new List<ProviderConfig>(),
-            ProjectRules = new List<ProjectRule>
-            {
-                new ProjectRule
-                {
-                    ProjectId = "*",
-                    EnabledEvents = new List<string>(EventTypes.All)
-                }
-            },
             Templates = new Dictionary<string, NotificationTemplate>(),
             LastModified = DateTime.UtcNow
         };

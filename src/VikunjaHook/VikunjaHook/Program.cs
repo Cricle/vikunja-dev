@@ -209,7 +209,6 @@ app.MapGet("/api/webhook-config/{userId}", async (
         {
             UserId = userId,
             Providers = new List<Vikunja.Core.Notifications.Models.ProviderConfig>(),
-            ProjectRules = new List<Vikunja.Core.Notifications.Models.ProjectRule>(),
             Templates = new Dictionary<string, Vikunja.Core.Notifications.Models.NotificationTemplate>(),
             LastModified = DateTime.UtcNow
         };

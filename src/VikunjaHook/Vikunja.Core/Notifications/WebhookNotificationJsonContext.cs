@@ -12,7 +12,6 @@ namespace Vikunja.Core.Notifications;
 [JsonSerializable(typeof(WebhookEvent))]
 [JsonSerializable(typeof(NotificationResult))]
 [JsonSerializable(typeof(ProviderConfig))]
-[JsonSerializable(typeof(ProjectRule))]
 [JsonSerializable(typeof(NotificationTemplate))]
 [JsonSerializable(typeof(NotificationMessage))]
 [JsonSerializable(typeof(ValidationResult))]
@@ -29,7 +28,6 @@ namespace Vikunja.Core.Notifications;
 [JsonSerializable(typeof(TeamEventData))]
 [JsonSerializable(typeof(List<UserConfig>))]
 [JsonSerializable(typeof(List<ProviderConfig>))]
-[JsonSerializable(typeof(List<ProjectRule>))]
 [JsonSerializable(typeof(Dictionary<string, NotificationTemplate>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 public partial class WebhookNotificationJsonContext : JsonSerializerContext

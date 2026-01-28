@@ -116,7 +116,6 @@ namespace Vikunja.Core;
 // Notification models
 [JsonSerializable(typeof(UserConfig))]
 [JsonSerializable(typeof(ProviderConfig))]
-[JsonSerializable(typeof(ProjectRule))]
 [JsonSerializable(typeof(NotificationTemplate))]
 [JsonSerializable(typeof(NotificationMessage))]
 [JsonSerializable(typeof(NotificationResult))]
@@ -134,7 +133,6 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(List<VikunjaTaskRelation>))]
 [JsonSerializable(typeof(List<VikunjaReminder>))]
 [JsonSerializable(typeof(List<ProviderConfig>))]
-[JsonSerializable(typeof(List<ProjectRule>))]
 [JsonSerializable(typeof(Dictionary<string, object?>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, NotificationTemplate>))]
