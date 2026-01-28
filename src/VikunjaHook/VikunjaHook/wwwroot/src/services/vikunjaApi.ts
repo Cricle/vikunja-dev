@@ -86,7 +86,7 @@ export const vikunjaService = {
   // Projects
   async getProjects(): Promise<VikunjaProject[]> {
     try {
-      return await callMcpTool<VikunjaProject[]>('ListProjects', {})
+      return await callMcpTool<VikunjaProject[]>('list_projects', {})
     } catch (error) {
       console.error('Failed to fetch projects:', error)
       return []
@@ -95,7 +95,7 @@ export const vikunjaService = {
 
   async getProject(id: number): Promise<VikunjaProject | null> {
     try {
-      return await callMcpTool<VikunjaProject>('GetProject', { projectId: id })
+      return await callMcpTool<VikunjaProject>('get_project', { projectId: id })
     } catch (error) {
       console.error(`Failed to fetch project ${id}:`, error)
       return null
@@ -105,7 +105,7 @@ export const vikunjaService = {
   // Tasks
   async getTasks(projectId?: number): Promise<VikunjaTask[]> {
     try {
-      return await callMcpTool<VikunjaTask[]>('ListTasks', projectId ? { projectId } : {})
+      return await callMcpTool<VikunjaTask[]>('list_tasks', projectId ? { projectId } : {})
     } catch (error) {
       console.error('Failed to fetch tasks:', error)
       return []
@@ -114,7 +114,7 @@ export const vikunjaService = {
 
   async getTask(id: number): Promise<VikunjaTask | null> {
     try {
-      return await callMcpTool<VikunjaTask>('GetTask', { taskId: id })
+      return await callMcpTool<VikunjaTask>('get_task', { taskId: id })
     } catch (error) {
       console.error(`Failed to fetch task ${id}:`, error)
       return null
@@ -124,7 +124,7 @@ export const vikunjaService = {
   // Users
   async getCurrentUser(): Promise<VikunjaUser | null> {
     try {
-      return await callMcpTool<VikunjaUser>('GetCurrentUser', {})
+      return await callMcpTool<VikunjaUser>('get_current_user', {})
     } catch (error) {
       console.error('Failed to fetch current user:', error)
       return null
@@ -133,8 +133,8 @@ export const vikunjaService = {
 
   async getUsers(): Promise<VikunjaUser[]> {
     try {
-      // SearchUsers requires a search parameter, use empty string to get all
-      return await callMcpTool<VikunjaUser[]>('SearchUsers', { search: '' })
+      // search_users requires a search parameter, use empty string to get all
+      return await callMcpTool<VikunjaUser[]>('search_users', { search: '' })
     } catch (error) {
       console.error('Failed to fetch users:', error)
       return []
@@ -144,7 +144,7 @@ export const vikunjaService = {
   // Labels
   async getLabels(): Promise<VikunjaLabel[]> {
     try {
-      return await callMcpTool<VikunjaLabel[]>('ListLabels', {})
+      return await callMcpTool<VikunjaLabel[]>('list_labels', {})
     } catch (error) {
       console.error('Failed to fetch labels:', error)
       return []
