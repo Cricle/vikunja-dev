@@ -16,6 +16,46 @@
         </div>
       </div>
 
+      <!-- Default Providers Selection -->
+      <va-card v-if="providers.length > 0" class="default-providers-card">
+        <va-card-title>
+          <div class="card-title-content">
+            <va-icon name="star" color="warning" />
+            <span>{{ t('providers.defaultProviders') }}</span>
+          </div>
+        </va-card-title>
+        <va-card-content>
+          <p class="default-providers-description">{{ t('providers.defaultProvidersDescription') }}</p>
+          <div class="default-providers-selection">
+            <va-chip
+              v-for="provider in providers"
+              :key="provider.providerType"
+              :color="isDefaultProvider(provider.providerType) ? 'primary' : 'secondary'"
+              :outline="!isDefaultProvider(provider.providerType)"
+              size="large"
+              @click="toggleDefaultProvider(provider.providerType)"
+              class="provider-chip"
+            >
+              <va-icon 
+                :name="isDefaultProvider(provider.providerType) ? 'check_circle' : 'radio_button_unchecked'" 
+                size="small"
+              />
+              {{ provider.settings.name || provider.providerType }}
+            </va-chip>
+          </div>
+          <va-button
+            v-if="hasDefaultProvidersChanged"
+            @click="saveDefaultProviders"
+            icon="save"
+            color="primary"
+            size="small"
+            class="save-defaults-button"
+          >
+            {{ t('common.save') }}
+          </va-button>
+        </va-card-content>
+      </va-card>
+
       <!-- Providers List -->
       <div v-if="providers.length > 0" class="providers-list">
         <va-card
@@ -204,6 +244,12 @@ const configStore = useConfigStore()
 
 const providers = computed(() => configStore.providers)
 const loading = computed(() => configStore.loading)
+const defaultProviders = computed(() => configStore.defaultProviders)
+
+const localDefaultProviders = ref<string[]>([])
+const hasDefaultProvidersChanged = computed(() => {
+  return JSON.stringify(localDefaultProviders.value.sort()) !== JSON.stringify(defaultProviders.value.sort())
+})
 
 const columns = computed(() => [
   { key: 'name', label: t('providers.name'), sortable: true },
@@ -238,6 +284,37 @@ function maskSensitive(key: string, value: string): string {
     return '••••••••'
   }
   return value
+}
+
+function isDefaultProvider(providerType: string): boolean {
+  return localDefaultProviders.value.includes(providerType)
+}
+
+function toggleDefaultProvider(providerType: string) {
+  const index = localDefaultProviders.value.indexOf(providerType)
+  if (index > -1) {
+    localDefaultProviders.value.splice(index, 1)
+  } else {
+    localDefaultProviders.value.push(providerType)
+  }
+}
+
+async function saveDefaultProviders() {
+  try {
+    configStore.setDefaultProviders(localDefaultProviders.value)
+    await configStore.saveConfig()
+    
+    notify({
+      message: t('providers.defaultProvidersSaved'),
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    console.error('Failed to save default providers:', error)
+    notify({
+      message: t('common.error') + ': ' + (error instanceof Error ? error.message : 'Unknown error'),
+      color: 'danger'
+    })
+  }
 }
 
 function editProvider(provider: typeof formData.value) {
@@ -338,6 +415,8 @@ onMounted(async () => {
   // Load config first
   try {
     await configStore.loadConfig('default')
+    // Initialize local default providers
+    localDefaultProviders.value = [...defaultProviders.value]
   } catch (error) {
     console.error('Failed to load config:', error)
     notify({
@@ -377,6 +456,43 @@ onMounted(async () => {
 
 .config-subtitle {
   margin: 0;
+}
+
+.default-providers-card {
+  margin-bottom: 2rem;
+  border-radius: 12px;
+}
+
+.card-title-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.default-providers-description {
+  margin: 0 0 1rem 0;
+  color: var(--va-text-secondary);
+}
+
+.default-providers-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.provider-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.provider-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.save-defaults-button {
+  margin-top: 0.5rem;
 }
 
 .providers-list {

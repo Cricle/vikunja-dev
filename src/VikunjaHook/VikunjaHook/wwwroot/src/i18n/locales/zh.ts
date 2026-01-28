@@ -99,7 +99,10 @@ export default {
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
     noProviders: '暂无提供者配置',
-    noProvidersDescription: '添加您的第一个通知提供者以开始使用'
+    noProvidersDescription: '添加您的第一个通知提供者以开始使用',
+    defaultProviders: '默认通知提供者',
+    defaultProvidersDescription: '选择默认使用的通知提供者。如果模板未指定提供者，将使用这些默认提供者发送通知。',
+    defaultProvidersSaved: '默认提供者已保存'
   },
   projects: {
     title: '项目规则配置',
