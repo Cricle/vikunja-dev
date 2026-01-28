@@ -84,10 +84,7 @@ function Verify-NotificationSent {
     $logs = Get-WebhookLogs -SinceSeconds 20
     
     # 检查是否处理了事件路由
-    $routingEvent = $logs -match "Routing webhook event: $EventName"
-    
-    # 检查是否有匹配的规则
-    $hasMatchingRule = $logs -match "matching rule" -or $logs -match "No matching rule"
+    $routingEvent = $logs -match "Routing webhook event: $EventName" -or $logs -match "Processing webhook event $EventName"
     
     # 检查是否调用了 provider 发送（成功或失败都算）
     $providerCalled = $logs -match "Notification sent successfully via pushdeer" -or 
@@ -97,11 +94,10 @@ function Verify-NotificationSent {
                       $logs -match "PushDeer API error"
     
     # 检查是否发送了通知（如果配置了提供商）
-    $notificationSent = $logs -match "notification sent" -or $logs -match "No matching rule"
+    $notificationSent = $logs -match "notification sent" -or $logs -match "No providers configured"
     
     $details = @()
     if ($routingEvent) { $details += "事件路由" }
-    if ($hasMatchingRule) { $details += "规则匹配" }
     if ($providerCalled) { $details += "Provider调用" }
     if ($notificationSent) { $details += "通知处理" }
     
@@ -109,7 +105,6 @@ function Verify-NotificationSent {
         Success = $routingEvent -and $providerCalled
         Message = "验证项: $($details -join ', ')"
         Details = $details
-        HasRule = $hasMatchingRule
         ProviderCalled = $providerCalled
     }
 }
@@ -264,19 +259,12 @@ $notificationConfig = @{
             }
         }
     )
-    projectRules = @(
-        @{
-            projectId = "$projectId"
-            enabledEvents = @("task.created", "task.updated", "task.deleted")
-            providerType = "pushdeer"
-        }
-    )
     templates = @{}
 } | ConvertTo-Json -Depth 10
 
 try {
     $configResponse = Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Post -Body $notificationConfig -ContentType "application/json"
-    Write-Host "  ✓ 通知规则已配置（PushDeer provider）" -ForegroundColor Green
+    Write-Host "  ✓ 通知规则已配置（PushDeer provider，无项目过滤）" -ForegroundColor Green
 } catch {
     Write-Host "  ⚠ 通知规则配置失败（可选）: $($_.Exception.Message)" -ForegroundColor Yellow
 }
@@ -456,9 +444,9 @@ Write-Host "`n[22/24] 验证日志完整性..." -ForegroundColor Yellow
 $allLogs = docker-compose -f docker-compose.dev.yml logs --since 60s vikunja-hook 2>&1 | Out-String
 $logChecks = @{
     "接收事件" = $allLogs -match "Received webhook event"
-    "路由事件" = $allLogs -match "Routing webhook event"
+    "路由事件" = $allLogs -match "Routing webhook event|Processing webhook event"
     "加载配置" = $allLogs -match "Loaded.*user configurations"
-    "规则匹配" = $allLogs -match "matching rule"
+    "Provider调用" = $allLogs -match "Notification sent successfully|Failed to send notification"
 }
 
 $logChecksPassed = ($logChecks.Values | Where-Object { $_ -eq $true }).Count
@@ -491,7 +479,7 @@ foreach ($event in $eventCounts.GetEnumerator()) {
 # 显示最近的 webhook 日志样本
 Write-Host "`n[24/24] 日志样本展示..." -ForegroundColor Yellow
 Write-Host "--- VikunjaHook 最近日志样本 ---" -ForegroundColor Cyan
-$recentLogs = docker-compose -f docker-compose.dev.yml logs --tail=50 vikunja-hook 2>&1 | Select-String -Pattern "Received|event_name|EventName|Webhook data|Data|Routing|matching|PushDeer|Notification sent" | Select-Object -First 20
+$recentLogs = docker-compose -f docker-compose.dev.yml logs --tail=50 vikunja-hook 2>&1 | Select-String -Pattern "Received|event_name|EventName|Webhook data|Data|Routing|Processing|PushDeer|Notification sent" | Select-Object -First 20
 if ($recentLogs) {
     $recentLogs | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
 } else {

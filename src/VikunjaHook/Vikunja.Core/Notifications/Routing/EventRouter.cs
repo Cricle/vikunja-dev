@@ -55,23 +55,9 @@ public class EventRouter : IEventRouter
     {
         try
         {
-            // Find matching project rules
-            var matchingRule = FindMatchingRule(config, webhookEvent);
-
-            if (matchingRule == null)
-            {
-                _logger.LogDebug("No matching rule for user {UserId}, project {ProjectId}",
-                    config.UserId, webhookEvent.ProjectId);
-                return;
-            }
-
-            // Check if event type is enabled
-            if (!matchingRule.EnabledEvents.Contains(webhookEvent.EventType))
-            {
-                _logger.LogDebug("Event type {EventType} not enabled for user {UserId}",
-                    webhookEvent.EventType, config.UserId);
-                return;
-            }
+            // No filtering - send all events
+            _logger.LogInformation("Processing webhook event {EventType} for user {UserId}",
+                webhookEvent.EventType, config.UserId);
 
             // Enrich event data using MCP tools
             var context = await EnrichEventDataAsync(webhookEvent, cancellationToken);
@@ -83,33 +69,13 @@ public class EventRouter : IEventRouter
             var title = _templateEngine.Render(template.Title, context);
             var body = _templateEngine.Render(template.Body, context);
 
-            // Send notifications
-            await SendNotificationsAsync(config, matchingRule, title, body, template.Format, cancellationToken);
+            // Send notifications to all configured providers
+            await SendNotificationsAsync(config, title, body, template.Format, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing webhook event for user {UserId}", config.UserId);
         }
-    }
-
-    private ProjectRule? FindMatchingRule(UserConfig config, WebhookEvent webhookEvent)
-    {
-        var projectIdStr = webhookEvent.ProjectId.ToString();
-
-        // First, try to find exact project match
-        var exactMatch = config.ProjectRules
-            .FirstOrDefault(r => r.ProjectId == projectIdStr);
-
-        if (exactMatch != null)
-        {
-            return exactMatch;
-        }
-
-        // Fall back to wildcard rule
-        var wildcardMatch = config.ProjectRules
-            .FirstOrDefault(r => r.ProjectId == "*");
-
-        return wildcardMatch;
     }
 
     private async Task<TemplateContext> EnrichEventDataAsync(
@@ -192,7 +158,6 @@ public class EventRouter : IEventRouter
 
     private async Task SendNotificationsAsync(
         UserConfig config,
-        ProjectRule rule,
         string title,
         string body,
         NotificationFormat format,
@@ -200,8 +165,14 @@ public class EventRouter : IEventRouter
     {
         var message = new NotificationMessage(title, body, format);
 
-        // Get providers to use
-        var providersToUse = GetProvidersToUse(config, rule);
+        // Use all configured providers
+        var providersToUse = config.Providers.ToList();
+
+        if (providersToUse.Count == 0)
+        {
+            _logger.LogWarning("No providers configured for user {UserId}", config.UserId);
+            return;
+        }
 
         foreach (var providerConfig in providersToUse)
         {
@@ -254,18 +225,5 @@ public class EventRouter : IEventRouter
                     providerConfig.ProviderType);
             }
         }
-    }
-
-    private List<ProviderConfig> GetProvidersToUse(UserConfig config, ProjectRule rule)
-    {
-        // If rule specifies a provider, use only that one
-        if (!string.IsNullOrWhiteSpace(rule.ProviderType))
-        {
-            var provider = config.Providers.FirstOrDefault(p => p.ProviderType == rule.ProviderType);
-            return provider != null ? new List<ProviderConfig> { provider } : new List<ProviderConfig>();
-        }
-
-        // Otherwise, use all configured providers
-        return config.Providers.ToList();
     }
 }
