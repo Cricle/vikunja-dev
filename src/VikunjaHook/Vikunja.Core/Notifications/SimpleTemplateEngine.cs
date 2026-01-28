@@ -1,9 +1,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Vikunja.Core.Notifications.Interfaces;
 using Vikunja.Core.Notifications.Models;
 
-namespace Vikunja.Core.Notifications.Templates;
+namespace Vikunja.Core.Notifications;
 
 public partial class SimpleTemplateEngine : ITemplateEngine
 {

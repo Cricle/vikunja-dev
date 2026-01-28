@@ -1,6 +1,6 @@
 using Vikunja.Core.Notifications.Models;
 
-namespace Vikunja.Core.Notifications.Templates;
+namespace Vikunja.Core.Notifications;
 
 public static class DefaultTemplates
 {

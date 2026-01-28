@@ -6,12 +6,8 @@ using Vikunja.Core.Mcp.Services;
 using Vikunja.Core.Mcp.Tools;
 using Vikunja.Core.Models;
 using Vikunja.Core.Services;
-using Vikunja.Core.Notifications.Interfaces;
-using Vikunja.Core.Notifications.Configuration;
-using Vikunja.Core.Notifications.Templates;
+using Vikunja.Core.Notifications;
 using Vikunja.Core.Notifications.Providers;
-using Vikunja.Core.Notifications.Routing;
-using Vikunja.Core.Notifications.Adapters;
 using Vikunja.Core.Notifications.Models;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -65,7 +61,7 @@ builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
 builder.Services.AddHttpClient();
 
 // Register notification system services
-builder.Services.AddSingleton<Vikunja.Core.Notifications.Interfaces.IConfigurationManager>(sp =>
+builder.Services.AddSingleton<Vikunja.Core.Notifications.IConfigurationManager>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<JsonFileConfigurationManager>>();
     return new JsonFileConfigurationManager(logger);
@@ -194,7 +190,7 @@ app.MapGet("/health", () => Results.Ok(new HealthResponse(
 // Get user configuration
 app.MapGet("/api/webhook-config/{userId}", async (
     string userId,
-    Vikunja.Core.Notifications.Interfaces.IConfigurationManager configManager,
+    Vikunja.Core.Notifications.IConfigurationManager configManager,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -205,12 +201,12 @@ app.MapGet("/api/webhook-config/{userId}", async (
     if (config == null)
     {
         // Return default config if not found
-        config = new Vikunja.Core.Notifications.Models.UserConfig
+        config = new UserConfig
         {
             UserId = userId,
-            Providers = new List<Vikunja.Core.Notifications.Models.ProviderConfig>(),
+            Providers = new List<ProviderConfig>(),
             DefaultProviders = new List<string>(),
-            Templates = new Dictionary<string, Vikunja.Core.Notifications.Models.NotificationTemplate>(),
+            Templates = new Dictionary<string, NotificationTemplate>(),
             LastModified = DateTime.UtcNow
         };
     }
@@ -222,14 +218,14 @@ app.MapGet("/api/webhook-config/{userId}", async (
 app.MapPut("/api/webhook-config/{userId}", async (
     string userId,
     HttpContext context,
-    Vikunja.Core.Notifications.Interfaces.IConfigurationManager configManager,
+    Vikunja.Core.Notifications.IConfigurationManager configManager,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
     logger.LogInformation("Updating configuration for user {UserId}", userId);
     
     var config = await context.Request.ReadFromJsonAsync(
-        Vikunja.Core.Notifications.WebhookNotificationJsonContext.Default.UserConfig,
+        WebhookNotificationJsonContext.Default.UserConfig,
         cancellationToken);
     
     if (config == null)
@@ -258,7 +254,7 @@ app.MapPut("/api/webhook-config/{userId}", async (
 app.MapPost("/api/webhook-config/{userId}/test", async (
     string userId,
     HttpContext context,
-    Vikunja.Core.Notifications.Interfaces.IConfigurationManager configManager,
+    Vikunja.Core.Notifications.IConfigurationManager configManager,
     IEnumerable<INotificationProvider> providers,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
@@ -295,18 +291,24 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
     
     try
     {
-        var message = new Vikunja.Core.Notifications.Models.NotificationMessage(
+        var message = new NotificationMessage(
             Title: request.Title ?? "Test Notification",
             Body: request.Body ?? "This is a test notification from Vikunja Webhook System",
-            Format: Vikunja.Core.Notifications.Models.NotificationFormat.Text);
+            Format: NotificationFormat.Text);
         
-        Vikunja.Core.Notifications.Models.NotificationResult result;
+        NotificationResult result;
         
         // Special handling for PushDeer
-        if (provider is PushDeerProvider pushDeer &&
-            providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
+        if (provider is PushDeerProvider pushDeer)
         {
-            result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
+            if (providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
+            {
+                result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
+            }
+            else
+            {
+                return Results.BadRequest();
+            }
         }
         else
         {
@@ -330,7 +332,7 @@ app.MapPost("/api/webhook", async (
     CancellationToken cancellationToken) =>
 {
     var webhookEvent = await context.Request.ReadFromJsonAsync(
-        Vikunja.Core.Notifications.WebhookNotificationJsonContext.Default.WebhookEvent,
+        WebhookNotificationJsonContext.Default.WebhookEvent,
         cancellationToken);
     
     if (webhookEvent == null)

@@ -1,6 +1,6 @@
 using Vikunja.Core.Notifications.Models;
 
-namespace Vikunja.Core.Notifications.Interfaces;
+namespace Vikunja.Core.Notifications;
 
 public interface IConfigurationManager
 {

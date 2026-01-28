@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Vikunja.Core.Models;
-using Vikunja.Core.Notifications.Interfaces;
+using Vikunja.Core.Notifications;
 using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Services;

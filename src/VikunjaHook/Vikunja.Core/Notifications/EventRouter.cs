@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
-using Vikunja.Core.Notifications.Interfaces;
 using Vikunja.Core.Notifications.Models;
-using Vikunja.Core.Notifications.Templates;
+using Vikunja.Core.Notifications.Providers;
 
-namespace Vikunja.Core.Notifications.Routing;
+namespace Vikunja.Core.Notifications;
 
 public class EventRouter : IEventRouter
 {

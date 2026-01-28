@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Vikunja.Core.Mcp.Tools;
-using Vikunja.Core.Notifications.Interfaces;
 using Vikunja.Core.Notifications.Models;
 
-namespace Vikunja.Core.Notifications.Adapters;
+namespace Vikunja.Core.Notifications;
 
 public class McpToolsAdapter : IMcpToolsAdapter
 {

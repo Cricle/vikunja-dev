@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Vikunja.Core.Notifications.Interfaces;
 using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications.Providers;
