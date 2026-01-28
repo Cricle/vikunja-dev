@@ -181,3 +181,52 @@ export const vikunjaService = {
   }
 }
 
+// Push History API
+export interface ProviderPushResult {
+  providerType: string
+  success: boolean
+  message?: string
+  timestamp: string
+  notificationContent?: {
+    title: string
+    body: string
+    format: string
+  }
+}
+
+export interface PushEventRecord {
+  id: string
+  eventName: string
+  timestamp: string
+  eventData: {
+    title: string
+    body: string
+    format: string
+  }
+  providers: ProviderPushResult[]
+}
+
+export interface PushHistoryResponse {
+  records: PushEventRecord[]
+  totalCount: number
+}
+
+const apiClient = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+export const pushHistoryService = {
+  async getHistory(count?: number): Promise<PushHistoryResponse> {
+    const response = await apiClient.get<PushHistoryResponse>('/push-history', {
+      params: { count }
+    })
+    return response.data
+  },
+
+  async clearHistory(): Promise<void> {
+    await apiClient.delete('/push-history')
+  }
+}

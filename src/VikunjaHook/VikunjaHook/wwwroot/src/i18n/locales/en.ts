@@ -7,6 +7,7 @@ export default {
     providers: 'Providers',
     projects: 'Project Rules',
     templates: 'Templates',
+    history: 'Push History',
     settings: 'Settings'
   },
   theme: {
@@ -191,5 +192,43 @@ export default {
     teamDeleted: 'Team Deleted',
     teamMemberAdded: 'Member Added',
     teamMemberRemoved: 'Member Removed'
+  },
+  pushHistory: {
+    title: 'Push History',
+    totalCount: 'Total {count} records',
+    noRecords: 'No push records yet',
+    clear: 'Clear History',
+    confirmClear: 'Confirm Clear History',
+    confirmClearMessage: 'This will clear all push history records. Continue?',
+    cleared: 'History cleared',
+    clearError: 'Failed to clear history',
+    loadError: 'Failed to load history',
+    content: 'Notification Content',
+    providers: 'Push Providers',
+    success: 'Success',
+    failed: 'Failed',
+    justNow: 'Just now',
+    minutesAgo: '{count} minutes ago',
+    hoursAgo: '{count} hours ago',
+    refresh: 'Refresh'
+  },
+  common: {
+    loading: 'Loading...',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    confirm: 'Confirm',
+    success: 'Success',
+    error: 'Error',
+    warning: 'Warning',
+    info: 'Info',
+    close: 'Close',
+    actions: 'Actions',
+    clickToCopy: 'Click to copy',
+    selectAll: 'Select All',
+    deselectAll: 'Deselect All',
+    refresh: 'Refresh'
   }
 }

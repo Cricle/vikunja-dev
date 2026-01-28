@@ -34,6 +34,12 @@
               >
                 {{ t('nav.templates') }}
               </va-button>
+              <va-button
+                :to="{ name: 'history' }"
+                icon="history"
+              >
+                {{ t('nav.history') }}
+              </va-button>
             </va-button-group>
           </va-navbar-item>
 
@@ -67,6 +73,14 @@
                     </va-list-item-section>
                     <va-list-item-section>
                       <va-list-item-label>{{ t('nav.templates') }}</va-list-item-label>
+                    </va-list-item-section>
+                  </va-list-item>
+                  <va-list-item :to="{ name: 'history' }" :class="{ 'active-menu-item': $route.name === 'history' }" clickable>
+                    <va-list-item-section icon>
+                      <va-icon name="history" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <va-list-item-label>{{ t('nav.history') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
                   <va-divider />

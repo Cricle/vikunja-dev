@@ -10,6 +10,7 @@ public class EventRouter : IEventRouter
     private readonly ITemplateEngine _templateEngine;
     private readonly IMcpToolsAdapter _mcpTools;
     private readonly IEnumerable<INotificationProvider> _providers;
+    private readonly IPushEventHistory _pushHistory;
     private readonly ILogger<EventRouter> _logger;
 
     public EventRouter(
@@ -17,12 +18,14 @@ public class EventRouter : IEventRouter
         ITemplateEngine templateEngine,
         IMcpToolsAdapter mcpTools,
         IEnumerable<INotificationProvider> providers,
+        IPushEventHistory pushHistory,
         ILogger<EventRouter> logger)
     {
         _configManager = configManager;
         _templateEngine = templateEngine;
         _mcpTools = mcpTools;
         _providers = providers;
+        _pushHistory = pushHistory;
         _logger = logger;
     }
 
@@ -211,6 +214,8 @@ public class EventRouter : IEventRouter
         _logger.LogInformation("Sending notification to {Count} provider(s): {Providers}",
             providersToUse.Count, string.Join(", ", providersToUse.Select(p => p.ProviderType)));
 
+        var providerResults = new List<ProviderPushResult>();
+
         foreach (var providerConfig in providersToUse)
         {
             var provider = _providers.FirstOrDefault(p => p.ProviderType == providerConfig.ProviderType);
@@ -218,49 +223,78 @@ public class EventRouter : IEventRouter
             if (provider == null)
             {
                 _logger.LogWarning("Provider {ProviderType} not found", providerConfig.ProviderType);
+                providerResults.Add(new ProviderPushResult
+                {
+                    ProviderType = providerConfig.ProviderType,
+                    Success = false,
+                    Message = "Provider not found",
+                    Timestamp = DateTime.UtcNow,
+                    NotificationContent = message
+                });
                 continue;
             }
 
             try
             {
+                NotificationResult result;
+                
                 // For PushDeer, we need to pass the API key
                 if (provider is Providers.PushDeerProvider pushDeerProvider &&
                     providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
                 {
-                    var result = await pushDeerProvider.SendAsync(message, pushKey, cancellationToken);
-
-                    if (result.Success)
-                    {
-                        _logger.LogInformation("Notification sent successfully via {ProviderType}",
-                            providerConfig.ProviderType);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to send notification via {ProviderType}: {Error}",
-                            providerConfig.ProviderType, result.ErrorMessage);
-                    }
+                    result = await pushDeerProvider.SendAsync(message, pushKey, cancellationToken);
                 }
                 else
                 {
-                    var result = await provider.SendAsync(message, cancellationToken);
+                    result = await provider.SendAsync(message, cancellationToken);
+                }
 
-                    if (result.Success)
-                    {
-                        _logger.LogInformation("Notification sent successfully via {ProviderType}",
-                            providerConfig.ProviderType);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to send notification via {ProviderType}: {Error}",
-                            providerConfig.ProviderType, result.ErrorMessage);
-                    }
+                providerResults.Add(new ProviderPushResult
+                {
+                    ProviderType = providerConfig.ProviderType,
+                    Success = result.Success,
+                    Message = result.Success ? "Sent successfully" : result.ErrorMessage,
+                    Timestamp = DateTime.UtcNow,
+                    NotificationContent = message
+                });
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Notification sent successfully via {ProviderType}",
+                        providerConfig.ProviderType);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to send notification via {ProviderType}: {Error}",
+                        providerConfig.ProviderType, result.ErrorMessage);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending notification via {ProviderType}",
                     providerConfig.ProviderType);
+                
+                providerResults.Add(new ProviderPushResult
+                {
+                    ProviderType = providerConfig.ProviderType,
+                    Success = false,
+                    Message = ex.Message,
+                    Timestamp = DateTime.UtcNow,
+                    NotificationContent = message
+                });
             }
         }
+
+        // Record push event
+        var record = new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = template.EventType,
+            Timestamp = DateTime.UtcNow,
+            EventData = new { Title = title, Body = body, Format = format.ToString() },
+            Providers = providerResults
+        };
+        
+        _pushHistory.AddRecord(record);
     }
 }

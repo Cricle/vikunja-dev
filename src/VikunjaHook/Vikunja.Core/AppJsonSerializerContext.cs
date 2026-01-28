@@ -121,6 +121,10 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(NotificationResult))]
 [JsonSerializable(typeof(WebhookEvent))]
 [JsonSerializable(typeof(Vikunja.Core.Notifications.Models.TestNotificationRequest))]
+[JsonSerializable(typeof(PushEventRecord))]
+[JsonSerializable(typeof(ProviderPushResult))]
+[JsonSerializable(typeof(List<PushEventRecord>))]
+[JsonSerializable(typeof(List<ProviderPushResult>))]
 
 // Collections
 [JsonSerializable(typeof(List<VikunjaTask>))]

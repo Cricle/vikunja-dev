@@ -69,6 +69,9 @@ builder.Services.AddSingleton<Vikunja.Core.Notifications.IConfigurationManager>(
 
 builder.Services.AddSingleton<ITemplateEngine, SimpleTemplateEngine>();
 
+// Register push event history
+builder.Services.AddSingleton<IPushEventHistory>(new InMemoryPushEventHistory(maxRecords: 100));
+
 // Register MCP Tools for the adapter
 builder.Services.AddSingleton<ProjectsTools>();
 builder.Services.AddSingleton<TasksTools>();
@@ -367,6 +370,26 @@ app.MapPost("/api/webhook", async (
         logger.LogError(ex, "Error receiving webhook");
         return Results.Problem("Error processing webhook");
     }
+});
+
+// Get push event history
+app.MapGet("/api/push-history", (
+    IPushEventHistory pushHistory,
+    int? count) =>
+{
+    var records = pushHistory.GetRecentRecords(count ?? 50);
+    return Results.Ok(new
+    {
+        Records = records,
+        TotalCount = pushHistory.GetTotalCount()
+    });
+});
+
+// Clear push event history
+app.MapDelete("/api/push-history", (IPushEventHistory pushHistory) =>
+{
+    pushHistory.Clear();
+    return Results.Ok(new { Message = "History cleared" });
 });
 
 // SPA fallback - must be last to not interfere with API routes

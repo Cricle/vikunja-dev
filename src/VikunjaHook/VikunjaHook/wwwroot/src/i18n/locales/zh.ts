@@ -7,6 +7,7 @@ export default {
     providers: '通知提供者',
     projects: '项目规则',
     templates: '模板编辑器',
+    history: '推送历史',
     settings: '设置'
   },
   theme: {
@@ -192,5 +193,43 @@ export default {
     teamDeleted: '团队已删除',
     teamMemberAdded: '成员已添加',
     teamMemberRemoved: '成员已移除'
+  },
+  pushHistory: {
+    title: '推送历史',
+    totalCount: '总计 {count} 条记录',
+    noRecords: '暂无推送记录',
+    clear: '清空历史',
+    confirmClear: '确认清空历史',
+    confirmClearMessage: '此操作将清空所有推送历史记录，是否继续？',
+    cleared: '历史记录已清空',
+    clearError: '清空历史失败',
+    loadError: '加载历史失败',
+    content: '通知内容',
+    providers: '推送提供者',
+    success: '成功',
+    failed: '失败',
+    justNow: '刚刚',
+    minutesAgo: '{count} 分钟前',
+    hoursAgo: '{count} 小时前',
+    refresh: '刷新'
+  },
+  common: {
+    loading: '加载中...',
+    save: '保存',
+    cancel: '取消',
+    delete: '删除',
+    edit: '编辑',
+    add: '添加',
+    confirm: '确认',
+    success: '成功',
+    error: '错误',
+    warning: '警告',
+    info: '信息',
+    close: '关闭',
+    actions: '操作',
+    clickToCopy: '点击复制',
+    selectAll: '全选',
+    deselectAll: '取消全选',
+    refresh: '刷新'
   }
 }
