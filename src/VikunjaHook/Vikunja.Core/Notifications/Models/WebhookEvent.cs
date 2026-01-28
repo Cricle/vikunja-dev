@@ -46,7 +46,8 @@ public class WebhookEvent
             {
                 try
                 {
-                    return JsonSerializer.Deserialize<TaskEventData>(Data.GetRawText());
+                    return JsonSerializer.Deserialize(Data.GetRawText(), 
+                        Vikunja.Core.Notifications.WebhookNotificationJsonContext.Default.TaskEventData);
                 }
                 catch
                 {
