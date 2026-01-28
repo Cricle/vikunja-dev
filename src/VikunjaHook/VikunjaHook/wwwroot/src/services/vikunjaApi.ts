@@ -10,6 +10,18 @@ const mcpClient = axios.create({
   }
 })
 
+// Helper function to parse SSE response from MCP
+function parseSseResponse(sseText: string): unknown {
+  // SSE format: "event: message\ndata: {...}"
+  const lines = sseText.split('\n')
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      return JSON.parse(line.substring(6))
+    }
+  }
+  throw new Error('Invalid SSE response format')
+}
+
 // Helper function to call MCP tools
 async function callMcpTool<T>(toolName: string, args: Record<string, unknown> = {}): Promise<T> {
   try {
@@ -23,11 +35,17 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown> = 
       }
     })
     
-    if (response.data.error) {
-      throw new Error(response.data.error.message)
+    // Parse SSE response if needed
+    let data = response.data
+    if (typeof data === 'string') {
+      data = parseSseResponse(data)
     }
     
-    return response.data.result.content[0].text ? JSON.parse(response.data.result.content[0].text) : response.data.result
+    if (data.error) {
+      throw new Error(data.error.message)
+    }
+    
+    return data.result.content[0].text ? JSON.parse(data.result.content[0].text) : data.result
   } catch (error) {
     console.error(`MCP tool call failed: ${toolName}`, error)
     throw error

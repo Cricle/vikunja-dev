@@ -1,0 +1,4 @@
+event: message
+data: {"result":{"content":[{"type":"text","text":"{\u0022id\u0022:1,\u0022username\u0022:\u0022huaji\u0022,\u0022name\u0022:\u0022\u0022,\u0022created\u0022:\u00222026-01-25T23:24:09Z\u0022,\u0022updated\u0022:\u00222026-01-25T23:27:54Z\u0022}"}]},"id":12,"jsonrpc":"2.0"}
+
+
