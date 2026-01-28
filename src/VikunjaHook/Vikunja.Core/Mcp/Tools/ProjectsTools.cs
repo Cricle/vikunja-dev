@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -65,13 +66,12 @@ public class ProjectsTools
     {
         _logger.LogInformation("Creating project '{Title}'", title);
 
-        var request = new
-        {
-            title,
-            description,
-            hex_color = hexColor?.ToLowerInvariant(),
-            parent_project_id = parentProjectId
-        };
+        var request = new CreateProjectRequest(
+            Title: title,
+            Description: description,
+            HexColor: hexColor?.ToLowerInvariant(),
+            ParentProjectId: parentProjectId
+        );
 
         var project = await _clientFactory.PutAsync<VikunjaProject>(
             "projects",
@@ -109,12 +109,12 @@ public class ProjectsTools
     {
         _logger.LogInformation("Updating project {ProjectId}", projectId);
 
-        var request = new
+        var request = new UpdateProjectRequest
         {
-            id = projectId,
-            title,
-            description,
-            hex_color = hexColor?.ToLowerInvariant()
+            Id = projectId,
+            Title = title,
+            Description = description,
+            HexColor = hexColor?.ToLowerInvariant()
         };
 
         var project = await _clientFactory.PostAsync<VikunjaProject>(

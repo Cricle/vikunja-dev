@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -76,14 +77,13 @@ public class TasksTools
             parsedDueDate = date;
         }
 
-        var request = new
-        {
-            project_id = projectId,
-            title,
-            description,
-            due_date = parsedDueDate,
-            priority
-        };
+        var request = new CreateTaskRequest(
+            ProjectId: projectId,
+            Title: title,
+            Description: description,
+            DueDate: parsedDueDate,
+            Priority: priority
+        );
 
         var task = await _clientFactory.PutAsync<VikunjaTask>(
             $"projects/{projectId}/tasks",
@@ -129,15 +129,14 @@ public class TasksTools
             parsedDueDate = date;
         }
 
-        var request = new
-        {
-            id = taskId,
-            title,
-            description,
-            done,
-            priority,
-            due_date = parsedDueDate
-        };
+        var request = new UpdateTaskRequest(
+            Id: taskId,
+            Title: title,
+            Description: description,
+            Done: done,
+            Priority: priority,
+            DueDate: parsedDueDate
+        );
 
         var task = await _clientFactory.PostAsync<VikunjaTask>(
             $"tasks/{taskId}",

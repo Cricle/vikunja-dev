@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -50,7 +51,7 @@ public class TaskCommentsTools
     {
         _logger.LogInformation("Creating comment on task {TaskId}", taskId);
 
-        var request = new { comment };
+        var request = new CreateTaskCommentRequest { Comment = comment };
         var createdComment = await _clientFactory.PutAsync<VikunjaComment>(
             $"tasks/{taskId}/comments",
             request,
@@ -87,7 +88,7 @@ public class TaskCommentsTools
     {
         _logger.LogInformation("Updating comment {CommentId} on task {TaskId}", commentId, taskId);
 
-        var request = new { comment };
+        var request = new UpdateTaskCommentRequest { Comment = comment };
         var updatedComment = await _clientFactory.PostAsync<VikunjaComment>(
             $"tasks/{taskId}/comments/{commentId}",
             request,

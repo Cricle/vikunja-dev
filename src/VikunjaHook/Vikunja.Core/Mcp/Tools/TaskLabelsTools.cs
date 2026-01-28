@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -31,7 +32,7 @@ public class TaskLabelsTools
     {
         _logger.LogInformation("Adding label {LabelId} to task {TaskId}", labelId, taskId);
 
-        var request = new { label_id = labelId };
+        var request = new AddTaskLabelRequest { LabelId = labelId };
         var label = await _clientFactory.PutAsync<VikunjaLabel>(
             $"tasks/{taskId}/labels",
             request,

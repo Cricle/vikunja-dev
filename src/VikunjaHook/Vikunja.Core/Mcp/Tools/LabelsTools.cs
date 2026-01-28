@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -58,12 +59,11 @@ public class LabelsTools
     {
         _logger.LogInformation("Creating label '{Title}'", title);
 
-        var request = new
-        {
-            title,
-            description,
-            hex_color = hexColor?.ToLowerInvariant()
-        };
+        var request = new CreateLabelRequest(
+            Title: title,
+            Description: description,
+            HexColor: hexColor?.ToLowerInvariant()
+        );
 
         var label = await _clientFactory.PutAsync<VikunjaLabel>(
             "labels",
@@ -101,12 +101,12 @@ public class LabelsTools
     {
         _logger.LogInformation("Updating label {LabelId}", labelId);
 
-        var request = new
+        var request = new UpdateLabelRequest
         {
-            id = labelId,
-            title,
-            description,
-            hex_color = hexColor?.ToLowerInvariant()
+            Id = labelId,
+            Title = title,
+            Description = description,
+            HexColor = hexColor?.ToLowerInvariant()
         };
 
         var label = await _clientFactory.PostAsync<VikunjaLabel>(

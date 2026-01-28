@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
@@ -31,7 +32,7 @@ public class TaskAssigneesTools
     {
         _logger.LogInformation("Adding assignee {UserId} to task {TaskId}", userId, taskId);
 
-        var request = new { user_id = userId };
+        var request = new AddTaskAssigneeRequest { UserId = userId };
         var user = await _clientFactory.PutAsync<VikunjaUser>(
             $"tasks/{taskId}/assignees",
             request,
