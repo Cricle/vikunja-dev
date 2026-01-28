@@ -193,6 +193,22 @@ public class JsonFileConfigurationManager : IConfigurationManager
             }
         }
 
+        // Validate default providers reference existing providers
+        if (config.DefaultProviders.Count > 0)
+        {
+            var configuredProviderTypes = config.Providers.Select(p => p.ProviderType).ToHashSet();
+            var invalidDefaultProviders = config.DefaultProviders
+                .Where(dp => !configuredProviderTypes.Contains(dp))
+                .ToList();
+            
+            if (invalidDefaultProviders.Count > 0)
+            {
+                _logger.LogWarning("Configuration validation failed: DefaultProviders reference non-existent providers: {Providers}",
+                    string.Join(", ", invalidDefaultProviders));
+                return false;
+            }
+        }
+
         // Validate templates
         foreach (var template in config.Templates.Values)
         {
@@ -200,6 +216,22 @@ public class JsonFileConfigurationManager : IConfigurationManager
             {
                 _logger.LogWarning("Configuration validation failed: Template EventType is empty");
                 return false;
+            }
+
+            // Validate template providers reference existing providers
+            if (template.Providers.Count > 0)
+            {
+                var configuredProviderTypes = config.Providers.Select(p => p.ProviderType).ToHashSet();
+                var invalidTemplateProviders = template.Providers
+                    .Where(tp => !configuredProviderTypes.Contains(tp))
+                    .ToList();
+                
+                if (invalidTemplateProviders.Count > 0)
+                {
+                    _logger.LogWarning("Configuration validation failed: Template {EventType} references non-existent providers: {Providers}",
+                        template.EventType, string.Join(", ", invalidTemplateProviders));
+                    return false;
+                }
             }
         }
 
@@ -212,6 +244,7 @@ public class JsonFileConfigurationManager : IConfigurationManager
         {
             UserId = userId,
             Providers = new List<ProviderConfig>(),
+            DefaultProviders = new List<string>(),
             Templates = new Dictionary<string, NotificationTemplate>(),
             LastModified = DateTime.UtcNow
         };
