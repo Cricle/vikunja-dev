@@ -1,0 +1,31 @@
+services:
+  # Vikunja with SQLite (lightweight dev setup)
+  vikunja:
+    image: vikunja/vikunja:latest
+    environment:
+      VIKUNJA_DATABASE_TYPE: sqlite
+      VIKUNJA_SERVICE_PUBLICURL: http://localhost:8080
+      VIKUNJA_SERVICE_FRONTENDURL: http://localhost:8080
+      VIKUNJA_WEBHOOKS_ENABLED: "true"
+      VIKUNJA_LOG_LEVEL: DEBUG
+    ports:
+      - "8080:3456"
+    tmpfs:
+      - /app/vikunja/files:uid=1000,gid=1000
+      - /db:uid=1000,gid=1000
+    restart: unless-stopped
+
+  # VikunjaHook MCP Server
+  vikunja-hook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      VIKUNJA_API_URL: http://vikunja:3456/api/v1
+      VIKUNJA_API_TOKEN: ${VIKUNJA_API_TOKEN}
+      ASPNETCORE_URLS: http://+:5082
+    ports:
+      - "5082:5082"
+    depends_on:
+      - vikunja
+    restart: unless-stopped

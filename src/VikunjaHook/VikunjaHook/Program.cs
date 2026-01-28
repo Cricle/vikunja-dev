@@ -335,11 +335,13 @@ app.MapPost("/api/webhook", async (
     
     if (webhookEvent == null)
     {
+        logger.LogWarning("Received null webhook event");
         return Results.BadRequest();
     }
     
-    logger.LogInformation("Received webhook event: {EventType} for project {ProjectId}",
-        webhookEvent.EventType, webhookEvent.ProjectId);
+    logger.LogInformation("Received webhook event: {EventName} at {Time}",
+        webhookEvent.EventName, webhookEvent.Time);
+    logger.LogInformation("Webhook data: {Data}", webhookEvent.Data.ToString());
     
     try
     {

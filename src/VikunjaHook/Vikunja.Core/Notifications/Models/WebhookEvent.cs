@@ -1,24 +1,78 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace Vikunja.Core.Notifications.Models;
 
 public class WebhookEvent
 {
-    public string EventType { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    public int ProjectId { get; set; }
-    public TaskEventData? Task { get; set; }
-    public ProjectEventData? Project { get; set; }
-    public CommentEventData? Comment { get; set; }
-    public AttachmentEventData? Attachment { get; set; }
-    public RelationEventData? Relation { get; set; }
-    public TeamEventData? Team { get; set; }
+    [JsonPropertyName("event_name")]
+    public string EventName { get; set; } = string.Empty;
+    
+    [JsonPropertyName("time")]
+    public DateTime Time { get; set; } = DateTime.UtcNow;
+    
+    [JsonPropertyName("data")]
+    public JsonElement Data { get; set; }
+    
+    // Computed properties for easier access
+    [JsonIgnore]
+    public string EventType => EventName;
+    
+    [JsonIgnore]
+    public DateTime Timestamp => Time;
+    
+    [JsonIgnore]
+    public int ProjectId
+    {
+        get
+        {
+            if (Data.ValueKind == JsonValueKind.Object)
+            {
+                if (Data.TryGetProperty("project_id", out var projectId))
+                    return projectId.GetInt32();
+                if (Data.TryGetProperty("ProjectId", out var projectIdAlt))
+                    return projectIdAlt.GetInt32();
+            }
+            return 0;
+        }
+    }
+    
+    [JsonIgnore]
+    public TaskEventData? Task
+    {
+        get
+        {
+            if (Data.ValueKind == JsonValueKind.Object)
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<TaskEventData>(Data.GetRawText());
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
 }
 
 public class TaskEventData
 {
+    [JsonPropertyName("id")]
     public int Id { get; set; }
+    
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+    
+    [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
+    
+    [JsonPropertyName("done")]
     public bool Done { get; set; }
+    
+    [JsonPropertyName("project_id")]
     public int ProjectId { get; set; }
 }
 
