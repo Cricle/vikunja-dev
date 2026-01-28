@@ -496,8 +496,10 @@ test-results/
 test-output/
 *.test.log
 run-with-env.ps1
-/src/VikunjaHook/VikunjaHook/*
+/src/VikunjaHook/VikunjaHook/bin/
+/src/VikunjaHook/VikunjaHook/obj/
 /src/VikunjaHook/VikunjaHook/wwwroot/dist/*
+!/src/VikunjaHook/VikunjaHook/wwwroot/src/
 
 # Data directory
 data/

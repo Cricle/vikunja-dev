@@ -7,16 +7,6 @@
           <h1 class="editor-title">{{ t('templates.title') }}</h1>
           <p class="editor-subtitle">{{ t('templates.description') }}</p>
         </div>
-        <div class="header-actions">
-          <va-select
-            v-model="selectedProjectId"
-            :label="t('projects.selectProject')"
-            :options="projectOptions"
-            text-by="label"
-            value-by="value"
-            class="project-selector"
-          />
-        </div>
       </div>
     </div>
 
@@ -221,6 +211,22 @@
               <textarea ref="editorTextarea" class="markdown-editor"></textarea>
             </div>
 
+            <div class="form-section">
+              <label class="editor-label">
+                {{ t('templates.providers') }}
+                <va-icon name="info" size="small" class="info-icon" />
+              </label>
+              <p class="field-hint">{{ t('templates.providersHint') }}</p>
+              <va-select
+                v-model="currentTemplate.providers"
+                :label="t('templates.selectProviders')"
+                :options="providerOptions"
+                multiple
+                :placeholder="t('templates.useDefaultProviders')"
+                clearable
+              />
+            </div>
+
             <div class="action-buttons">
               <va-button @click="saveTemplate" color="primary" icon="save">
                 {{ t('templates.save') }}
@@ -278,13 +284,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import { useConfigStore } from '@/stores/configStore'
 import { useEventStore } from '@/stores/eventStore'
-import { vikunjaService } from '@/services/vikunjaApi'
-import type { VikunjaProject } from '@/services/vikunjaApi'
 import { PlaceholdersByEventType, type EventType } from '@/types/events'
 import type { NotificationTemplate } from '@/types/config'
 import { NotificationFormat } from '@/types/config'
@@ -294,16 +297,14 @@ import { useToast } from 'vuestic-ui'
 
 const { t } = useI18n()
 const { init: notify } = useToast()
-const route = useRoute()
 const configStore = useConfigStore()
 const eventStore = useEventStore()
 
 const allEvents = computed(() => eventStore.allEvents)
 const templates = computed(() => configStore.templates)
+const providers = computed(() => configStore.providers)
 
 const selectedEvent = ref<string | null>(null)
-const selectedProjectId = ref<string>('all')
-const projects = ref<VikunjaProject[]>([])
 const taskExpanded = ref(true)
 const projectExpanded = ref(false)
 const labelExpanded = ref(false)
@@ -316,17 +317,12 @@ const currentTemplate = ref<NotificationTemplate>({
   eventType: '',
   title: '',
   body: '',
-  format: NotificationFormat.Markdown
+  format: NotificationFormat.Markdown,
+  providers: []
 })
 
-const projectOptions = computed(() => {
-  return [
-    { label: t('projects.allProjects'), value: 'all' },
-    ...projects.value.map(p => ({
-      label: p.title,
-      value: p.id.toString()
-    }))
-  ]
+const providerOptions = computed(() => {
+  return providers.value.map(p => p.providerType)
 })
 
 const availablePlaceholders = computed(() => {
@@ -389,7 +385,8 @@ function selectEvent(eventType: string) {
       eventType,
       title: `{{event.type}}`,
       body: `Event occurred at {{event.timestamp}}`,
-      format: NotificationFormat.Markdown
+      format: NotificationFormat.Markdown,
+      providers: []
     }
   }
   
@@ -497,49 +494,10 @@ async function copyTemplate() {
   }
 }
 
-async function loadProjects() {
-  try {
-    projects.value = await vikunjaService.getProjects()
-  } catch (error) {
-    console.error('Failed to load projects:', error)
-  }
-}
-
-// Watch for project changes and reload config for that project
-watch(selectedProjectId, async (newProjectId) => {
-  if (!newProjectId) return
-  
-  try {
-    // Load config for the selected project (use project ID as userId)
-    await configStore.loadConfig(newProjectId === 'all' ? 'default' : newProjectId)
-    
-    // If an event is currently selected, refresh its template
-    if (selectedEvent.value) {
-      const eventType = selectedEvent.value
-      selectedEvent.value = null
-      nextTick(() => {
-        selectEvent(eventType)
-      })
-    }
-  } catch (error) {
-    console.error('Failed to load config for project:', error)
-  }
-})
-
 onMounted(async () => {
-  // Load projects for selector first
-  await loadProjects()
-  
-  // Check if project ID is in URL query
-  const projectId = route.query.project as string
-  if (projectId) {
-    selectedProjectId.value = projectId
-  }
-  
-  // Load config for the selected project
+  // Load default config
   try {
-    const configId = selectedProjectId.value === 'all' ? 'default' : selectedProjectId.value
-    await configStore.loadConfig(configId)
+    await configStore.loadConfig('default')
   } catch (error) {
     console.error('Failed to load config:', error)
     notify({
@@ -665,6 +623,17 @@ onUnmounted(() => {
 .editor-label {
   display: block;
   margin-bottom: 0.5rem;
+}
+
+.field-hint {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: var(--va-text-secondary);
+}
+
+.info-icon {
+  margin-left: 0.25rem;
+  opacity: 0.6;
 }
 
 .markdown-editor {
