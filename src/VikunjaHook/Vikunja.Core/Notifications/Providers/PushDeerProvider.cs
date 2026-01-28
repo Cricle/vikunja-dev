@@ -6,33 +6,24 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications.Providers;
 
-public class PushDeerProvider
+public class PushDeerProvider : NotificationProviderBase
 {
     private const string ApiBaseUrl = "https://api2.pushdeer.com";
-    private const int MaxRetries = 3;
-    private const int InitialDelayMs = 1000;
-    private const double BackoffMultiplier = 2.0;
 
     private readonly HttpClient _httpClient;
-    private readonly ILogger<PushDeerProvider> _logger;
 
-    public string ProviderType => "pushdeer";
+    public override string ProviderType => "pushdeer";
 
     public PushDeerProvider(
         HttpClient httpClient,
-        ILogger<PushDeerProvider> logger)
+        ILogger<PushDeerProvider> logger) : base(logger)
     {
         _httpClient = httpClient;
-        _logger = logger;
     }
 
-    public async Task<NotificationResult> SendAsync(
-        NotificationMessage message,
-        CancellationToken cancellationToken = default)
-    {
-        return await SendAsync(message, null, cancellationToken);
-    }
-
+    /// <summary>
+    /// Send notification with PushDeer API key
+    /// </summary>
     public async Task<NotificationResult> SendAsync(
         NotificationMessage message,
         string? pushKey,
@@ -46,94 +37,80 @@ public class PushDeerProvider
                 Timestamp: DateTime.UtcNow);
         }
 
-        var attempt = 0;
-        var delay = InitialDelayMs;
-        Exception? lastException = null;
+        return await SendWithRetryAsync(
+            () => SendWithKeyAsync(message, pushKey, cancellationToken),
+            cancellationToken);
+    }
 
-        while (attempt < MaxRetries)
-        {
-            attempt++;
-
-            try
-            {
-                var request = new PushDeerRequest
-                {
-                    Pushkey = pushKey,
-                    Text = message.Title,
-                    Desp = message.Body,
-                    Type = message.Format == NotificationFormat.Markdown ? "markdown" : "text"
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(
-                    $"{ApiBaseUrl}/message/push",
-                    request,
-                    PushDeerJsonContext.Default.PushDeerRequest,
-                    cancellationToken);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var result = await response.Content.ReadFromJsonAsync(
-                        PushDeerJsonContext.Default.PushDeerResponse,
-                        cancellationToken);
-
-                    if (result?.Code == 0)
-                    {
-                        _logger.LogInformation("PushDeer notification sent successfully");
-                        return new NotificationResult(
-                            Success: true,
-                            ErrorMessage: null,
-                            Timestamp: DateTime.UtcNow);
-                    }
-                    else
-                    {
-                        var errorMsg = $"PushDeer API error: Code {result?.Code}";
-                        if (result?.Error != null)
-                        {
-                            errorMsg += $" - {result.Error}";
-                        }
-                        _logger.LogWarning(errorMsg);
-                        lastException = new Exception(errorMsg);
-                    }
-                }
-                else
-                {
-                    var errorMsg = $"HTTP error: {response.StatusCode}";
-                    _logger.LogWarning(errorMsg);
-                    lastException = new Exception(errorMsg);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending PushDeer notification (attempt {Attempt}/{MaxRetries})",
-                    attempt, MaxRetries);
-                lastException = ex;
-            }
-
-            if (attempt < MaxRetries)
-            {
-                _logger.LogInformation("Retrying in {Delay}ms...", delay);
-                await Task.Delay(delay, cancellationToken);
-                delay = (int)(delay * BackoffMultiplier);
-            }
-        }
-
+    protected override async Task<NotificationResult> SendCoreAsync(
+        NotificationMessage message,
+        CancellationToken cancellationToken)
+    {
         return new NotificationResult(
             Success: false,
-            ErrorMessage: $"Failed after {MaxRetries} attempts: {lastException?.Message}",
+            ErrorMessage: "PushDeer requires API key. Use SendAsync(message, pushKey) instead.",
             Timestamp: DateTime.UtcNow);
     }
 
-    public async Task<ValidationResult> ValidateConfigAsync(
-        ProviderConfig config,
-        CancellationToken cancellationToken = default)
+    private async Task<NotificationResult> SendWithKeyAsync(
+        NotificationMessage message,
+        string pushKey,
+        CancellationToken cancellationToken)
     {
-        if (config.ProviderType != ProviderType)
+        var request = new PushDeerRequest
         {
-            return new ValidationResult(
-                IsValid: false,
-                ErrorMessage: $"Invalid provider type: {config.ProviderType}");
-        }
+            Pushkey = pushKey,
+            Text = message.Title,
+            Desp = message.Body,
+            Type = message.Format == NotificationFormat.Markdown ? "markdown" : "text"
+        };
 
+        var response = await _httpClient.PostAsJsonAsync(
+            $"{ApiBaseUrl}/message/push",
+            request,
+            PushDeerJsonContext.Default.PushDeerRequest,
+            cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync(
+                PushDeerJsonContext.Default.PushDeerResponse,
+                cancellationToken);
+
+            if (result?.Code == 0)
+            {
+                Logger.LogInformation("PushDeer notification sent successfully");
+                return new NotificationResult(
+                    Success: true,
+                    ErrorMessage: null,
+                    Timestamp: DateTime.UtcNow);
+            }
+            else
+            {
+                var errorMsg = $"PushDeer API error: Code {result?.Code}";
+                if (result?.Error != null)
+                {
+                    errorMsg += $" - {result.Error}";
+                }
+                return new NotificationResult(
+                    Success: false,
+                    ErrorMessage: errorMsg,
+                    Timestamp: DateTime.UtcNow);
+            }
+        }
+        else
+        {
+            return new NotificationResult(
+                Success: false,
+                ErrorMessage: $"HTTP error: {response.StatusCode}",
+                Timestamp: DateTime.UtcNow);
+        }
+    }
+
+    protected override async Task<ValidationResult> ValidateConfigCoreAsync(
+        ProviderConfig config,
+        CancellationToken cancellationToken)
+    {
         if (!config.Settings.TryGetValue("pushkey", out var pushKey) ||
             string.IsNullOrWhiteSpace(pushKey))
         {
@@ -165,7 +142,7 @@ public class PushDeerProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating PushDeer configuration");
+            Logger.LogError(ex, "Error validating PushDeer configuration");
             return new ValidationResult(
                 IsValid: false,
                 ErrorMessage: $"Validation error: {ex.Message}");
@@ -195,7 +172,7 @@ public class PushDeerResponse
     public int Code { get; set; }
 
     [JsonPropertyName("content")]
-    public object? Content { get; set; }  // Changed from string to object as API returns an object
+    public object? Content { get; set; }
 
     [JsonPropertyName("error")]
     public string? Error { get; set; }
