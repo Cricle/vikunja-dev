@@ -69,8 +69,8 @@ public class EventRouter : IEventRouter
             var title = _templateEngine.Render(template.Title, context);
             var body = _templateEngine.Render(template.Body, context);
 
-            // Send notifications to all configured providers
-            await SendNotificationsAsync(config, title, body, template.Format, cancellationToken);
+            // Send notifications to configured providers (template-specific or default)
+            await SendNotificationsAsync(config, title, body, template.Format, template, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -161,18 +161,56 @@ public class EventRouter : IEventRouter
         string title,
         string body,
         NotificationFormat format,
+        NotificationTemplate template,
         CancellationToken cancellationToken)
     {
         var message = new NotificationMessage(title, body, format);
 
-        // Use all configured providers
-        var providersToUse = config.Providers.ToList();
+        // Determine which providers to use
+        List<ProviderConfig> providersToUse;
+        
+        if (template.Providers.Count > 0)
+        {
+            // Use template-specific providers
+            providersToUse = config.Providers
+                .Where(p => template.Providers.Contains(p.ProviderType))
+                .ToList();
+            
+            if (providersToUse.Count == 0)
+            {
+                _logger.LogWarning("Template specifies providers {Providers} but none are configured for user {UserId}",
+                    string.Join(", ", template.Providers), config.UserId);
+                return;
+            }
+        }
+        else if (config.DefaultProviders.Count > 0)
+        {
+            // Use default providers
+            providersToUse = config.Providers
+                .Where(p => config.DefaultProviders.Contains(p.ProviderType))
+                .ToList();
+            
+            if (providersToUse.Count == 0)
+            {
+                _logger.LogWarning("Default providers {Providers} specified but none are configured for user {UserId}",
+                    string.Join(", ", config.DefaultProviders), config.UserId);
+                return;
+            }
+        }
+        else
+        {
+            // Use all configured providers
+            providersToUse = config.Providers.ToList();
+        }
 
         if (providersToUse.Count == 0)
         {
             _logger.LogWarning("No providers configured for user {UserId}", config.UserId);
             return;
         }
+
+        _logger.LogInformation("Sending notification to {Count} provider(s): {Providers}",
+            providersToUse.Count, string.Join(", ", providersToUse.Select(p => p.ProviderType)));
 
         foreach (var providerConfig in providersToUse)
         {

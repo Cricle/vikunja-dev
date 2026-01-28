@@ -259,12 +259,13 @@ $notificationConfig = @{
             }
         }
     )
+    defaultProviders = @("pushdeer")  # 默认使用 pushdeer
     templates = @{}
 } | ConvertTo-Json -Depth 10
 
 try {
     $configResponse = Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Post -Body $notificationConfig -ContentType "application/json"
-    Write-Host "  ✓ 通知规则已配置（PushDeer provider，无项目过滤）" -ForegroundColor Green
+    Write-Host "  ✓ 通知规则已配置（PushDeer provider，默认推送）" -ForegroundColor Green
 } catch {
     Write-Host "  ⚠ 通知规则配置失败（可选）: $($_.Exception.Message)" -ForegroundColor Yellow
 }
