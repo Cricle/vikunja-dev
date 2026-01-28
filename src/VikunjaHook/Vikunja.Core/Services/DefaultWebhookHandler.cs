@@ -8,11 +8,11 @@ namespace Vikunja.Core.Services;
 
 public class DefaultWebhookHandler : WebhookHandlerBase
 {
-    private readonly IEventRouter _eventRouter;
+    private readonly EventRouter _eventRouter;
 
     public DefaultWebhookHandler(
         ILogger<DefaultWebhookHandler> logger,
-        IEventRouter eventRouter) : base(logger)
+        EventRouter eventRouter) : base(logger)
     {
         _eventRouter = eventRouter;
     }

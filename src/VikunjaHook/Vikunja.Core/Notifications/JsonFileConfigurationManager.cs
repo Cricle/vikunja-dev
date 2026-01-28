@@ -4,7 +4,7 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications;
 
-public class JsonFileConfigurationManager : IConfigurationManager
+public class JsonFileConfigurationManager
 {
     private readonly string _configDirectory;
     private readonly ILogger<JsonFileConfigurationManager> _logger;

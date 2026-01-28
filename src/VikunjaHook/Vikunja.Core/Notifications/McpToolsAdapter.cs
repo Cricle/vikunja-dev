@@ -4,7 +4,7 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications;
 
-public class McpToolsAdapter : IMcpToolsAdapter
+public class McpToolsAdapter
 {
     private readonly ProjectsTools _projectsTools;
     private readonly TasksTools _tasksTools;

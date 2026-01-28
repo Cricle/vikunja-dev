@@ -61,28 +61,28 @@ builder.Services.AddSingleton<IWebhookHandler, DefaultWebhookHandler>();
 builder.Services.AddHttpClient();
 
 // Register notification system services
-builder.Services.AddSingleton<Vikunja.Core.Notifications.IConfigurationManager>(sp =>
+builder.Services.AddSingleton(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<JsonFileConfigurationManager>>();
     return new JsonFileConfigurationManager(logger);
 });
 
-builder.Services.AddSingleton<ITemplateEngine, SimpleTemplateEngine>();
+builder.Services.AddSingleton<SimpleTemplateEngine>();
 
 // Register push event history (lock-free, keeps last 30 records)
-builder.Services.AddSingleton<IPushEventHistory>(new InMemoryPushEventHistory(maxRecords: 30));
+builder.Services.AddSingleton(new InMemoryPushEventHistory(maxRecords: 30));
 
 // Register MCP Tools for the adapter
 builder.Services.AddSingleton<ProjectsTools>();
 builder.Services.AddSingleton<TasksTools>();
 builder.Services.AddSingleton<UsersTools>();
 
-builder.Services.AddSingleton<IMcpToolsAdapter, McpToolsAdapter>();
-builder.Services.AddSingleton<IEventRouter, EventRouter>();
+builder.Services.AddSingleton<McpToolsAdapter>();
+builder.Services.AddSingleton<EventRouter>();
 
 // Register notification providers
 builder.Services.AddHttpClient<PushDeerProvider>();
-builder.Services.AddSingleton<INotificationProvider, PushDeerProvider>();
+builder.Services.AddSingleton<PushDeerProvider>();
 
 // Add MCP server with HTTP transport (SSE) and all tools
 builder.Services
@@ -193,7 +193,7 @@ app.MapGet("/health", () => Results.Ok(new HealthResponse(
 // Get user configuration
 app.MapGet("/api/webhook-config/{userId}", async (
     string userId,
-    Vikunja.Core.Notifications.IConfigurationManager configManager,
+    JsonFileConfigurationManager configManager,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -221,7 +221,7 @@ app.MapGet("/api/webhook-config/{userId}", async (
 app.MapPut("/api/webhook-config/{userId}", async (
     string userId,
     HttpContext context,
-    Vikunja.Core.Notifications.IConfigurationManager configManager,
+    JsonFileConfigurationManager configManager,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -257,8 +257,8 @@ app.MapPut("/api/webhook-config/{userId}", async (
 app.MapPost("/api/webhook-config/{userId}/test", async (
     string userId,
     HttpContext context,
-    Vikunja.Core.Notifications.IConfigurationManager configManager,
-    IEnumerable<INotificationProvider> providers,
+    JsonFileConfigurationManager configManager,
+    IEnumerable<PushDeerProvider> providers,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -330,7 +330,7 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
 // Receive webhook from Vikunja
 app.MapPost("/api/webhook", async (
     HttpContext context,
-    IEventRouter eventRouter,
+    EventRouter eventRouter,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -374,7 +374,7 @@ app.MapPost("/api/webhook", async (
 
 // Get push event history
 app.MapGet("/api/push-history", (
-    IPushEventHistory pushHistory,
+    InMemoryPushEventHistory pushHistory,
     int? count) =>
 {
     var records = pushHistory.GetRecentRecords(count ?? 50);
@@ -387,7 +387,7 @@ app.MapGet("/api/push-history", (
 });
 
 // Clear push event history
-app.MapDelete("/api/push-history", (IPushEventHistory pushHistory) =>
+app.MapDelete("/api/push-history", (InMemoryPushEventHistory pushHistory) =>
 {
     pushHistory.Clear();
     var response = new ClearHistoryResponse { Message = "History cleared" };

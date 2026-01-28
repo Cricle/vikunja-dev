@@ -7,7 +7,7 @@ namespace Vikunja.Core.Notifications;
 /// Lock-free thread-safe in-memory implementation of push event history
 /// Uses immutable collections for thread safety without locks
 /// </summary>
-public sealed class InMemoryPushEventHistory : IPushEventHistory
+public sealed class InMemoryPushEventHistory
 {
     private volatile ImmutableList<PushEventRecord> _records = ImmutableList<PushEventRecord>.Empty;
     private readonly int _maxRecords;

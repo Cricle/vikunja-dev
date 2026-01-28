@@ -4,21 +4,21 @@ using Vikunja.Core.Notifications.Providers;
 
 namespace Vikunja.Core.Notifications;
 
-public class EventRouter : IEventRouter
+public class EventRouter
 {
-    private readonly IConfigurationManager _configManager;
-    private readonly ITemplateEngine _templateEngine;
-    private readonly IMcpToolsAdapter _mcpTools;
-    private readonly IEnumerable<INotificationProvider> _providers;
-    private readonly IPushEventHistory _pushHistory;
+    private readonly JsonFileConfigurationManager _configManager;
+    private readonly SimpleTemplateEngine _templateEngine;
+    private readonly McpToolsAdapter _mcpTools;
+    private readonly IEnumerable<PushDeerProvider> _providers;
+    private readonly InMemoryPushEventHistory _pushHistory;
     private readonly ILogger<EventRouter> _logger;
 
     public EventRouter(
-        IConfigurationManager configManager,
-        ITemplateEngine templateEngine,
-        IMcpToolsAdapter mcpTools,
-        IEnumerable<INotificationProvider> providers,
-        IPushEventHistory pushHistory,
+        JsonFileConfigurationManager configManager,
+        SimpleTemplateEngine templateEngine,
+        McpToolsAdapter mcpTools,
+        IEnumerable<PushDeerProvider> providers,
+        InMemoryPushEventHistory pushHistory,
         ILogger<EventRouter> logger)
     {
         _configManager = configManager;

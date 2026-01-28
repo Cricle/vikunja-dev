@@ -4,7 +4,7 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications;
 
-public partial class SimpleTemplateEngine : ITemplateEngine
+public partial class SimpleTemplateEngine
 {
     private readonly ILogger<SimpleTemplateEngine> _logger;
     

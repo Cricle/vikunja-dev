@@ -6,7 +6,7 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications.Providers;
 
-public class PushDeerProvider : INotificationProvider
+public class PushDeerProvider
 {
     private const string ApiBaseUrl = "https://api2.pushdeer.com";
     private const int MaxRetries = 3;
