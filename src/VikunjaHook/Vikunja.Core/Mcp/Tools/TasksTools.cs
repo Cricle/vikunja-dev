@@ -33,6 +33,14 @@ public class TasksTools
     {
         _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}", projectId, page);
 
+        // If no projectId is specified, return empty list
+        // The tasks/all endpoint requires complex filter parameters that are not well documented
+        if (!projectId.HasValue)
+        {
+            _logger.LogWarning("ListTasks called without projectId - returning empty list");
+            return new List<VikunjaTask>();
+        }
+
         var queryParams = new List<string>
         {
             $"page={page}",
@@ -44,9 +52,7 @@ public class TasksTools
             queryParams.Add($"s={Uri.EscapeDataString(search)}");
         }
 
-        var endpoint = projectId.HasValue
-            ? $"projects/{projectId.Value}/tasks?{string.Join("&", queryParams)}"
-            : $"tasks/all?{string.Join("&", queryParams)}";
+        var endpoint = $"projects/{projectId.Value}/tasks?{string.Join("&", queryParams)}";
 
         var tasks = await _clientFactory.GetAsync<List<VikunjaTask>>(endpoint, cancellationToken);
         return tasks ?? new List<VikunjaTask>();

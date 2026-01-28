@@ -329,7 +329,17 @@ async function loadVikunjaData() {
 
   loadingTasks.value = true
   try {
-    vikunjaTasks.value = await vikunjaService.getTasks()
+    // Get tasks from all projects
+    const allTasks: VikunjaTask[] = []
+    for (const project of vikunjaProjects.value) {
+      try {
+        const projectTasks = await vikunjaService.getTasks(project.id)
+        allTasks.push(...projectTasks)
+      } catch (err) {
+        console.error(`Failed to load tasks for project ${project.id}:`, err)
+      }
+    }
+    vikunjaTasks.value = allTasks
   } catch (err) {
     console.error('Failed to load Vikunja tasks:', err)
   } finally {
