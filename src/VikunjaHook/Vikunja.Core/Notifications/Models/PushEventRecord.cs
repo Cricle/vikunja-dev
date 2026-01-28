@@ -17,10 +17,25 @@ public sealed class PushEventRecord
     public required DateTime Timestamp { get; init; }
     
     [JsonPropertyName("eventData")]
-    public required object EventData { get; init; }
+    public required EventDataInfo EventData { get; init; }
     
     [JsonPropertyName("providers")]
     public required List<ProviderPushResult> Providers { get; init; }
+}
+
+/// <summary>
+/// Event data information
+/// </summary>
+public sealed class EventDataInfo
+{
+    [JsonPropertyName("title")]
+    public required string Title { get; init; }
+    
+    [JsonPropertyName("body")]
+    public required string Body { get; init; }
+    
+    [JsonPropertyName("format")]
+    public required string Format { get; init; }
 }
 
 /// <summary>

@@ -69,8 +69,8 @@ builder.Services.AddSingleton<Vikunja.Core.Notifications.IConfigurationManager>(
 
 builder.Services.AddSingleton<ITemplateEngine, SimpleTemplateEngine>();
 
-// Register push event history
-builder.Services.AddSingleton<IPushEventHistory>(new InMemoryPushEventHistory(maxRecords: 100));
+// Register push event history (lock-free, keeps last 30 records)
+builder.Services.AddSingleton<IPushEventHistory>(new InMemoryPushEventHistory(maxRecords: 30));
 
 // Register MCP Tools for the adapter
 builder.Services.AddSingleton<ProjectsTools>();
@@ -105,6 +105,140 @@ builder.Services
 var app = builder.Build();
 
 app.Logger.LogInformation("Starting VikunjaHook with MCP (HTTP/SSE) + Webhook (HTTP)");
+
+// Add test data for push history in development
+if (app.Environment.IsDevelopment())
+{
+    var pushHistory = app.Services.GetRequiredService<IPushEventHistory>();
+    
+    // Add some test records
+    var testRecords = new[]
+    {
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "task.created",
+            Timestamp = DateTime.UtcNow.AddMinutes(-5),
+            EventData = new EventDataInfo { Title = "新任务创建", Body = "任务 '完成项目文档' 已创建", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = true,
+                    Message = "Sent successfully",
+                    Timestamp = DateTime.UtcNow.AddMinutes(-5),
+                    NotificationContent = new NotificationMessage("新任务创建", "任务 '完成项目文档' 已创建", NotificationFormat.Text)
+                }
+            }
+        },
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "task.updated",
+            Timestamp = DateTime.UtcNow.AddMinutes(-10),
+            EventData = new EventDataInfo { Title = "任务已更新", Body = "任务 '修复Bug #123' 状态已更改为进行中", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = true,
+                    Message = "Sent successfully",
+                    Timestamp = DateTime.UtcNow.AddMinutes(-10),
+                    NotificationContent = new NotificationMessage("任务已更新", "任务 '修复Bug #123' 状态已更改为进行中", NotificationFormat.Text)
+                }
+            }
+        },
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "task.comment.created",
+            Timestamp = DateTime.UtcNow.AddMinutes(-15),
+            EventData = new EventDataInfo { Title = "新评论", Body = "用户 @张三 在任务 '代码审查' 中添加了评论", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = false,
+                    Message = "Network timeout",
+                    Timestamp = DateTime.UtcNow.AddMinutes(-15),
+                    NotificationContent = new NotificationMessage("新评论", "用户 @张三 在任务 '代码审查' 中添加了评论", NotificationFormat.Text)
+                }
+            }
+        },
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "task.assignee.created",
+            Timestamp = DateTime.UtcNow.AddMinutes(-20),
+            EventData = new EventDataInfo { Title = "任务已分配", Body = "任务 '设计UI界面' 已分配给 @李四", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = true,
+                    Message = "Sent successfully",
+                    Timestamp = DateTime.UtcNow.AddMinutes(-20),
+                    NotificationContent = new NotificationMessage("任务已分配", "任务 '设计UI界面' 已分配给 @李四", NotificationFormat.Text)
+                },
+                new ProviderPushResult
+                {
+                    ProviderType = "Email",
+                    Success = false,
+                    Message = "Provider not configured",
+                    Timestamp = DateTime.UtcNow.AddMinutes(-20),
+                    NotificationContent = new NotificationMessage("任务已分配", "任务 '设计UI界面' 已分配给 @李四", NotificationFormat.Text)
+                }
+            }
+        },
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "project.created",
+            Timestamp = DateTime.UtcNow.AddHours(-1),
+            EventData = new EventDataInfo { Title = "新项目创建", Body = "项目 'Q1 产品发布' 已创建", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = true,
+                    Message = "Sent successfully",
+                    Timestamp = DateTime.UtcNow.AddHours(-1),
+                    NotificationContent = new NotificationMessage("新项目创建", "项目 'Q1 产品发布' 已创建", NotificationFormat.Text)
+                }
+            }
+        },
+        new PushEventRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            EventName = "task.deleted",
+            Timestamp = DateTime.UtcNow.AddHours(-2),
+            EventData = new EventDataInfo { Title = "任务已删除", Body = "任务 '过期的测试任务' 已被删除", Format = "Text" },
+            Providers = new List<ProviderPushResult>
+            {
+                new ProviderPushResult
+                {
+                    ProviderType = "PushDeer",
+                    Success = true,
+                    Message = "Sent successfully",
+                    Timestamp = DateTime.UtcNow.AddHours(-2),
+                    NotificationContent = new NotificationMessage("任务已删除", "任务 '过期的测试任务' 已被删除", NotificationFormat.Text)
+                }
+            }
+        }
+    };
+    
+    foreach (var record in testRecords)
+    {
+        pushHistory.AddRecord(record);
+    }
+    
+    app.Logger.LogInformation("Added {Count} test push history records", testRecords.Length);
+}
 
 // Serve static files from wwwroot/dist
 app.UseStaticFiles(new StaticFileOptions
@@ -378,18 +512,20 @@ app.MapGet("/api/push-history", (
     int? count) =>
 {
     var records = pushHistory.GetRecentRecords(count ?? 50);
-    return Results.Ok(new
+    var response = new PushHistoryResponse
     {
         Records = records,
         TotalCount = pushHistory.GetTotalCount()
-    });
+    };
+    return Results.Ok(response);
 });
 
 // Clear push event history
 app.MapDelete("/api/push-history", (IPushEventHistory pushHistory) =>
 {
     pushHistory.Clear();
-    return Results.Ok(new { Message = "History cleared" });
+    var response = new ClearHistoryResponse { Message = "History cleared" };
+    return Results.Ok(response);
 });
 
 // SPA fallback - must be last to not interfere with API routes

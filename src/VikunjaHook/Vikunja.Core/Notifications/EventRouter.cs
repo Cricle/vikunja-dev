@@ -291,7 +291,12 @@ public class EventRouter : IEventRouter
             Id = Guid.NewGuid().ToString(),
             EventName = template.EventType,
             Timestamp = DateTime.UtcNow,
-            EventData = new { Title = title, Body = body, Format = format.ToString() },
+            EventData = new EventDataInfo 
+            { 
+                Title = title, 
+                Body = body, 
+                Format = format.ToString() 
+            },
             Providers = providerResults
         };
         

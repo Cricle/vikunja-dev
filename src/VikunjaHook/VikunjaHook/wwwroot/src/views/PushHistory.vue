@@ -60,7 +60,7 @@
                     size="small"
                     class="event-chip"
                   >
-                    {{ record.eventName }}
+                    {{ getEventDisplayName(record.eventName) }}
                   </va-chip>
                   <span class="event-name">{{ record.eventData.title }}</span>
                 </div>
@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { pushHistoryService, type PushEventRecord } from '@/services/vikunjaApi'
 
@@ -147,6 +147,41 @@ const snackbar = ref(false)
 const snackbarText = ref('')
 const snackbarColor = ref('success')
 let refreshInterval: number | undefined
+
+// Event name mapping for display
+const eventNameMap: Record<string, string> = {
+  'task.created': 'taskCreated',
+  'task.updated': 'taskUpdated',
+  'task.deleted': 'taskDeleted',
+  'project.created': 'projectCreated',
+  'project.updated': 'projectUpdated',
+  'project.deleted': 'projectDeleted',
+  'task.assignee.created': 'taskAssigneeCreated',
+  'task.assignee.deleted': 'taskAssigneeDeleted',
+  'task.comment.created': 'taskCommentCreated',
+  'task.comment.updated': 'taskCommentUpdated',
+  'task.comment.deleted': 'taskCommentDeleted',
+  'task.attachment.created': 'taskAttachmentCreated',
+  'task.attachment.deleted': 'taskAttachmentDeleted',
+  'task.relation.created': 'taskRelationCreated',
+  'task.relation.deleted': 'taskRelationDeleted',
+  'label.created': 'labelCreated',
+  'label.updated': 'labelUpdated',
+  'label.deleted': 'labelDeleted',
+  'task.label.created': 'taskLabelCreated',
+  'task.label.deleted': 'taskLabelDeleted',
+  'user.created': 'userCreated',
+  'team.created': 'teamCreated',
+  'team.updated': 'teamUpdated',
+  'team.deleted': 'teamDeleted',
+  'team.member.added': 'teamMemberAdded',
+  'team.member.removed': 'teamMemberRemoved'
+}
+
+const getEventDisplayName = (eventName: string): string => {
+  const key = eventNameMap[eventName]
+  return key ? t(`events.${key}`) : eventName
+}
 
 const loadHistory = async () => {
   loading.value = true
