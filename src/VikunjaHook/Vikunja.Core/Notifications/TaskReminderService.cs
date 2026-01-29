@@ -281,11 +281,11 @@ public class TaskReminderService : IDisposable
                 Task = new TaskTemplateData
                 {
                     Id = (int)task.Id,
-                    Title = task.Title ?? "",
-                    Description = task.Description ?? "",
+                    Title = task.Title ?? string.Empty,
+                    Description = task.Description ?? string.Empty,
                     Done = task.Done,
                     Priority = task.Priority,
-                    DueDate = task.DueDate?.ToString("yyyy-MM-dd HH:mm"),
+                    DueDate = task.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
                     Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
                         ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{task.Id}" 
                         : $"Task ID: {task.Id}"
@@ -293,8 +293,8 @@ public class TaskReminderService : IDisposable
                 Project = new ProjectTemplateData
                 {
                     Id = (int)project.Id,
-                    Title = project.Title ?? "",
-                    Description = project.Description ?? "",
+                    Title = project.Title ?? string.Empty,
+                    Description = project.Description ?? string.Empty,
                     Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
                         ? $"{_vikunjaUrl.TrimEnd('/')}/projects/{project.Id}" 
                         : $"Project ID: {project.Id}"
@@ -405,8 +405,8 @@ public class TaskReminderService : IDisposable
                         Id = Guid.NewGuid().ToString(),
                         Timestamp = DateTime.UtcNow,
                         TaskId = task.Id,
-                        TaskTitle = task.Title ?? "",
-                        ProjectTitle = project.Title ?? "",
+                        TaskTitle = task.Title ?? string.Empty,
+                        ProjectTitle = project.Title ?? string.Empty,
                         ReminderType = reminderType,
                         UserId = config.UserId,
                         Title = title,
@@ -437,8 +437,8 @@ public class TaskReminderService : IDisposable
                         Id = Guid.NewGuid().ToString(),
                         Timestamp = DateTime.UtcNow,
                         TaskId = task.Id,
-                        TaskTitle = task.Title ?? "",
-                        ProjectTitle = project.Title ?? "",
+                        TaskTitle = task.Title ?? string.Empty,
+                        ProjectTitle = project.Title ?? string.Empty,
                         ReminderType = reminderType,
                         UserId = config.UserId,
                         Title = title,
