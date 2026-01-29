@@ -366,6 +366,14 @@ app.MapPost("/api/webhook", async (
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
+    // Read the raw JSON first for logging
+    context.Request.EnableBuffering();
+    using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+    var rawJson = await reader.ReadToEndAsync(cancellationToken);
+    context.Request.Body.Position = 0;
+    
+    logger.LogInformation("Received webhook raw JSON: {RawJson}", rawJson);
+    
     var webhookEvent = await context.Request.ReadFromJsonAsync(
         WebhookNotificationJsonContext.Default.WebhookEvent,
         cancellationToken);
@@ -379,6 +387,13 @@ app.MapPost("/api/webhook", async (
     logger.LogInformation("Received webhook event: {EventName} at {Time}",
         webhookEvent.EventName, webhookEvent.Time);
     logger.LogInformation("Webhook data: {Data}", webhookEvent.Data.ToString());
+    
+    // Log parsed task data if available
+    if (webhookEvent.Task != null)
+    {
+        logger.LogInformation("Parsed task data: Id={TaskId}, Title={Title}, Done={Done}", 
+            webhookEvent.Task.Id, webhookEvent.Task.Title, webhookEvent.Task.Done);
+    }
     
     try
     {

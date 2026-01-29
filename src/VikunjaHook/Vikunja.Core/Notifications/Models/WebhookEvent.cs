@@ -46,6 +46,15 @@ public class WebhookEvent
             {
                 try
                 {
+                    // Vikunja sends data as: { "task": {...}, "project": {...}, "doer": {...} }
+                    // We need to extract the "task" property first
+                    if (Data.TryGetProperty("task", out var taskElement))
+                    {
+                        return JsonSerializer.Deserialize(taskElement.GetRawText(), 
+                            Vikunja.Core.Notifications.WebhookNotificationJsonContext.Default.TaskEventData);
+                    }
+                    
+                    // Fallback: try to deserialize the whole data as task (for backward compatibility)
                     return JsonSerializer.Deserialize(Data.GetRawText(), 
                         Vikunja.Core.Notifications.WebhookNotificationJsonContext.Default.TaskEventData);
                 }
