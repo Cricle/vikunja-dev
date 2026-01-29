@@ -379,7 +379,7 @@ function initMarkdownEditor() {
     mdeInstance = new EasyMDE({
       element: editorTextarea.value,
       spellChecker: false,
-      placeholder: t('templates.bodyPlaceholder'),
+      placeholder: 'e.g., A new task **{task.title}** has been created in {project.title}',
       toolbar: [
         'bold', 'italic', 'heading', '|',
         'quote', 'unordered-list', 'ordered-list', '|',

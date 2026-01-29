@@ -344,7 +344,7 @@ function initMarkdownEditors() {
     startMDE = new EasyMDE({
       element: startBodyEditor.value,
       spellChecker: false,
-      placeholder: t('reminder.bodyPlaceholderStart'),
+      placeholder: 'e.g., Task: {task.title}\\nProject: {project.title}\\nStart Time: {task.startDate}',
       toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', '|', 'preview', 'guide'],
       status: false,
       autosave: { enabled: false },
@@ -359,7 +359,7 @@ function initMarkdownEditors() {
     dueMDE = new EasyMDE({
       element: dueBodyEditor.value,
       spellChecker: false,
-      placeholder: t('reminder.bodyPlaceholderDue'),
+      placeholder: 'e.g., Task: {task.title}\\nProject: {project.title}\\nDue Time: {task.dueDate}',
       toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', '|', 'preview', 'guide'],
       status: false,
       autosave: { enabled: false },
@@ -374,7 +374,7 @@ function initMarkdownEditors() {
     endMDE = new EasyMDE({
       element: endBodyEditor.value,
       spellChecker: false,
-      placeholder: t('reminder.bodyPlaceholderEnd'),
+      placeholder: 'e.g., Task: {task.title}\\nProject: {project.title}\\nEnd Time: {task.endDate}',
       toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', '|', 'preview', 'guide'],
       status: false,
       autosave: { enabled: false },
@@ -389,7 +389,7 @@ function initMarkdownEditors() {
     reminderMDE = new EasyMDE({
       element: reminderBodyEditor.value,
       spellChecker: false,
-      placeholder: t('reminder.bodyPlaceholderReminder'),
+      placeholder: 'e.g., Task: {task.title}\\nProject: {project.title}\\nReminder: {task.reminders}',
       toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', '|', 'preview', 'guide'],
       status: false,
       autosave: { enabled: false },
