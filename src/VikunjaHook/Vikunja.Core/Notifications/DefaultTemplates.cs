@@ -11,9 +11,16 @@ public static class DefaultTemplates
             EventType = EventTypes.TaskCreated,
             Title = "📝 New Task: {{task.title}}",
             Body = "A new task has been created in {{project.title}}\n\n" +
+                   "Task ID: {{task.id}}\n" +
                    "Description: {{task.description}}\n" +
+                   "Priority: {{task.priority}}\n" +
+                   "Due Date: {{task.dueDate}}\n" +
                    "Assignees: {{assignees}}\n" +
-                   "Link: {{event.url}}",
+                   "Labels: {{labels}}\n" +
+                   "Link: {{event.url}}\n" +
+                   "Task URL: {{task.url}}\n" +
+                   "Project URL: {{project.url}}\n" +
+                   "Event Time: {{event.timestamp}}",
             Format = NotificationFormat.Text
         },
         
@@ -51,7 +58,10 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TaskCommentCreated,
             Title = "💬 New Comment on: {{task.title}}",
-            Body = "A new comment has been added to a task in {{project.title}}\n" +
+            Body = "A new comment has been added to a task in {{project.title}}\n\n" +
+                   "Comment: {{comment.text}}\n" +
+                   "Author: {{comment.author}}\n" +
+                   "Comment ID: {{comment.id}}\n" +
                    "Link: {{event.url}}",
             Format = NotificationFormat.Text
         },
@@ -78,7 +88,9 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TaskAttachmentCreated,
             Title = "📎 Attachment Added to: {{task.title}}",
-            Body = "A new attachment has been added to a task in {{project.title}}\n" +
+            Body = "A new attachment has been added to a task in {{project.title}}\n\n" +
+                   "File: {{attachment.fileName}}\n" +
+                   "Attachment ID: {{attachment.id}}\n" +
                    "Link: {{event.url}}",
             Format = NotificationFormat.Text
         },
@@ -96,7 +108,10 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TaskRelationCreated,
             Title = "🔗 Task Relation Created: {{task.title}}",
-            Body = "A new relation has been created for a task in {{project.title}}\n" +
+            Body = "A new relation has been created for a task in {{project.title}}\n\n" +
+                   "Task ID: {{relation.taskId}}\n" +
+                   "Related Task ID: {{relation.relatedTaskId}}\n" +
+                   "Relation Type: {{relation.relationType}}\n" +
                    "Link: {{event.url}}",
             Format = NotificationFormat.Text
         },

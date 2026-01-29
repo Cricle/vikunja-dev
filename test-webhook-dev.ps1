@@ -804,21 +804,20 @@ try {
                 $allPlaceholders["task.done"].found = $true
             }
             
-            if ($combined -match "ID:\s*\d+|Task\s+#\d+") {
+            if ($combined -match "Task ID:\s*\d+|ID:\s*\d+") {
                 $allPlaceholders["task.id"].found = $true
             }
             
-            if ($combined -match "Due:|到期:|deadline") {
+            if ($combined -match "Due Date:|到期:|deadline|DueDate:") {
                 $allPlaceholders["task.dueDate"].found = $true
             }
             
-            if ($combined -match "Priority:|优先级:|priority:\s*\d+") {
+            if ($combined -match "Priority:\s*\d+|优先级:\s*\d+") {
                 $allPlaceholders["task.priority"].found = $true
             }
             
-            if ($combined -match "http://localhost:3456/tasks/\d+") {
+            if ($combined -match "Task URL:\s*http://localhost:3456/tasks/\d+") {
                 $allPlaceholders["task.url"].found = $true
-                $allPlaceholders["event.url"].found = $true
             }
             
             if ($combined -match "Project #\d+|Webhook Test \d+|项目:|in project") {
@@ -832,11 +831,15 @@ try {
                 $allPlaceholders["project.id"].found = $true
             }
             
-            if ($combined -match "http://localhost:3456/projects/\d+") {
+            if ($combined -match "Project URL:\s*http://localhost:3456/projects/\d+") {
                 $allPlaceholders["project.url"].found = $true
             }
             
-            if ($combined -match "\d{4}-\d{2}-\d{2}|\d{2}:\d{2}") {
+            if ($combined -match "Link:\s*http://localhost:3456/(tasks|projects)/\d+") {
+                $allPlaceholders["event.url"].found = $true
+            }
+            
+            if ($combined -match "Event Time:\s*\d{4}-\d{2}-\d{2}|Time:\s*\d{2}:\d{2}") {
                 $allPlaceholders["event.timestamp"].found = $true
             }
             
@@ -844,27 +847,27 @@ try {
                 $allPlaceholders["event.type"].found = $true
             }
             
-            if ($combined -match "Assignees:|分配给:|assigned to") {
+            if ($combined -match "Assignees:\s*\w+|分配给:|assigned to") {
                 $allPlaceholders["assignees"].found = $true
             }
             
-            if ($combined -match "Labels:|标签:|tags:") {
+            if ($combined -match "Labels:\s*\w+|标签:|tags:") {
                 $allPlaceholders["labels"].found = $true
             }
             
-            if ($record.eventName -match "comment" -and $combined -match "测试评论|comment") {
+            if ($record.eventName -match "comment" -and $combined -match "Comment:\s*.+|测试评论") {
                 $allPlaceholders["comment.text"].found = $true
             }
             
-            if ($record.eventName -match "comment" -and $combined -match "testuser|author|作者") {
+            if ($record.eventName -match "comment" -and $combined -match "Author:\s*\w+|testuser|作者") {
                 $allPlaceholders["comment.author"].found = $true
             }
             
-            if ($record.eventName -match "attachment" -and $combined -match "test-document\.pdf|file") {
+            if ($record.eventName -match "attachment" -and $combined -match "File:\s*[\w\-\.]+|test-document\.pdf") {
                 $allPlaceholders["attachment.fileName"].found = $true
             }
             
-            if ($record.eventName -match "relation" -and $combined -match "task.*\d+|related") {
+            if ($record.eventName -match "relation" -and $combined -match "Task ID:\s*\d+|Related Task ID:\s*\d+") {
                 $allPlaceholders["relation.taskId"].found = $true
             }
         }
