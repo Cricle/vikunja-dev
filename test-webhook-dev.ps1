@@ -132,6 +132,15 @@ try {
 Write-Host "`n[2/24] 等待服务就绪..." -ForegroundColor Yellow
 Start-Sleep -Seconds 20
 
+# 清理旧的配置文件，使用内置默认模板
+Write-Host "  清理旧配置文件..." -ForegroundColor Gray
+try {
+    docker-compose -f docker-compose.dev.yml exec -T vikunja-hook sh -c "rm -f /app/data/configs/*.json" 2>&1 | Out-Null
+    Write-Host "  ✓ 配置文件已清理" -ForegroundColor Green
+} catch {
+    Write-Host "  ⚠ 配置文件清理失败（可能不存在）" -ForegroundColor Yellow
+}
+
 # 检查 Vikunja
 $maxRetries = 10
 $vikunjaReady = $false
@@ -440,6 +449,88 @@ try {
     Write-TestResult "VikunjaHook 端点响应" $false $_.Exception.Message
 }
 
+# 验证占位符替换
+Write-Host "`n[21.5/24] 验证占位符替换..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+
+try {
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=10" -Method Get
+    
+    if ($history.records.Count -gt 0) {
+        Write-Host "  检查最近的推送记录中的占位符..." -ForegroundColor Gray
+        
+        $placeholderTests = @{
+            "task.title" = $false
+            "task.description" = $false
+            "project.title" = $false
+            "task.done" = $false
+            "event.url" = $false
+            "task.id" = $false
+        }
+        
+        foreach ($record in $history.records) {
+            $title = $record.eventData.title
+            $body = $record.eventData.body
+            
+            # 检查任务标题占位符
+            if ($title -match "Test Task|Manual Test Task|Webhook Test Task") {
+                $placeholderTests["task.title"] = $true
+            }
+            
+            # 检查项目标题占位符
+            if ($body -match "Project #\d+|Webhook Test \d+|项目:") {
+                $placeholderTests["project.title"] = $true
+            }
+            
+            # 检查任务完成状态占位符
+            if ($body -match "Done|Not Done|✓|○") {
+                $placeholderTests["task.done"] = $true
+            }
+            
+            # 检查事件URL占位符
+            if ($body -match "http://localhost:3456/tasks/\d+|Link: http") {
+                $placeholderTests["event.url"] = $true
+            }
+            
+            # 检查任务ID
+            if ($body -match "ID: \d+|id.*\d+" -or $title -match "\d+") {
+                $placeholderTests["task.id"] = $true
+            }
+            
+            # 检查描述
+            if ($body -match "Description:|描述:|手动测试|测试 webhook") {
+                $placeholderTests["task.description"] = $true
+            }
+        }
+        
+        $passedCount = ($placeholderTests.Values | Where-Object { $_ -eq $true }).Count
+        $totalCount = $placeholderTests.Count
+        
+        Write-Host "  占位符验证结果:" -ForegroundColor Gray
+        foreach ($test in $placeholderTests.GetEnumerator()) {
+            $status = if ($test.Value) { "✓" } else { "✗" }
+            $color = if ($test.Value) { "Green" } else { "Yellow" }
+            Write-Host "    $status {{$($test.Key)}}" -ForegroundColor $color
+        }
+        
+        Write-TestResult "占位符替换验证 ($passedCount/$totalCount 通过)" ($passedCount -ge 4)
+        
+        # 显示示例推送内容
+        if ($history.records.Count -gt 0) {
+            Write-Host "`n  最新推送示例:" -ForegroundColor Gray
+            $latest = $history.records[0]
+            Write-Host "    事件: $($latest.eventName)" -ForegroundColor Cyan
+            Write-Host "    标题: $($latest.eventData.title)" -ForegroundColor White
+            $bodyPreview = $latest.eventData.body.Substring(0, [Math]::Min(80, $latest.eventData.body.Length))
+            Write-Host "    内容: $bodyPreview..." -ForegroundColor White
+        }
+    } else {
+        Write-TestResult "占位符替换验证" $false "没有推送历史记录"
+    }
+} catch {
+    Write-TestResult "占位符替换验证" $false $_.Exception.Message
+}
+
 # 验证日志完整性
 Write-Host "`n[22/24] 验证日志完整性..." -ForegroundColor Yellow
 $allLogs = docker-compose -f docker-compose.dev.yml logs --since 60s vikunja-hook 2>&1 | Out-String
@@ -459,6 +550,99 @@ foreach ($check in $logChecks.GetEnumerator()) {
     $status = if ($check.Value) { "✓" } else { "✗" }
     Write-Host "    $status $($check.Key)" -ForegroundColor $(if ($check.Value) { "Green" } else { "Gray" })
 }
+
+# 测试特殊事件的占位符
+Write-Host "`n[22.5/24] 测试特殊事件占位符..." -ForegroundColor Yellow
+
+# 测试评论事件
+Write-Host "  测试评论事件占位符..." -ForegroundColor Gray
+$commentPayload = @{
+    event_name = "task.comment.created"
+    time = (Get-Date).ToUniversalTime().ToString("o")
+    data = @{
+        id = 100
+        comment = "这是一条测试评论"
+        task_id = 1
+        author = @{
+            username = "testuser"
+            name = "Test User"
+        }
+    }
+} | ConvertTo-Json -Depth 4
+
+try {
+    Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $commentPayload -ContentType "application/json" -UseBasicParsing | Out-Null
+    Start-Sleep -Seconds 2
+    
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+    $commentTest = $history.records[0].eventData.body -match "comment|评论" -or $history.records[0].eventData.title -match "Comment|评论"
+    
+    if ($commentTest) {
+        Write-Host "    ✓ 评论事件占位符正常" -ForegroundColor Green
+    } else {
+        Write-Host "    ⚠ 评论事件占位符未验证" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "    ✗ 评论事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# 测试附件事件
+Write-Host "  测试附件事件占位符..." -ForegroundColor Gray
+$attachmentPayload = @{
+    event_name = "task.attachment.created"
+    time = (Get-Date).ToUniversalTime().ToString("o")
+    data = @{
+        id = 200
+        file_name = "test-document.pdf"
+        task_id = 1
+    }
+} | ConvertTo-Json -Depth 3
+
+try {
+    Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $attachmentPayload -ContentType "application/json" -UseBasicParsing | Out-Null
+    Start-Sleep -Seconds 2
+    
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+    $attachmentTest = $history.records[0].eventData.body -match "attachment|附件|Attachment" -or $history.records[0].eventData.title -match "Attachment|附件"
+    
+    if ($attachmentTest) {
+        Write-Host "    ✓ 附件事件占位符正常" -ForegroundColor Green
+    } else {
+        Write-Host "    ⚠ 附件事件占位符未验证" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "    ✗ 附件事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# 测试关系事件
+Write-Host "  测试关系事件占位符..." -ForegroundColor Gray
+$relationPayload = @{
+    event_name = "task.relation.created"
+    time = (Get-Date).ToUniversalTime().ToString("o")
+    data = @{
+        task_id = 1
+        other_task_id = 2
+        relation_kind = "related"
+    }
+} | ConvertTo-Json -Depth 3
+
+try {
+    Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $relationPayload -ContentType "application/json" -UseBasicParsing | Out-Null
+    Start-Sleep -Seconds 2
+    
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+    $relationTest = $history.records[0].eventData.body -match "relation|关系|Relation" -or $history.records[0].eventData.title -match "Relation|关系"
+    
+    if ($relationTest) {
+        Write-Host "    ✓ 关系事件占位符正常" -ForegroundColor Green
+    } else {
+        Write-Host "    ⚠ 关系事件占位符未验证" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "    ✗ 关系事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-TestResult "特殊事件占位符测试" $true
 
 # 验证事件计数
 Write-Host "`n[23/24] 验证事件计数..." -ForegroundColor Yellow
@@ -520,6 +704,115 @@ Write-Host "  • 日志完整性:              " -NoNewline
 Write-Host $(if ($logChecksPassed -ge 3) { "✓ 通过 ($logChecksPassed/$logChecksTotal)" } else { "⚠ 部分缺失" }) -ForegroundColor $(if ($logChecksPassed -ge 3) { "Green" } else { "Yellow" })
 Write-Host "  • 事件计数:                " -NoNewline
 Write-Host $(if ($actualEvents -ge $expectedEvents) { "✓ 正确 ($actualEvents 个)" } else { "✗ 不足" }) -ForegroundColor $(if ($actualEvents -ge $expectedEvents) { "Green" } else { "Red" })
+
+# 占位符验证汇总
+Write-Host "`n占位符验证汇总:" -ForegroundColor Cyan
+try {
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=15" -Method Get -ErrorAction SilentlyContinue
+    
+    if ($history -and $history.records.Count -gt 0) {
+        $allPlaceholders = @{
+            "task.title" = @{ found = $false; example = "" }
+            "task.description" = @{ found = $false; example = "" }
+            "task.done" = @{ found = $false; example = "" }
+            "task.id" = @{ found = $false; example = "" }
+            "project.title" = @{ found = $false; example = "" }
+            "project.id" = @{ found = $false; example = "" }
+            "event.url" = @{ found = $false; example = "" }
+            "event.timestamp" = @{ found = $false; example = "" }
+            "comment" = @{ found = $false; example = "" }
+            "attachment" = @{ found = $false; example = "" }
+            "relation" = @{ found = $false; example = "" }
+        }
+        
+        foreach ($record in $history.records) {
+            $title = $record.eventData.title
+            $body = $record.eventData.body
+            $combined = "$title $body"
+            
+            # 检查各种占位符
+            if ($combined -match "Test Task|Manual Test Task|Webhook Test Task|Updated:") {
+                $allPlaceholders["task.title"].found = $true
+                if (!$allPlaceholders["task.title"].example) {
+                    $allPlaceholders["task.title"].example = $title
+                }
+            }
+            
+            if ($combined -match "Description:|描述:|手动测试|测试 webhook") {
+                $allPlaceholders["task.description"].found = $true
+            }
+            
+            if ($combined -match "Done|Not Done|✓|○|Status:") {
+                $allPlaceholders["task.done"].found = $true
+            }
+            
+            if ($combined -match "ID: \d+|id.*\d+") {
+                $allPlaceholders["task.id"].found = $true
+            }
+            
+            if ($combined -match "Project #\d+|Webhook Test \d+|项目:|project") {
+                $allPlaceholders["project.title"].found = $true
+                if (!$allPlaceholders["project.title"].example -and $combined -match "Project #\d+") {
+                    $allPlaceholders["project.title"].example = "Project #X"
+                }
+            }
+            
+            if ($combined -match "project.*\d+") {
+                $allPlaceholders["project.id"].found = $true
+            }
+            
+            if ($combined -match "http://localhost:3456/tasks/\d+|Link: http|event\.url") {
+                $allPlaceholders["event.url"].found = $true
+            }
+            
+            if ($combined -match "\d{4}-\d{2}-\d{2}|\d{2}:\d{2}") {
+                $allPlaceholders["event.timestamp"].found = $true
+            }
+            
+            if ($record.eventName -match "comment" -and ($combined -match "comment|评论|Comment")) {
+                $allPlaceholders["comment"].found = $true
+            }
+            
+            if ($record.eventName -match "attachment" -and ($combined -match "attachment|附件|Attachment")) {
+                $allPlaceholders["attachment"].found = $true
+            }
+            
+            if ($record.eventName -match "relation" -and ($combined -match "relation|关系|Relation")) {
+                $allPlaceholders["relation"].found = $true
+            }
+        }
+        
+        # 显示占位符验证结果
+        $coreCount = 0
+        $coreTotal = 8
+        $specialCount = 0
+        $specialTotal = 3
+        
+        Write-Host "  核心占位符:" -ForegroundColor Gray
+        foreach ($key in @("task.title", "task.description", "task.done", "task.id", "project.title", "project.id", "event.url", "event.timestamp")) {
+            $status = if ($allPlaceholders[$key].found) { "✓"; $coreCount++ } else { "✗" }
+            $color = if ($allPlaceholders[$key].found) { "Green" } else { "Yellow" }
+            $example = if ($allPlaceholders[$key].example) { " (示例: $($allPlaceholders[$key].example))" } else { "" }
+            Write-Host "    $status {{$key}}$example" -ForegroundColor $color
+        }
+        
+        Write-Host "  特殊事件占位符:" -ForegroundColor Gray
+        foreach ($key in @("comment", "attachment", "relation")) {
+            $status = if ($allPlaceholders[$key].found) { "✓"; $specialCount++ } else { "○" }
+            $color = if ($allPlaceholders[$key].found) { "Green" } else { "Gray" }
+            Write-Host "    $status $key 事件" -ForegroundColor $color
+        }
+        
+        Write-Host "`n  占位符验证统计:" -ForegroundColor Cyan
+        Write-Host "    核心占位符: $coreCount/$coreTotal 通过" -ForegroundColor $(if ($coreCount -ge 6) { "Green" } else { "Yellow" })
+        Write-Host "    特殊占位符: $specialCount/$specialTotal 通过" -ForegroundColor $(if ($specialCount -ge 1) { "Green" } else { "Gray" })
+        Write-Host "    总计: $($coreCount + $specialCount)/$($coreTotal + $specialTotal) 通过" -ForegroundColor $(if (($coreCount + $specialCount) -ge 7) { "Green" } else { "Yellow" })
+    } else {
+        Write-Host "  ⚠ 无法获取推送历史进行占位符验证" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  ⚠ 占位符验证失败: $($_.Exception.Message)" -ForegroundColor Yellow
+}
 
 Write-Host "`n命令:" -ForegroundColor Cyan
 Write-Host "  查看完整日志:  docker-compose -f docker-compose.dev.yml logs vikunja-hook" -ForegroundColor Gray
