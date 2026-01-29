@@ -227,6 +227,19 @@
               />
             </div>
 
+            <div v-if="selectedEvent === 'task.updated'" class="form-section">
+              <va-checkbox
+                v-model="currentTemplate.onlyNotifyWhenCompleted"
+                :label="t('templates.onlyNotifyWhenCompleted')"
+              >
+                <template #label>
+                  <span>{{ t('templates.onlyNotifyWhenCompleted') }}</span>
+                  <va-icon name="info" size="small" class="info-icon" />
+                </template>
+              </va-checkbox>
+              <p class="field-hint">{{ t('templates.onlyNotifyWhenCompletedHint') }}</p>
+            </div>
+
             <div class="action-buttons">
               <va-button @click="saveTemplate" color="primary" icon="save">
                 {{ t('templates.save') }}
@@ -321,7 +334,8 @@ const currentTemplate = ref<NotificationTemplate>({
   title: '',
   body: '',
   format: NotificationFormat.Markdown,
-  providers: []
+  providers: [],
+  onlyNotifyWhenCompleted: false
 })
 
 const providerOptions = computed(() => {
@@ -403,7 +417,8 @@ function selectEvent(eventType: string) {
       title: `{{event.type}}`,
       body: `Event occurred at {{event.timestamp}}`,
       format: NotificationFormat.Markdown,
-      providers: []
+      providers: [],
+      onlyNotifyWhenCompleted: false
     }
   }
   

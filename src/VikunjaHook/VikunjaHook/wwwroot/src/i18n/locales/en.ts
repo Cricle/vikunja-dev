@@ -150,6 +150,8 @@ export default {
     providersHint: 'Select specific providers for this template. If not specified, default providers will be used.',
     selectProviders: 'Select Providers',
     useDefaultProviders: 'Use default providers',
+    onlyNotifyWhenCompleted: 'Only notify when task is completed',
+    onlyNotifyWhenCompletedHint: 'When enabled, notifications will only be sent when the task is marked as done. This option only applies to task.updated events.',
     placeholderGroups: {
       event: 'Event Info',
       task: 'Task Info',

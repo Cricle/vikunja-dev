@@ -17,6 +17,7 @@ export interface NotificationTemplate {
   body: string
   format: NotificationFormat
   providers: string[]
+  onlyNotifyWhenCompleted?: boolean
 }
 
 export enum NotificationFormat {

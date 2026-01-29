@@ -151,6 +151,8 @@ export default {
     providersHint: '为此模板选择特定的提供者。如果未指定，将使用默认提供者。',
     selectProviders: '选择提供者',
     useDefaultProviders: '使用默认提供者',
+    onlyNotifyWhenCompleted: '仅在任务完成时通知',
+    onlyNotifyWhenCompletedHint: '启用后，仅当任务标记为完成时才发送通知。此选项仅适用于任务更新事件。',
     placeholderGroups: {
       event: '事件信息',
       task: '任务信息',
