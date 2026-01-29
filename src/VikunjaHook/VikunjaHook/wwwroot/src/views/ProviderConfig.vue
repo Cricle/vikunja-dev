@@ -165,6 +165,7 @@
           v-model="formData.providerType"
           :label="t('providers.type')"
           :options="availableProviders"
+          :no-options-text="t('common.noOptions')"
           :disabled="!!editingProvider"
           class="form-field"
         >
@@ -477,18 +478,23 @@ onMounted(async () => {
 .default-providers-selection {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .provider-chip {
   cursor: pointer;
   transition: all 0.2s ease;
+  padding: 0.5rem 1rem;
 }
 
 .provider-chip:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.provider-chip .va-icon {
+  margin-right: 0.5rem;
 }
 
 .save-defaults-button {
@@ -509,7 +515,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
   flex-wrap: wrap;
 }
 
@@ -534,28 +540,33 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .provider-name {
   margin: 0;
+  font-size: 1.125rem;
 }
 
 .provider-type {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
   text-transform: uppercase;
+  font-size: 0.8125rem;
+  color: var(--va-text-secondary);
 }
 
 .provider-settings-inline {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .provider-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .empty-state-card {
@@ -582,7 +593,7 @@ onMounted(async () => {
 .modal-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 .form-field {

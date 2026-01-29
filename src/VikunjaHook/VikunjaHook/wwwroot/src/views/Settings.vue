@@ -266,27 +266,31 @@ onMounted(() => {
 .settings-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .settings-card {
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .card-title-content {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-size: 1.125rem;
 }
 
 .setting-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .setting-description {
   margin: 0;
+  line-height: 1.6;
+  font-size: 0.9375rem;
 }
 
 .theme-toggle {
@@ -304,20 +308,20 @@ onMounted(() => {
 .backup-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 2rem;
+  gap: 2.5rem;
   align-items: center;
 }
 
 .backup-section {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 .backup-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .backup-info {
@@ -325,11 +329,14 @@ onMounted(() => {
 }
 
 .backup-title {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
+  font-size: 1.0625rem;
 }
 
 .backup-description {
   margin: 0;
+  line-height: 1.6;
+  font-size: 0.9375rem;
 }
 
 .backup-button {

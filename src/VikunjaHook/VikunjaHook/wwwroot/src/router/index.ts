@@ -19,6 +19,11 @@ const router = createRouter({
       component: () => import('@/views/TemplateEditor.vue')
     },
     {
+      path: '/reminder',
+      name: 'reminder',
+      component: () => import('@/views/TaskReminder.vue')
+    },
+    {
       path: '/history',
       name: 'history',
       component: () => import('@/views/PushHistory.vue')

@@ -198,7 +198,7 @@
               <va-input
                 v-model="currentTemplate.title"
                 :label="t('templates.titleTemplate')"
-                placeholder="e.g., New Task: {{task.title}}"
+                :placeholder="t('templates.titlePlaceholder')"
               >
                 <template #prepend>
                   <va-icon name="title" />
@@ -221,6 +221,7 @@
                 v-model="currentTemplate.providers"
                 :label="t('templates.selectProviders')"
                 :options="providerOptions"
+                :no-options-text="t('common.noOptions')"
                 multiple
                 :placeholder="t('templates.useDefaultProviders')"
                 clearable
@@ -378,7 +379,7 @@ function initMarkdownEditor() {
     mdeInstance = new EasyMDE({
       element: editorTextarea.value,
       spellChecker: false,
-      placeholder: 'e.g., A new task **{{task.title}}** has been created in {{project.title}}',
+      placeholder: t('templates.bodyPlaceholder'),
       toolbar: [
         'bold', 'italic', 'heading', '|',
         'quote', 'unordered-list', 'ordered-list', '|',
@@ -646,21 +647,28 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-size: 1.125rem;
 }
 
 .form-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
 }
 
 .editor-label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9375rem;
 }
 
 .field-hint {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 1rem 0;
   font-size: 0.875rem;
   color: var(--va-text-secondary);
+  line-height: 1.5;
 }
 
 .info-icon {
@@ -720,7 +728,12 @@ onUnmounted(() => {
 .action-buttons {
   display: flex;
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.action-buttons .va-button {
+  min-width: 120px;
 }
 
 /* Empty State */
@@ -762,7 +775,7 @@ onUnmounted(() => {
 }
 
 .placeholder-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .placeholder-group:last-child {
@@ -770,7 +783,7 @@ onUnmounted(() => {
 }
 
 .group-title {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 1rem 0;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--va-text-primary);
@@ -781,7 +794,7 @@ onUnmounted(() => {
 .placeholder-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .placeholder-chip {
@@ -789,6 +802,7 @@ onUnmounted(() => {
   transition: all 0.2s;
   justify-content: space-between;
   width: 100%;
+  padding: 0.5rem 0.75rem;
 }
 
 .placeholder-chip:hover {
@@ -798,6 +812,7 @@ onUnmounted(() => {
 
 .placeholder-chip code {
   font-family: 'Courier New', monospace;
+  margin-right: 0.5rem;
 }
 
 /* Responsive */

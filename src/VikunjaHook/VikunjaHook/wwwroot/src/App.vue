@@ -41,6 +41,14 @@
                 <span>{{ t('nav.templates') }}</span>
               </router-link>
               <router-link
+                :to="{ name: 'reminder' }"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'reminder' }"
+              >
+                <va-icon name="alarm" size="small" />
+                <span>{{ t('nav.reminder') }}</span>
+              </router-link>
+              <router-link
                 :to="{ name: 'history' }"
                 class="nav-link"
                 :class="{ 'nav-link-active': $route.name === 'history' }"
@@ -81,6 +89,14 @@
                     </va-list-item-section>
                     <va-list-item-section>
                       <va-list-item-label>{{ t('nav.templates') }}</va-list-item-label>
+                    </va-list-item-section>
+                  </va-list-item>
+                  <va-list-item :to="{ name: 'reminder' }" :class="{ 'active-menu-item': $route.name === 'reminder' }" clickable>
+                    <va-list-item-section icon>
+                      <va-icon name="alarm" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <va-list-item-label>{{ t('nav.reminder') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
                   <va-list-item :to="{ name: 'history' }" :class="{ 'active-menu-item': $route.name === 'history' }" clickable>

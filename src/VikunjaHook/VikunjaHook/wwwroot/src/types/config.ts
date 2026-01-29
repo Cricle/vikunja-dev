@@ -4,6 +4,24 @@ export interface UserConfig {
   defaultProviders: string[]
   templates: Record<string, NotificationTemplate>
   lastModified?: string
+  reminderConfig?: TaskReminderConfig
+}
+
+export interface TaskReminderConfig {
+  enabled: boolean
+  scanIntervalSeconds: number
+  format: NotificationFormat
+  providers: string[]
+  enableLabelFilter: boolean
+  filterLabelIds: number[]
+  startDateTemplate: ReminderTemplate
+  dueDateTemplate: ReminderTemplate
+  reminderTimeTemplate: ReminderTemplate
+}
+
+export interface ReminderTemplate {
+  titleTemplate: string
+  bodyTemplate: string
 }
 
 export interface ProviderConfig {

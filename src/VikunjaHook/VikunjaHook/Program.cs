@@ -72,6 +72,9 @@ builder.Services.AddSingleton<SimpleTemplateEngine>();
 // Register push event history (lock-free, keeps last 30 records)
 builder.Services.AddSingleton(new InMemoryPushEventHistory(maxRecords: 30));
 
+// Register task reminder history (keeps last 100 records)
+builder.Services.AddSingleton(new TaskReminderHistory(maxRecords: 100));
+
 // Register MCP Tools for the adapter
 builder.Services.AddSingleton<ProjectsTools>();
 builder.Services.AddSingleton<TasksTools>();
@@ -116,6 +119,29 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddHttpClient<PushDeerProvider>();
 builder.Services.AddSingleton<PushDeerProvider>();
 
+// Register TaskReminderService
+builder.Services.AddSingleton(sp =>
+{
+    var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
+    var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
+    var templateEngine = sp.GetRequiredService<SimpleTemplateEngine>();
+    var providers = sp.GetServices<PushDeerProvider>();
+    var pushHistory = sp.GetRequiredService<InMemoryPushEventHistory>();
+    var reminderHistory = sp.GetRequiredService<TaskReminderHistory>();
+    var logger = sp.GetRequiredService<ILogger<TaskReminderService>>();
+    var vikunjaUrl = builder.Configuration["VIKUNJA_URL"];
+    
+    return new TaskReminderService(
+        clientFactory,
+        configManager,
+        templateEngine,
+        providers,
+        pushHistory,
+        reminderHistory,
+        logger,
+        vikunjaUrl);
+});
+
 // Add MCP server with HTTP transport (SSE) and all tools
 builder.Services
     .AddMcpServer()
@@ -137,6 +163,11 @@ builder.Services
 var app = builder.Build();
 
 app.Logger.LogInformation("Starting VikunjaHook with MCP (HTTP/SSE) + Webhook (HTTP)");
+
+// Start TaskReminderService
+var reminderService = app.Services.GetRequiredService<TaskReminderService>();
+reminderService.Start();
+app.Logger.LogInformation("TaskReminderService started");
 
 // Serve static files from wwwroot/dist
 app.UseStaticFiles(new StaticFileOptions
@@ -439,6 +470,96 @@ app.MapDelete("/api/push-history", (InMemoryPushEventHistory pushHistory) =>
     pushHistory.Clear();
     var response = new ClearHistoryResponse { Message = "History cleared" };
     return Results.Ok(response);
+});
+
+// Get task reminder history
+app.MapGet("/api/reminder-history", (
+    TaskReminderHistory reminderHistory,
+    int? count) =>
+{
+    var records = reminderHistory.GetRecentRecords(count ?? 50);
+    return new ReminderHistoryResponse
+    {
+        Records = records,
+        TotalCount = reminderHistory.GetTotalCount()
+    };
+});
+
+// Clear task reminder history
+app.MapDelete("/api/reminder-history", (TaskReminderHistory reminderHistory) =>
+{
+    reminderHistory.Clear();
+    return new ReminderClearResponse { Message = "Reminder history cleared" };
+});
+
+// Add test reminder data (for development/testing)
+app.MapPost("/api/reminder-history/test", (TaskReminderHistory reminderHistory) =>
+{
+    var random = new Random();
+    var reminderTypes = new[] { "due", "start", "reminder" };
+    var projects = new[] { "Personal Tasks", "Work Project", "Home Improvement", "Learning Goals" };
+    var tasks = new[] 
+    { 
+        "Complete project documentation",
+        "Review pull requests",
+        "Prepare presentation slides",
+        "Update dependencies",
+        "Fix critical bug",
+        "Write unit tests",
+        "Deploy to production",
+        "Team meeting preparation"
+    };
+    
+    for (int i = 0; i < 10; i++)
+    {
+        var taskTitle = tasks[random.Next(tasks.Length)];
+        var projectTitle = projects[random.Next(projects.Length)];
+        var reminderType = reminderTypes[random.Next(reminderTypes.Length)];
+        var success = random.Next(100) > 10; // 90% success rate
+        
+        reminderHistory.AddRecord(new TaskReminderRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            Timestamp = DateTime.UtcNow.AddMinutes(-random.Next(0, 120)),
+            TaskId = random.Next(1, 1000),
+            TaskTitle = taskTitle,
+            ProjectTitle = projectTitle,
+            ReminderType = reminderType,
+            UserId = "testuser",
+            Title = $"⏰ Task Reminder: {taskTitle}",
+            Body = $"Task: {taskTitle}\nProject: {projectTitle}\nType: {reminderType}",
+            Providers = new List<string> { "PushDeer" },
+            Success = success,
+            ErrorMessage = success ? null : "Failed to send notification"
+        });
+    }
+    
+    return new ReminderTestResponse { Message = "Test data added", Count = 10 };
+});
+
+// Get all labels from Vikunja
+app.MapGet("/api/mcp/labels", async (
+    IVikunjaClientFactory clientFactory,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var labels = await clientFactory.GetAsync<List<VikunjaLabel>>("labels", cancellationToken);
+        return Results.Ok(labels ?? new List<VikunjaLabel>());
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to get labels");
+        return Results.Ok(new List<VikunjaLabel>());
+    }
+});
+
+// Get reminder blacklist status (for monitoring)
+app.MapGet("/api/reminder-blacklist", (TaskReminderService reminderService) =>
+{
+    var status = reminderService.GetBlacklistStatus();
+    return Results.Ok(status);
 });
 
 // SPA fallback - must be last to not interfere with API routes

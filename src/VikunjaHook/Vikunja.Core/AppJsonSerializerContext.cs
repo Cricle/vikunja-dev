@@ -4,6 +4,7 @@ using Vikunja.Core.Mcp.Models;
 using Vikunja.Core.Mcp.Models.Requests;
 using Vikunja.Core.Mcp.Models.Configuration;
 using Vikunja.Core.Notifications.Models;
+using Vikunja.Core.Notifications;
 
 namespace Vikunja.Core;
 
@@ -115,6 +116,8 @@ namespace Vikunja.Core;
 
 // Notification models
 [JsonSerializable(typeof(UserConfig))]
+[JsonSerializable(typeof(TaskReminderConfig))]
+[JsonSerializable(typeof(ReminderTemplate))]
 [JsonSerializable(typeof(ProviderConfig))]
 [JsonSerializable(typeof(NotificationTemplate))]
 [JsonSerializable(typeof(NotificationMessage))]
@@ -128,6 +131,14 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(ClearHistoryResponse))]
 [JsonSerializable(typeof(List<PushEventRecord>))]
 [JsonSerializable(typeof(List<ProviderPushResult>))]
+[JsonSerializable(typeof(TaskReminderRecord))]
+[JsonSerializable(typeof(List<TaskReminderRecord>))]
+[JsonSerializable(typeof(ReminderHistoryResponse))]
+[JsonSerializable(typeof(ReminderTestResponse))]
+[JsonSerializable(typeof(ReminderClearResponse))]
+[JsonSerializable(typeof(BlacklistStatus))]
+[JsonSerializable(typeof(BlacklistEntryInfo))]
+[JsonSerializable(typeof(List<BlacklistEntryInfo>))]
 
 // Collections
 [JsonSerializable(typeof(List<VikunjaTask>))]

@@ -113,8 +113,8 @@
       size="small"
       :message="t('pushHistory.confirmClearMessage')"
       :title="t('pushHistory.confirmClear')"
-      ok-text="Confirm"
-      cancel-text="Cancel"
+      :ok-text="t('common.confirm')"
+      :cancel-text="t('common.cancel')"
       @ok="clearHistory"
     />
 
@@ -316,7 +316,7 @@ onUnmounted(() => {
 .timeline-item {
   display: flex;
   gap: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   position: relative;
 }
 
@@ -328,8 +328,8 @@ onUnmounted(() => {
 }
 
 .timeline-badge {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   z-index: 1;
 }
@@ -338,7 +338,7 @@ onUnmounted(() => {
   width: 2px;
   flex: 1;
   background: var(--va-background-border);
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .timeline-item:last-child .timeline-line {
@@ -357,9 +357,10 @@ onUnmounted(() => {
 .event-title {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   flex: 1;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .event-chip {
@@ -367,7 +368,7 @@ onUnmounted(() => {
 }
 
 .event-name {
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -382,43 +383,43 @@ onUnmounted(() => {
 }
 
 .event-body {
-  padding-top: 0.5rem;
+  padding-top: 0.75rem;
 }
 
 .content-section {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .section-label {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--va-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   font-weight: 600;
 }
 
 .section-value {
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.9375rem;
+  line-height: 1.6;
 }
 
 .providers-section {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 .providers-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .provider-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.5rem;
+  gap: 1rem;
+  padding: 0.75rem;
   border-radius: 0.5rem;
   background: var(--va-background-element);
 }
@@ -429,14 +430,15 @@ onUnmounted(() => {
 }
 
 .provider-name {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
 }
 
 .provider-details {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--va-text-secondary);
+  line-height: 1.5;
 }
 
 .snackbar-container {
