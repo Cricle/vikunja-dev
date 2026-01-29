@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // MCP endpoint for Vikunja operations
-const MCP_API_URL = '/api/mcp'
+const MCP_API_URL = '/mcp'
 
 const mcpClient = axios.create({
   baseURL: MCP_API_URL,

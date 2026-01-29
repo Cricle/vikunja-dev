@@ -182,7 +182,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // Map MCP endpoints (HTTP with SSE transport)
-app.MapMcp("/api/mcp");
+app.MapMcp("/mcp");
 
 // Map Webhook endpoints
 app.MapPost("/webhook/vikunja", async (
