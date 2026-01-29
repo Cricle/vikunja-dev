@@ -105,6 +105,16 @@ export const useConfigStore = defineStore('config', () => {
     delete config.value.templates[eventType]
   }
 
+  function setDefaultConfig(userId: string) {
+    config.value = {
+      userId: userId,
+      providers: [],
+      defaultProviders: [],
+      templates: {},
+      lastModified: new Date().toISOString()
+    }
+  }
+
   return {
     config,
     loading,
@@ -120,6 +130,7 @@ export const useConfigStore = defineStore('config', () => {
     updateProvider,
     setDefaultProviders,
     setTemplate,
-    removeTemplate
+    removeTemplate,
+    setDefaultConfig
   }
 })

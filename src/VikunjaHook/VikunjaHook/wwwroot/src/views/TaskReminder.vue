@@ -525,10 +525,8 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Failed to load config:', error)
-    notify({
-      message: t('templates.errorNoConfig'),
-      color: 'danger'
-    })
+    // Create a default config if loading fails
+    configStore.setDefaultConfig('default')
   }
 })
 

@@ -528,15 +528,12 @@ async function copyTemplate() {
 }
 
 onMounted(async () => {
-  // Load default config
   try {
     await configStore.loadConfig('default')
   } catch (error) {
     console.error('Failed to load config:', error)
-    notify({
-      message: t('templates.errorNoConfig'),
-      color: 'danger'
-    })
+    // Create a default config if loading fails
+    configStore.setDefaultConfig('default')
   }
   
   // Editor will be initialized when an event is selected
