@@ -6,8 +6,11 @@ const MCP_API_URL = '/mcp'
 const mcpClient = axios.create({
   baseURL: MCP_API_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  // Don't transform response, we'll handle it manually
+  transformResponse: [(data) => data]
 })
 
 // Helper function to parse SSE response from MCP
@@ -35,20 +38,63 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown> = 
       }
     })
     
-    // Parse SSE response if needed
+    // Check if response is valid
+    if (!response.data) {
+      throw new Error('Empty response from MCP server')
+    }
+    
+    // Parse response data
     let data = response.data
+    
+    // If data is a string, try to parse it
     if (typeof data === 'string') {
-      data = parseSseResponse(data)
+      // Check if it's an HTML error page
+      if (data.trim().startsWith('<') || data.startsWith('<!DOCTYPE')) {
+        throw new Error('MCP server returned HTML instead of JSON. Check server configuration.')
+      }
+      
+      // Check if it's a plain error message
+      if (data.startsWith('An error') || data.startsWith('Error')) {
+        throw new Error(data)
+      }
+      
+      // Try to parse as JSON
+      try {
+        data = JSON.parse(data)
+      } catch (e) {
+        // If not JSON, try SSE format
+        data = parseSseResponse(data)
+      }
     }
     
+    // Check for JSON-RPC error
     if (data.error) {
-      throw new Error(data.error.message)
+      throw new Error(data.error.message || JSON.stringify(data.error))
     }
     
-    return data.result.content[0].text ? JSON.parse(data.result.content[0].text) : data.result
+    // Extract result
+    if (!data.result) {
+      throw new Error('No result in MCP response')
+    }
+    
+    // Handle different result formats
+    if (data.result.content && Array.isArray(data.result.content) && data.result.content.length > 0) {
+      const content = data.result.content[0]
+      if (content.text) {
+        try {
+          return JSON.parse(content.text)
+        } catch (e) {
+          // If parsing fails, return the text as-is
+          return content.text as T
+        }
+      }
+    }
+    
+    return data.result as T
   } catch (error) {
-    console.error(`MCP tool call failed: ${toolName}`, error)
-    throw error
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error(`MCP tool call failed: ${toolName}`, errorMessage)
+    throw new Error(`MCP ${toolName} failed: ${errorMessage}`)
   }
 }
 
