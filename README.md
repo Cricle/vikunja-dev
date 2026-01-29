@@ -1,18 +1,18 @@
-# Vikunja MCP Server & Webhook Notification System
+# Vikunja Webhook Notification System
 
-A high-performance MCP server and webhook notification system for [Vikunja](https://vikunja.io/), built with .NET 10 AOT.
+Webhook notification system for [Vikunja](https://vikunja.io/) with MCP server support. Built with .NET 10 AOT.
 
 ## Features
 
-- **54 MCP Tools** - Complete Vikunja API coverage
-- **26 Webhook Events** - Real-time event handling
-- **Notification System** - Multi-provider notifications with web UI
-- **Native AOT** - Fast startup, minimal memory
-- **Docker Ready** - 35MB image with full stack
+- **Webhook Notifications** - 26 event types with customizable templates
+- **Task Reminders** - Auto-scan tasks by start/due/reminder times with label filtering
+- **Multi-Provider** - PushDeer support (extensible)
+- **Web UI** - Configure providers, templates, and reminders
+- **MCP Server** - 54 tools for Vikunja API integration
+- **Hot Reload** - Config changes apply without restart
+- **Docker Ready** - 35MB image, full stack included
 
 ## Quick Start
-
-### Docker Compose (Recommended)
 
 ```bash
 git clone https://github.com/Cricle/vikunja-dev.git
@@ -24,84 +24,105 @@ Access:
 - Vikunja: http://localhost:8080
 - Webhook UI: http://localhost:5082
 
-### Standalone
-
-```bash
-# Windows
-.\setup-and-run.ps1 -VikunjaUrl "https://vikunja.example.com/api/v1" -VikunjaToken "your_token"
-
-# Linux/macOS
-./setup-and-run.sh --vikunja-url "https://vikunja.example.com/api/v1" --vikunja-token "your_token"
-```
-
 ## Configuration
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VIKUNJA_API_URL` | Yes | Vikunja API URL |
-| `VIKUNJA_API_TOKEN` | Yes | Vikunja API token |
-| `ASPNETCORE_URLS` | No | Server URLs (default: `http://+:5082`) |
+```bash
+VIKUNJA_API_URL=http://vikunja:3456/api/v1
+VIKUNJA_API_TOKEN=your_token_here
+VIKUNJA_URL=http://localhost:3456  # For task links
+```
 
-### Notification System
+### Webhook Setup
 
-The web UI provides:
-- **Providers**: Configure notification providers (PushDeer, etc.)
-- **Project Rules**: Set which events trigger notifications per project
-- **Templates**: Customize notification messages with placeholders
-- **Dashboard**: View system status and statistics
+1. In Vikunja, create webhook pointing to `http://vikunja-hook:5082/api/webhook`
+2. Select events to monitor
+3. Configure notifications in web UI
 
-Configuration is stored in `data/configs/default.json`.
+### Task Reminders
 
-## MCP Tools
+Configure in web UI:
+- **Scan Interval**: 10-300 seconds
+- **Time Window**: Past 5 min to future 5 min
+- **Label Filter**: OR logic, optional
+- **Templates**: Separate for start/due/reminder
+- **Blacklist**: Auto-prevents duplicates (2h expiry)
 
-54 tools covering all Vikunja APIs:
+## Notification Templates
+
+Available placeholders:
+- Task: `{{task.id}}`, `{{task.title}}`, `{{task.description}}`, `{{task.done}}`, `{{task.priority}}`, `{{task.dueDate}}`
+- Project: `{{project.id}}`, `{{project.title}}`, `{{project.description}}`
+- Event: `{{event.type}}`, `{{event.timestamp}}`, `{{event.url}}`
+- Special: `{{assignees}}`, `{{labels}}`, `{{comment.text}}`, `{{attachment.fileName}}`
+
+Example:
+```
+Title: ⏰ {{task.title}} due soon
+Body: Task: {{task.title}}
+Project: {{project.title}}
+Due: {{task.dueDate}}
+Link: {{event.url}}
+```
+
+## Features Detail
+
+### Webhook Events (26)
+- **Task**: created, updated, deleted, assignee (add/remove), comment (add/update/delete), attachment (add/delete), relation (add/delete), label (add/delete)
+- **Project**: created, updated, deleted
+- **Label**: created, updated, deleted
+- **Team**: created, updated, deleted, member (add/remove)
+- **User**: created
+
+### Task Reminders
+- Scans tasks every 10s (configurable)
+- Checks start date, due date, reminder times
+- Time window: -5min to +5min (catches past times)
+- Cache key includes time (supports time changes)
+- Label filtering with OR logic
+- Blacklist prevents duplicates (2h expiry, auto-cleanup)
+
+### MCP Tools (54)
 - Tasks (5), Projects (5), Labels (5)
 - Comments (5), Attachments (3), Relations (2)
 - Assignees (3), Teams (5), Users (3)
 - Buckets (5), Webhooks (5), Filters (5)
 
-## Webhook Events
-
-26 events supported:
-- Task: created, updated, deleted, assignee, comment, attachment, relation, label
-- Project: created, updated, deleted
-- Label: created, updated, deleted
-- Team: created, updated, deleted, member
-- User: created
-
 ## API Endpoints
 
-- `POST /mcp` - MCP protocol endpoint
-- `POST /webhook/vikunja` - Webhook handler
-- `GET /api/webhook-config/{userId}` - Get notification config
-- `PUT /api/webhook-config/{userId}` - Update notification config
-- `GET /health` - Health check
+```
+POST /api/webhook                      - Receive webhooks
+GET  /api/webhook-config/{userId}      - Get config
+PUT  /api/webhook-config/{userId}      - Update config
+GET  /api/push-history                 - Push history
+GET  /api/reminder-history             - Reminder history
+GET  /api/reminder-blacklist           - Blacklist status
+GET  /api/mcp/labels                   - Get labels
+POST /mcp                              - MCP protocol
+GET  /health                           - Health check
+```
 
 ## Development
 
 ```bash
+# Build
 cd src/VikunjaHook
 dotnet build -c Release
+
+# Run
 dotnet run -c Release
-```
 
-### Testing
-
-```bash
-# Test MCP tools
-pwsh -File test-mcp-tools.ps1
-
-# Test Docker
-pwsh -File test-docker.ps1
+# Test
+pwsh test-webhook-dev.ps1
 ```
 
 ## Performance
 
 - Startup: < 50ms
 - Memory: ~30MB idle
-- Image: 35MB (Alpine + AOT + UPX)
+- Image: 35MB (Alpine + AOT)
+- No CDN dependencies (fonts bundled)
 
 ## License
 
