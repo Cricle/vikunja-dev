@@ -279,7 +279,7 @@ $notificationConfig = @{
 } | ConvertTo-Json -Depth 10
 
 try {
-    $configResponse = Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Post -Body $notificationConfig -ContentType "application/json"
+    $configResponse = Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Put -Body $notificationConfig -ContentType "application/json"
     Write-Host "  ✓ 通知规则已配置（PushDeer provider，使用默认模板）" -ForegroundColor Green
 } catch {
     Write-Host "  ⚠ 通知规则配置失败: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -434,6 +434,118 @@ if ($pushResult.Success) {
     if ($pushResult.ProviderCalled) {
         Write-Host "  ✓ PushDeer provider 已被调用" -ForegroundColor Green
     }
+}
+
+# 测试 OnlyNotifyWhenCompleted 功能
+Write-Host "`n[12.5/24] 测试 OnlyNotifyWhenCompleted 功能..." -ForegroundColor Yellow
+
+# 创建一个新任务用于测试 OnlyNotifyWhenCompleted
+$onlyCompletedTask = @{
+    title = "OnlyCompleted Test Task"
+    description = "测试 OnlyNotifyWhenCompleted 功能"
+} | ConvertTo-Json
+
+try {
+    $completedTestTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $onlyCompletedTask
+    $completedTestTaskId = $completedTestTask.id
+    Write-Host "  ✓ 创建测试任务 (ID: $completedTestTaskId)" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+    
+    # 配置 OnlyNotifyWhenCompleted=true 的模板
+    $onlyCompletedConfig = @{
+        userId = $username
+        providers = @(
+            @{
+                providerType = "pushdeer"
+                settings = @{
+                    pushkey = "PDU1234567890TEST"
+                }
+            }
+        )
+        defaultProviders = @("pushdeer")
+        templates = @{
+            "task.updated" = @{
+                eventType = "task.updated"
+                title = "✅ Task Completed: {{task.title}}"
+                body = "Task in {{project.title}} has been completed!`n`nTask: {{task.title}}`nDescription: {{task.description}}`nLink: {{event.url}}"
+                format = "text"
+                providers = @()
+                onlyNotifyWhenCompleted = $true
+            }
+        }
+        lastModified = (Get-Date).ToUniversalTime().ToString("o")
+    } | ConvertTo-Json -Depth 10
+    
+    Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Put -Body $onlyCompletedConfig -ContentType "application/json" | Out-Null
+    Write-Host "  ✓ 配置 OnlyNotifyWhenCompleted=true" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    
+    # 测试1: 更新任务但不标记为完成（应该跳过通知）
+    Write-Host "  测试1: 更新任务但不完成（应跳过通知）..." -ForegroundColor Gray
+    $updateNotDone = @{
+        title = "OnlyCompleted Test Task - Updated"
+        done = $false
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$completedTestTaskId" -Headers $headers -Method Post -Body $updateNotDone | Out-Null
+    Start-Sleep -Seconds 3
+    
+    $logs = Get-WebhookLogs -SinceSeconds 5
+    $skippedNotification = $logs -match "Skipping task\.updated notification.*OnlyNotifyWhenCompleted=true"
+    
+    if ($skippedNotification) {
+        Write-Host "    ✓ 通知已跳过（任务未完成）" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 未找到跳过通知的日志" -ForegroundColor Red
+        $script:testsFailed++
+    }
+    
+    # 测试2: 标记任务为完成（应该发送通知）
+    Write-Host "  测试2: 标记任务为完成（应发送通知）..." -ForegroundColor Gray
+    $updateDone = @{
+        done = $true
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$completedTestTaskId" -Headers $headers -Method Post -Body $updateDone | Out-Null
+    Start-Sleep -Seconds 3
+    
+    $logs = Get-WebhookLogs -SinceSeconds 5
+    $completedNotification = $logs -match "Task completed - sending notification"
+    $providerCalled = $logs -match "Notification sent successfully via pushdeer|Failed to send notification via pushdeer"
+    
+    if ($completedNotification -and $providerCalled) {
+        Write-Host "    ✓ 通知已发送（任务已完成）" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 未找到发送通知的日志" -ForegroundColor Red
+        Write-Host "      completedNotification: $completedNotification, providerCalled: $providerCalled" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 恢复默认配置（OnlyNotifyWhenCompleted=false）
+    Write-Host "  恢复默认配置..." -ForegroundColor Gray
+    $defaultConfig = @{
+        userId = $username
+        providers = @(
+            @{
+                providerType = "pushdeer"
+                settings = @{
+                    pushkey = "PDU1234567890TEST"
+                }
+            }
+        )
+        defaultProviders = @("pushdeer")
+        templates = @{}
+        lastModified = (Get-Date).ToUniversalTime().ToString("o")
+    } | ConvertTo-Json -Depth 10
+    
+    Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Put -Body $defaultConfig -ContentType "application/json" | Out-Null
+    Write-Host "  ✓ 已恢复默认配置" -ForegroundColor Green
+    
+} catch {
+    Write-Host "  ✗ OnlyNotifyWhenCompleted 测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
 }
 
 # 更新任务

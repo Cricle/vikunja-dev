@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Vikunja.Core.Models;
 using Vikunja.Core.Notifications.Models;
 using Vikunja.Core.Notifications.Providers;
 
@@ -60,15 +61,28 @@ public class EventRouter
     {
         try
         {
-            // No filtering - send all events
             _logger.LogInformation("Processing webhook event {EventType} for user {UserId}",
                 webhookEvent.EventType, config.UserId);
 
-            // Enrich event data using MCP tools
-            var context = await EnrichEventDataAsync(webhookEvent, cancellationToken);
-
             // Get template for this event type
             var template = GetTemplate(config, webhookEvent.EventType);
+
+            // Check if this is a task.updated event with OnlyNotifyWhenCompleted enabled
+            if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && template.OnlyNotifyWhenCompleted)
+            {
+                // Only proceed if the task is marked as done in the webhook data
+                if (webhookEvent.Task == null || !webhookEvent.Task.Done)
+                {
+                    _logger.LogInformation("Skipping task.updated notification for user {UserId} - task not completed (OnlyNotifyWhenCompleted=true, done={Done})",
+                        config.UserId, webhookEvent.Task?.Done ?? false);
+                    return;
+                }
+                
+                _logger.LogInformation("Task completed - sending notification for user {UserId}", config.UserId);
+            }
+
+            // Enrich event data using MCP tools
+            var context = await EnrichEventDataAsync(webhookEvent, cancellationToken);
 
             // Render template
             var title = _templateEngine.Render(template.Title, context);

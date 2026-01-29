@@ -16,4 +16,9 @@ public class NotificationTemplate
     public string Body { get; set; } = string.Empty;
     public NotificationFormat Format { get; set; } = NotificationFormat.Text;
     public List<string> Providers { get; set; } = new(); // Specific providers for this template (empty = use default)
+    
+    /// <summary>
+    /// For task.updated events: if true, only notify when task is marked as done. Default is false (notify on all updates).
+    /// </summary>
+    public bool OnlyNotifyWhenCompleted { get; set; } = false;
 }
