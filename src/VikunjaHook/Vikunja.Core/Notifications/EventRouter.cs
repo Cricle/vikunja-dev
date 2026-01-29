@@ -70,6 +70,13 @@ public class EventRouter
             // Check if this is a task.updated event with OnlyNotifyWhenCompleted enabled
             if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && template.OnlyNotifyWhenCompleted)
             {
+                var taskDone = webhookEvent.Task?.Done ?? false;
+                var taskId = webhookEvent.Task?.Id ?? 0;
+                var taskTitle = webhookEvent.Task?.Title ?? "";
+                
+                _logger.LogWarning("[OnlyNotifyWhenCompleted] User={UserId}, TaskId={TaskId}, Title={Title}, Done={Done}, OnlyNotifyWhenCompleted={OnlyNotify}",
+                    config.UserId, taskId, taskTitle, taskDone, template.OnlyNotifyWhenCompleted);
+                
                 // Only proceed if the task is marked as done in the webhook data
                 if (webhookEvent.Task == null || !webhookEvent.Task.Done)
                 {
