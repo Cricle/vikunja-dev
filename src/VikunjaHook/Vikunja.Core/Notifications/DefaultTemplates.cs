@@ -54,6 +54,17 @@ public static class DefaultTemplates
             Format = NotificationFormat.Text
         },
         
+        ["task.assignee.created"] = new()
+        {
+            EventType = "task.assignee.created",
+            Title = "👤 Assignee Added: {{task.title}}",
+            Body = "An assignee has been added to a task in {{project.title}}\n\n" +
+                   "Task: {{task.title}}\n" +
+                   "Assignees: {{assignees}}\n" +
+                   "Link: {{event.url}}",
+            Format = NotificationFormat.Text
+        },
+        
         [EventTypes.TaskCommentCreated] = new()
         {
             EventType = EventTypes.TaskCommentCreated,
