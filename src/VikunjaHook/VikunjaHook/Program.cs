@@ -182,7 +182,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // Map MCP endpoints (HTTP with SSE transport)
-app.MapMcp("/mcp");
+app.MapMcp("/api/mcp");
 
 // Map Webhook endpoints
 app.MapPost("/webhook/vikunja", async (
@@ -572,7 +572,6 @@ app.MapFallback(async context =>
 {
     // Don't fallback for API routes
     if (context.Request.Path.StartsWithSegments("/api") || 
-        context.Request.Path.StartsWithSegments("/mcp") ||
         context.Request.Path.StartsWithSegments("/webhook") ||
         context.Request.Path.StartsWithSegments("/health"))
     {
