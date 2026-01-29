@@ -956,7 +956,8 @@ try {
                 $allPlaceholders["event.timestamp"].found = $true
             }
             
-            if ($title -match "task\.(created|updated|deleted|comment|attachment|relation)") {
+            if ($combined -match "Event:\s*task\.(created|updated|deleted|comment|attachment|relation|assignee)" -or 
+                $title -match "task\.(created|updated|deleted|comment|attachment|relation|assignee)") {
                 $allPlaceholders["event.type"].found = $true
             }
             

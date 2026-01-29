@@ -10,16 +10,18 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TaskCreated,
             Title = "📝 New Task: {{task.title}}",
-            Body = "A new task has been created in {{project.title}}\n\n" +
+            Body = "Event: {{event.type}}\n" +
+                   "A new task has been created in {{project.title}}\n\n" +
                    "Task ID: {{task.id}}\n" +
                    "Description: {{task.description}}\n" +
                    "Priority: {{task.priority}}\n" +
                    "Due Date: {{task.dueDate}}\n" +
-                   "Assignees: {{assignees}}\n" +
-                   "Labels: {{labels}}\n" +
+                   "Assignees ({{assignee.count}}): {{assignees}}\n" +
+                   "Labels ({{label.count}}): {{labels}}\n" +
                    "Link: {{event.url}}\n" +
                    "Task URL: {{task.url}}\n" +
                    "Project URL: {{project.url}}\n" +
+                   "Project Description: {{project.description}}\n" +
                    "Event Time: {{event.timestamp}}",
             Format = NotificationFormat.Text
         },
@@ -141,7 +143,12 @@ public static class DefaultTemplates
             EventType = EventTypes.ProjectCreated,
             Title = "📁 New Project: {{project.title}}",
             Body = "A new project has been created\n\n" +
-                   "Description: {{project.description}}\n" +
+                   "Project Information:\n" +
+                   "- Title: {{project.title}}\n" +
+                   "- Project ID: {{project.id}}\n" +
+                   "- Description: {{project.description}}\n" +
+                   "- URL: {{project.url}}\n\n" +
+                   "Event Time: {{event.timestamp}}\n" +
                    "Link: {{event.url}}",
             Format = NotificationFormat.Text
         },
@@ -168,7 +175,17 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TeamMemberAdded,
             Title = "👥 Team Member Added",
-            Body = "{{user.name}} has been added to the team",
+            Body = "A new member has been added to the team\n\n" +
+                   "User Information:\n" +
+                   "- Name: {{user.name}}\n" +
+                   "- Username: {{user.username}}\n" +
+                   "- Email: {{user.email}}\n" +
+                   "- User ID: {{user.id}}\n\n" +
+                   "Team Information:\n" +
+                   "- Team Name: {{team.name}}\n" +
+                   "- Team ID: {{team.id}}\n" +
+                   "- Description: {{team.description}}\n\n" +
+                   "Event Time: {{event.timestamp}}",
             Format = NotificationFormat.Text
         },
         
@@ -176,7 +193,115 @@ public static class DefaultTemplates
         {
             EventType = EventTypes.TeamMemberRemoved,
             Title = "👥 Team Member Removed",
-            Body = "{{user.name}} has been removed from the team",
+            Body = "A member has been removed from the team\n\n" +
+                   "User Information:\n" +
+                   "- Name: {{user.name}}\n" +
+                   "- Username: {{user.username}}\n" +
+                   "- Email: {{user.email}}\n" +
+                   "- User ID: {{user.id}}\n\n" +
+                   "Team Information:\n" +
+                   "- Team Name: {{team.name}}\n" +
+                   "- Team ID: {{team.id}}\n" +
+                   "- Description: {{team.description}}\n\n" +
+                   "Event Time: {{event.timestamp}}",
+            Format = NotificationFormat.Text
+        },
+        
+        // Label events
+        ["label.created"] = new()
+        {
+            EventType = "label.created",
+            Title = "🏷️ Label Created: {{label.title}}",
+            Body = "A new label has been created\n\n" +
+                   "Label Information:\n" +
+                   "- Title: {{label.title}}\n" +
+                   "- Label ID: {{label.id}}\n" +
+                   "- Description: {{label.description}}\n\n" +
+                   "Event: {{event.type}}\n" +
+                   "Event Time: {{event.timestamp}}\n" +
+                   "Link: {{event.url}}",
+            Format = NotificationFormat.Text
+        },
+        
+        ["label.updated"] = new()
+        {
+            EventType = "label.updated",
+            Title = "🏷️ Label Updated: {{label.title}}",
+            Body = "A label has been updated\n\n" +
+                   "Label Information:\n" +
+                   "- Title: {{label.title}}\n" +
+                   "- Label ID: {{label.id}}\n" +
+                   "- Description: {{label.description}}\n\n" +
+                   "Event Time: {{event.timestamp}}\n" +
+                   "Link: {{event.url}}",
+            Format = NotificationFormat.Text
+        },
+        
+        ["label.deleted"] = new()
+        {
+            EventType = "label.deleted",
+            Title = "🏷️ Label Deleted: {{label.title}}",
+            Body = "A label has been deleted\n\n" +
+                   "Label Information:\n" +
+                   "- Title: {{label.title}}\n" +
+                   "- Label ID: {{label.id}}\n\n" +
+                   "Event Time: {{event.timestamp}}",
+            Format = NotificationFormat.Text
+        },
+        
+        // Team events
+        ["team.created"] = new()
+        {
+            EventType = "team.created",
+            Title = "👥 Team Created: {{team.name}}",
+            Body = "A new team has been created\n\n" +
+                   "Team Information:\n" +
+                   "- Name: {{team.name}}\n" +
+                   "- Team ID: {{team.id}}\n" +
+                   "- Description: {{team.description}}\n\n" +
+                   "Event Time: {{event.timestamp}}\n" +
+                   "Link: {{event.url}}",
+            Format = NotificationFormat.Text
+        },
+        
+        ["team.updated"] = new()
+        {
+            EventType = "team.updated",
+            Title = "👥 Team Updated: {{team.name}}",
+            Body = "A team has been updated\n\n" +
+                   "Team Information:\n" +
+                   "- Name: {{team.name}}\n" +
+                   "- Team ID: {{team.id}}\n" +
+                   "- Description: {{team.description}}\n\n" +
+                   "Event Time: {{event.timestamp}}\n" +
+                   "Link: {{event.url}}",
+            Format = NotificationFormat.Text
+        },
+        
+        ["team.deleted"] = new()
+        {
+            EventType = "team.deleted",
+            Title = "👥 Team Deleted: {{team.name}}",
+            Body = "A team has been deleted\n\n" +
+                   "Team Information:\n" +
+                   "- Name: {{team.name}}\n" +
+                   "- Team ID: {{team.id}}\n\n" +
+                   "Event Time: {{event.timestamp}}",
+            Format = NotificationFormat.Text
+        },
+        
+        // User events
+        ["user.created"] = new()
+        {
+            EventType = "user.created",
+            Title = "👤 User Created: {{user.username}}",
+            Body = "A new user has been created\n\n" +
+                   "User Information:\n" +
+                   "- Name: {{user.name}}\n" +
+                   "- Username: {{user.username}}\n" +
+                   "- Email: {{user.email}}\n" +
+                   "- User ID: {{user.id}}\n\n" +
+                   "Event Time: {{event.timestamp}}",
             Format = NotificationFormat.Text
         }
     };
