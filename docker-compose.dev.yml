@@ -23,6 +23,7 @@ services:
     environment:
       VIKUNJA_API_URL: http://vikunja:3456/api/v1
       VIKUNJA_API_TOKEN: ${VIKUNJA_API_TOKEN}
+      VIKUNJA_URL: http://localhost:3456
       ASPNETCORE_URLS: http://+:5082
     ports:
       - "5082:5082"

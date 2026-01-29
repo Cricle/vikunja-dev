@@ -269,14 +269,38 @@ $notificationConfig = @{
         }
     )
     defaultProviders = @("pushdeer")  # 默认使用 pushdeer
-    templates = @{}
+    templates = @{}  # 空模板，使用内置默认模板
 } | ConvertTo-Json -Depth 10
 
 try {
     $configResponse = Invoke-RestMethod -Uri "http://localhost:5082/api/webhook-config/$username" -Method Post -Body $notificationConfig -ContentType "application/json"
-    Write-Host "  ✓ 通知规则已配置（PushDeer provider，默认推送）" -ForegroundColor Green
+    Write-Host "  ✓ 通知规则已配置（PushDeer provider，使用默认模板）" -ForegroundColor Green
 } catch {
-    Write-Host "  ⚠ 通知规则配置失败（可选）: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  ⚠ 通知规则配置失败: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  尝试使用 API 创建配置..." -ForegroundColor Gray
+    
+    # 如果 API 不存在，直接创建配置文件
+    try {
+        $configJson = @{
+            userId = $username
+            providers = @(
+                @{
+                    providerType = "pushdeer"
+                    settings = @{
+                        pushkey = "PDU1234567890TEST"
+                    }
+                }
+            )
+            defaultProviders = @("pushdeer")
+            templates = @{}
+            lastModified = (Get-Date).ToUniversalTime().ToString("o")
+        } | ConvertTo-Json -Depth 10
+        
+        $configJson | docker-compose -f docker-compose.dev.yml exec -T vikunja-hook sh -c "cat > /app/data/configs/$username.json"
+        Write-Host "  ✓ 配置文件已直接创建" -ForegroundColor Green
+    } catch {
+        Write-Host "  ✗ 配置创建失败: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
 # 清空日志缓冲
