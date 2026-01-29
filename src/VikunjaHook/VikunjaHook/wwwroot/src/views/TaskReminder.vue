@@ -255,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/configStore'
 import type { TaskReminderConfig } from '@/types/config'
@@ -585,6 +585,24 @@ onMounted(async () => {
   }
 })
 
+// Watch for enabled state changes to initialize/destroy editors
+watch(() => reminderConfig.value.enabled, async (newValue) => {
+  if (newValue) {
+    // Wait for DOM to update
+    await nextTick()
+    // Initialize editors if they don't exist
+    initMarkdownEditors()
+    // Set values
+    if (startMDE) startMDE.value(reminderConfig.value.startDateTemplate.bodyTemplate)
+    if (dueMDE) dueMDE.value(reminderConfig.value.dueDateTemplate.bodyTemplate)
+    if (endMDE) endMDE.value(reminderConfig.value.endDateTemplate.bodyTemplate)
+    if (reminderMDE) reminderMDE.value(reminderConfig.value.reminderTimeTemplate.bodyTemplate)
+  } else {
+    // Destroy editors when disabled
+    destroyMarkdownEditors()
+  }
+})
+
 onUnmounted(() => {
   destroyMarkdownEditors()
 })
@@ -812,12 +830,35 @@ onUnmounted(() => {
     padding: 1rem;
   }
 
+  .reminder-header {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .reminder-title {
+    font-size: 1.5rem;
+  }
+
+  .reminder-subtitle {
+    font-size: 0.875rem;
+  }
+
   .placeholder-grid {
     grid-template-columns: 1fr;
   }
   
   .template-group {
     padding: 1rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .section-header button {
+    width: 100%;
   }
   
   .history-item-header {
@@ -833,6 +874,64 @@ onUnmounted(() => {
   .history-item-meta {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  /* Make markdown editor more mobile-friendly */
+  :deep(.EasyMDEContainer) {
+    min-height: 200px;
+  }
+
+  :deep(.CodeMirror) {
+    min-height: 200px;
+    font-size: 14px;
+  }
+
+  :deep(.editor-toolbar) {
+    padding: 0.25rem;
+  }
+
+  :deep(.editor-toolbar button) {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Make form inputs more mobile-friendly */
+  .va-input,
+  .va-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  .reminder-container {
+    padding: 0.5rem;
+  }
+
+  .reminder-header {
+    padding: 0.75rem;
+  }
+
+  .reminder-title {
+    font-size: 1.25rem;
+  }
+
+  .reminder-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .template-group {
+    padding: 0.75rem;
+  }
+
+  /* Reduce markdown editor toolbar */
+  :deep(.editor-toolbar) {
+    flex-wrap: wrap;
+  }
+
+  :deep(.editor-toolbar button) {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
 }
 

@@ -17,12 +17,13 @@ public class UserConfig
 public class TaskReminderConfig
 {
     /// <summary>
-    /// Enable task reminder scanning
+    /// Enable task reminder system
     /// </summary>
     public bool Enabled { get; set; } = false;
     
     /// <summary>
-    /// Scan interval in seconds (default: 10)
+    /// Check interval in seconds for pending reminders in memory (default: 10)
+    /// Note: Uses webhook-based memory management, not API scanning
     /// </summary>
     public int ScanIntervalSeconds { get; set; } = 10;
     

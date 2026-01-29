@@ -835,15 +835,94 @@ onUnmounted(() => {
     padding: 1rem;
   }
 
+  .editor-header {
+    padding: 1rem;
+  }
+
   .editor-title {
+    font-size: 1.5rem;
+  }
+
+  .editor-subtitle {
+    font-size: 0.875rem;
   }
 
   .action-buttons {
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .action-buttons button {
     width: 100%;
+  }
+
+  .editor-layout {
+    gap: 1rem;
+  }
+
+  .event-sidebar,
+  .placeholders-panel {
+    max-height: 300px;
+  }
+
+  /* Make markdown editor more mobile-friendly */
+  :deep(.EasyMDEContainer) {
+    min-height: 200px;
+  }
+
+  :deep(.CodeMirror) {
+    min-height: 200px;
+    font-size: 14px;
+  }
+
+  :deep(.editor-toolbar) {
+    padding: 0.25rem;
+  }
+
+  :deep(.editor-toolbar button) {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Make form inputs more mobile-friendly */
+  .va-input,
+  .va-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  .template-editor-container {
+    padding: 0.5rem;
+  }
+
+  .editor-header {
+    padding: 0.75rem;
+  }
+
+  .editor-title {
+    font-size: 1.25rem;
+  }
+
+  .editor-subtitle {
+    font-size: 0.8rem;
+  }
+
+  /* Stack sidebar items vertically on very small screens */
+  .event-list,
+  .placeholders-content {
+    max-height: 250px;
+  }
+
+  /* Reduce markdown editor toolbar */
+  :deep(.editor-toolbar) {
+    flex-wrap: wrap;
+  }
+
+  :deep(.editor-toolbar button) {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
 }
 </style>

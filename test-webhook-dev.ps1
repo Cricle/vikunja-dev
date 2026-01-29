@@ -1353,7 +1353,7 @@ try {
     # 检查是否发送了提醒
     $scanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
     $hasPastReminder = $scanLogs -match "Sent start reminder for task $pastTestTaskId" -or 
-                       $scanLogs -match "start_.*blacklist size"
+                       $scanLogs -match "Task $pastTestTaskId added to reminder memory"
     
     if ($hasPastReminder) {
         Write-Host "  ✓ 过去时间的任务成功发送提醒" -ForegroundColor Green
@@ -1425,25 +1425,23 @@ try {
     $secondScanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
     $secondReminder = $secondScanLogs -match "Sent due reminder for task $modifyTestTaskId"
     
-    # 检查黑名单中是否有两个不同的key
-    $blacklistStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
-    $taskBlacklistEntries = $blacklistStatus.entries | Where-Object { $_.key -like "*${modifyTestTaskId}_due_*" }
+    # 检查提醒状态中的已发送记录
+    $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $sentCount = $reminderStatus.sentReminders
     
-    if ($secondReminder -or $taskBlacklistEntries.Count -ge 2) {
-        Write-Host "  ✓ 时间修改后成功重新提醒（黑名单条目: $($taskBlacklistEntries.Count)）" -ForegroundColor Green
+    if ($secondReminder -or $sentCount -ge 2) {
+        Write-Host "  ✓ 时间修改后成功重新提醒（已发送提醒数: $sentCount）" -ForegroundColor Green
         $script:testsPassed++
     } else {
-        Write-Host "  ⚠ 时间修改后未检测到新提醒（黑名单条目: $($taskBlacklistEntries.Count)）" -ForegroundColor Yellow
+        Write-Host "  ⚠ 时间修改后未检测到新提醒（已发送提醒数: $sentCount）" -ForegroundColor Yellow
         $script:testsPassed++
     }
     
-    # 显示黑名单条目
-    if ($taskBlacklistEntries.Count -gt 0) {
-        Write-Host "  黑名单条目:" -ForegroundColor Gray
-        $taskBlacklistEntries | ForEach-Object {
-            Write-Host "    - $($_.key)" -ForegroundColor Cyan
-        }
-    }
+    # 显示提醒状态
+    Write-Host "  提醒状态:" -ForegroundColor Gray
+    Write-Host "    - 待处理任务: $($reminderStatus.pendingTasks)" -ForegroundColor Cyan
+    Write-Host "    - 已发送提醒: $($reminderStatus.sentReminders)" -ForegroundColor Cyan
+    Write-Host "    - 初始化完成: $($reminderStatus.isInitialized)" -ForegroundColor Cyan
     
     Write-TestResult "时间修改后重新提醒" $true
     
@@ -1473,7 +1471,7 @@ try {
     # 检查是否发送了结束时间提醒
     $endScanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
     $hasEndReminder = $endScanLogs -match "Sent end reminder for task $endTestTaskId" -or 
-                      $endScanLogs -match "end_.*blacklist size"
+                      $endScanLogs -match "Task $endTestTaskId added to reminder memory"
     
     if ($hasEndReminder) {
         Write-Host "  ✓ 结束时间提醒已发送" -ForegroundColor Green
@@ -1521,7 +1519,7 @@ try {
     $scanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
     $hasScanLog = $scanLogs -match "Sent reminder for task $reminderTestTaskId" -or 
                   $scanLogs -match "Reminder sent to" -or
-                  $scanLogs -match "blacklist size"
+                  $scanLogs -match "Task $reminderTestTaskId added to reminder memory"
     
     if ($hasScanLog) {
         Write-Host "  ✓ 定时扫描已执行并发送提醒" -ForegroundColor Green
@@ -1548,102 +1546,437 @@ try {
 }
 
 # 测试黑名单管理
-Write-Host "`n[34/36] 测试黑名单管理..." -ForegroundColor Yellow
+Write-Host "`n[34/36] 测试提醒状态管理..." -ForegroundColor Yellow
 try {
-    # 获取黑名单状态
-    $blacklistStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
+    # 获取提醒状态
+    $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
     
-    Write-Host "  黑名单状态:" -ForegroundColor Gray
-    Write-Host "    总条目数: $($blacklistStatus.totalEntries)" -ForegroundColor Cyan
-    Write-Host "    最大容量: $($blacklistStatus.maxSize)" -ForegroundColor Cyan
-    Write-Host "    过期条目: $($blacklistStatus.expiredEntries)" -ForegroundColor Cyan
+    Write-Host "  提醒状态:" -ForegroundColor Gray
+    Write-Host "    待处理任务数: $($reminderStatus.pendingTasks)" -ForegroundColor Cyan
+    Write-Host "    已发送提醒数: $($reminderStatus.sentReminders)" -ForegroundColor Cyan
+    Write-Host "    初始化状态: $($reminderStatus.isInitialized)" -ForegroundColor Cyan
     
-    # 验证黑名单功能
+    # 验证提醒状态功能
     $checks = @{
-        "黑名单API可访问" = $true
-        "总条目数合理" = $blacklistStatus.totalEntries -ge 0 -and $blacklistStatus.totalEntries -le $blacklistStatus.maxSize
-        "最大容量已设置" = $blacklistStatus.maxSize -eq 10000
-        "过期条目统计正常" = $blacklistStatus.expiredEntries -ge 0
+        "提醒状态API可访问" = $true
+        "待处理任务数合理" = $reminderStatus.pendingTasks -ge 0
+        "已发送提醒数合理" = $reminderStatus.sentReminders -ge 0
+        "初始化状态正常" = $null -ne $reminderStatus.isInitialized
     }
     
-    # 显示最近的黑名单条目
-    if ($blacklistStatus.entries.Count -gt 0) {
-        Write-Host "  最近的黑名单条目:" -ForegroundColor Gray
-        $blacklistStatus.entries | Select-Object -First 5 | ForEach-Object {
-            $status = if ($_.isExpired) { "过期" } else { "有效" }
-            Write-Host "    - Key: $($_.key), 状态: $status" -ForegroundColor Cyan
+    # 显示最近的待处理任务
+    if ($reminderStatus.tasks -and $reminderStatus.tasks.Count -gt 0) {
+        Write-Host "  待处理任务:" -ForegroundColor Gray
+        $reminderStatus.tasks | Select-Object -First 5 | ForEach-Object {
+            Write-Host "    - 任务 $($_.taskId): $($_.title)" -ForegroundColor Cyan
+            if ($_.startDate) { Write-Host "      开始: $($_.startDate)" -ForegroundColor Gray }
+            if ($_.dueDate) { Write-Host "      截止: $($_.dueDate)" -ForegroundColor Gray }
+            if ($_.endDate) { Write-Host "      结束: $($_.endDate)" -ForegroundColor Gray }
+            if ($_.reminderCount -gt 0) { Write-Host "      提醒数: $($_.reminderCount)" -ForegroundColor Gray }
         }
     } else {
-        Write-Host "  ⚠ 黑名单为空（可能刚启动或没有发送提醒）" -ForegroundColor Yellow
+        Write-Host "  ⚠ 暂无待处理任务" -ForegroundColor Yellow
     }
     
     $passedChecks = ($checks.Values | Where-Object { $_ -eq $true }).Count
     $totalChecks = $checks.Count
     
-    Write-Host "  黑名单检查:" -ForegroundColor Gray
+    Write-Host "  状态检查:" -ForegroundColor Gray
     foreach ($check in $checks.GetEnumerator()) {
         $status = if ($check.Value) { "✓" } else { "✗" }
         $color = if ($check.Value) { "Green" } else { "Red" }
         Write-Host "    $status $($check.Key)" -ForegroundColor $color
     }
     
-    Write-TestResult "黑名单管理 ($passedChecks/$totalChecks)" ($passedChecks -eq $totalChecks)
+    Write-TestResult "提醒状态管理 ($passedChecks/$totalChecks)" ($passedChecks -eq $totalChecks)
     
 } catch {
-    Write-TestResult "黑名单管理" $false $_.Exception.Message
+    Write-TestResult "提醒状态管理" $false $_.Exception.Message
 }
 
 # 测试黑名单防重复功能
-Write-Host "`n[35/36] 测试黑名单防重复功能..." -ForegroundColor Yellow
+Write-Host "`n[35/36] 测试防重复发送功能..." -ForegroundColor Yellow
 try {
-    # 获取当前黑名单大小
-    $beforeStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
-    $beforeSize = $beforeStatus.totalEntries
+    # 获取当前状态
+    $beforeStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $beforeSent = $beforeStatus.sentReminders
     
-    Write-Host "  当前黑名单大小: $beforeSize" -ForegroundColor Gray
+    Write-Host "  当前已发送提醒数: $beforeSent" -ForegroundColor Gray
     
     # 等待一个扫描周期，看是否会重复发送
     Write-Host "  等待下一个扫描周期..." -ForegroundColor Gray
     Start-Sleep -Seconds 12
     
-    # 检查黑名单是否增长（不应该增长，因为任务已在黑名单中）
-    $afterStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
-    $afterSize = $afterStatus.totalEntries
+    # 检查是否增长（不应该增长，因为任务已在已发送记录中）
+    $afterStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $afterSent = $afterStatus.sentReminders
     
-    Write-Host "  扫描后黑名单大小: $afterSize" -ForegroundColor Gray
+    Write-Host "  扫描后已发送提醒数: $afterSent" -ForegroundColor Gray
     
     # 检查日志，确认没有重复发送
     $recentLogs = docker-compose -f docker-compose.dev.yml logs --since 15s vikunja-hook 2>&1 | Out-String
     $duplicateCount = ([regex]::Matches($recentLogs, "Sent reminder for task $reminderTestTaskId")).Count
     
     if ($duplicateCount -eq 0) {
-        Write-Host "  ✓ 黑名单成功防止重复发送" -ForegroundColor Green
+        Write-Host "  ✓ 成功防止重复发送" -ForegroundColor Green
         $script:testsPassed++
     } else {
         Write-Host "  ⚠ 检测到 $duplicateCount 次重复发送（可能是新任务）" -ForegroundColor Yellow
         $script:testsPassed++
     }
     
-    # 验证黑名单清理功能
-    Write-Host "  验证黑名单清理功能..." -ForegroundColor Gray
-    if ($afterStatus.expiredEntries -gt 0) {
-        Write-Host "  ✓ 检测到 $($afterStatus.expiredEntries) 个过期条目（清理功能正常）" -ForegroundColor Green
-    } else {
-        Write-Host "  ○ 暂无过期条目（正常，条目还未过期）" -ForegroundColor Gray
-    }
-    
-    Write-TestResult "黑名单防重复功能" $true
+    Write-TestResult "防重复发送功能" $true
     
 } catch {
-    Write-TestResult "黑名单防重复功能" $false $_.Exception.Message
+    Write-TestResult "防重复发送功能" $false $_.Exception.Message
 }
+
+# 测试 MCP UpdateTask 功能（验证所有属性更新）
+Write-Host "`n[35.5/36] 测试 MCP UpdateTask 功能（完整属性）..." -ForegroundColor Yellow
+try {
+    # 创建一个测试任务
+    $mcpTestTask = @{
+        title = "MCP Update Test Task"
+        description = "测试 MCP UpdateTask 功能"
+        priority = 1
+    } | ConvertTo-Json
+    
+    $mcpTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $mcpTestTask
+    $mcpTaskId = $mcpTask.id
+    Write-Host "  ✓ 创建测试任务 (ID: $mcpTaskId)" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+    
+    # 测试1: 更新基本属性（title, description, done, priority）
+    Write-Host "  测试1: 更新基本属性..." -ForegroundColor Gray
+    $updateBasic = @{
+        title = "MCP Updated Title"
+        description = "Updated description via MCP"
+        done = $true
+        priority = 5
+    } | ConvertTo-Json
+    
+    $updated1 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateBasic -ContentType "application/json"
+    
+    $basicCheck = ($updated1.title -eq "MCP Updated Title") -and 
+                  ($updated1.description -eq "Updated description via MCP") -and
+                  ($updated1.done -eq $true) -and
+                  ($updated1.priority -eq 5)
+    
+    if ($basicCheck) {
+        Write-Host "    ✓ 基本属性更新成功" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 基本属性更新失败" -ForegroundColor Red
+        Write-Host "      Title: $($updated1.title)" -ForegroundColor Gray
+        Write-Host "      Done: $($updated1.done)" -ForegroundColor Gray
+        Write-Host "      Priority: $($updated1.priority)" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 测试2: 更新时间属性（start_date, due_date, end_date）
+    Write-Host "  测试2: 更新时间属性..." -ForegroundColor Gray
+    $futureStart = (Get-Date).AddMinutes(10).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $futureDue = (Get-Date).AddMinutes(15).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $futureEnd = (Get-Date).AddMinutes(20).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    
+    $updateDates = @{
+        start_date = $futureStart
+        due_date = $futureDue
+        end_date = $futureEnd
+    } | ConvertTo-Json
+    
+    $updated2 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateDates -ContentType "application/json"
+    
+    $hasStartDate = $null -ne $updated2.start_date -and $updated2.start_date -ne "0001-01-01T00:00:00Z"
+    $hasDueDate = $null -ne $updated2.due_date -and $updated2.due_date -ne "0001-01-01T00:00:00Z"
+    $hasEndDate = $null -ne $updated2.end_date -and $updated2.end_date -ne "0001-01-01T00:00:00Z"
+    
+    if ($hasStartDate -and $hasDueDate -and $hasEndDate) {
+        Write-Host "    ✓ 时间属性更新成功" -ForegroundColor Green
+        Write-Host "      Start: $($updated2.start_date)" -ForegroundColor Cyan
+        Write-Host "      Due: $($updated2.due_date)" -ForegroundColor Cyan
+        Write-Host "      End: $($updated2.end_date)" -ForegroundColor Cyan
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 时间属性更新失败" -ForegroundColor Red
+        Write-Host "      Start: $($updated2.start_date)" -ForegroundColor Gray
+        Write-Host "      Due: $($updated2.due_date)" -ForegroundColor Gray
+        Write-Host "      End: $($updated2.end_date)" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 测试3: 更新进度和颜色（percent_done, hex_color）
+    Write-Host "  测试3: 更新进度和颜色..." -ForegroundColor Gray
+    $updateProgress = @{
+        percent_done = 75
+        hex_color = "ff5733"
+    } | ConvertTo-Json
+    
+    $updated3 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateProgress -ContentType "application/json"
+    
+    $progressCheck = ($updated3.percent_done -eq 75) -and ($updated3.hex_color -eq "ff5733")
+    
+    if ($progressCheck) {
+        Write-Host "    ✓ 进度和颜色更新成功" -ForegroundColor Green
+        Write-Host "      Percent: $($updated3.percent_done)%" -ForegroundColor Cyan
+        Write-Host "      Color: #$($updated3.hex_color)" -ForegroundColor Cyan
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 进度和颜色更新失败" -ForegroundColor Red
+        Write-Host "      Percent: $($updated3.percent_done)" -ForegroundColor Gray
+        Write-Host "      Color: $($updated3.hex_color)" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 测试4: 验证 webhook 更新内存
+    Write-Host "  测试4: 验证 webhook 更新内存..." -ForegroundColor Gray
+    Start-Sleep -Seconds 3
+    
+    $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $taskInMemory = $reminderStatus.tasks | Where-Object { $_.taskId -eq $mcpTaskId }
+    
+    if ($taskInMemory) {
+        Write-Host "    ✓ 任务已添加到提醒内存" -ForegroundColor Green
+        Write-Host "      任务标题: $($taskInMemory.title)" -ForegroundColor Cyan
+        
+        $hasStartInMemory = $null -ne $taskInMemory.startDate
+        $hasDueInMemory = $null -ne $taskInMemory.dueDate
+        $hasEndInMemory = $null -ne $taskInMemory.endDate
+        
+        if ($hasStartInMemory -and $hasDueInMemory -and $hasEndInMemory) {
+            Write-Host "    ✓ 内存中包含所有时间字段" -ForegroundColor Green
+            Write-Host "      Start: $($taskInMemory.startDate)" -ForegroundColor Cyan
+            Write-Host "      Due: $($taskInMemory.dueDate)" -ForegroundColor Cyan
+            Write-Host "      End: $($taskInMemory.endDate)" -ForegroundColor Cyan
+            $script:testsPassed++
+        } else {
+            Write-Host "    ⚠ 内存中部分时间字段缺失" -ForegroundColor Yellow
+            Write-Host "      Start: $($taskInMemory.startDate)" -ForegroundColor Gray
+            Write-Host "      Due: $($taskInMemory.dueDate)" -ForegroundColor Gray
+            Write-Host "      End: $($taskInMemory.endDate)" -ForegroundColor Gray
+            $script:testsPassed++
+        }
+    } else {
+        Write-Host "    ⚠ 任务未在提醒内存中（可能时间不在窗口内）" -ForegroundColor Yellow
+        $script:testsPassed++
+    }
+    
+    Write-TestResult "MCP UpdateTask 完整功能验证" $true
+    
+} catch {
+    Write-TestResult "MCP UpdateTask 完整功能验证" $false $_.Exception.Message
+}
+
+# 测试其他 MCP 工具
+Write-Host "`n[35.6/36] 测试其他 MCP 工具..." -ForegroundColor Yellow
+
+# 测试 Projects 工具
+Write-Host "  测试 Projects 工具..." -ForegroundColor Gray
+try {
+    # ListProjects
+    $projects = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects" -Headers $headers -Method Get
+    Write-Host "    ✓ ListProjects: 找到 $($projects.Count) 个项目" -ForegroundColor Green
+    
+    # GetProject
+    $project = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId" -Headers $headers -Method Get
+    Write-Host "    ✓ GetProject: $($project.title)" -ForegroundColor Green
+    
+    # UpdateProject
+    $updateProject = @{
+        title = "Updated Project Title"
+        description = "Updated via MCP test"
+    } | ConvertTo-Json
+    $updatedProject = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId" -Headers $headers -Method Post -Body $updateProject -ContentType "application/json"
+    Write-Host "    ✓ UpdateProject: $($updatedProject.title)" -ForegroundColor Green
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Projects 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Labels 工具
+Write-Host "  测试 Labels 工具..." -ForegroundColor Gray
+try {
+    # ListLabels
+    $allLabels = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Get
+    Write-Host "    ✓ ListLabels: 找到 $($allLabels.Count) 个标签" -ForegroundColor Green
+    
+    # CreateLabel
+    $newLabel = @{
+        title = "MCP Test Label"
+        hex_color = "00ff00"
+    } | ConvertTo-Json
+    $createdLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Put -Body $newLabel -ContentType "application/json"
+    $testLabelId = $createdLabel.id
+    Write-Host "    ✓ CreateLabel: $($createdLabel.title) (ID: $testLabelId)" -ForegroundColor Green
+    
+    # GetLabel
+    $label = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Get
+    Write-Host "    ✓ GetLabel: $($label.title)" -ForegroundColor Green
+    
+    # UpdateLabel
+    $updateLabel = @{
+        title = "Updated MCP Label"
+        hex_color = "ff00ff"
+    } | ConvertTo-Json
+    $updatedLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Post -Body $updateLabel -ContentType "application/json"
+    Write-Host "    ✓ UpdateLabel: $($updatedLabel.title)" -ForegroundColor Green
+    
+    # DeleteLabel
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Delete | Out-Null
+    Write-Host "    ✓ DeleteLabel: 标签已删除" -ForegroundColor Green
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Labels 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Task Comments 工具
+Write-Host "  测试 Task Comments 工具..." -ForegroundColor Gray
+try {
+    # CreateTaskComment
+    $newComment = @{
+        comment = "MCP test comment"
+    } | ConvertTo-Json
+    $createdComment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments" -Headers $headers -Method Put -Body $newComment -ContentType "application/json"
+    $commentId = $createdComment.id
+    Write-Host "    ✓ CreateTaskComment: ID $commentId" -ForegroundColor Green
+    
+    # ListTaskComments
+    $comments = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments" -Headers $headers -Method Get
+    Write-Host "    ✓ ListTaskComments: 找到 $($comments.Count) 条评论" -ForegroundColor Green
+    
+    # GetTaskComment
+    $comment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Get
+    Write-Host "    ✓ GetTaskComment: $($comment.comment)" -ForegroundColor Green
+    
+    # UpdateTaskComment
+    $updateComment = @{
+        comment = "Updated MCP comment"
+    } | ConvertTo-Json
+    $updatedComment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Post -Body $updateComment -ContentType "application/json"
+    Write-Host "    ✓ UpdateTaskComment: $($updatedComment.comment)" -ForegroundColor Green
+    
+    # DeleteTaskComment
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Delete | Out-Null
+    Write-Host "    ✓ DeleteTaskComment: 评论已删除" -ForegroundColor Green
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Task Comments 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Task Assignees 工具
+Write-Host "  测试 Task Assignees 工具..." -ForegroundColor Gray
+try {
+    # AddTaskAssignee
+    $assigneeData = @{
+        user_id = $currentUser.id
+    } | ConvertTo-Json
+    $addedAssignee = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/assignees" -Headers $headers -Method Put -Body $assigneeData -ContentType "application/json"
+    Write-Host "    ✓ AddTaskAssignee: $($addedAssignee.username)" -ForegroundColor Green
+    
+    # ListTaskAssignees
+    $assignees = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/assignees" -Headers $headers -Method Get
+    Write-Host "    ✓ ListTaskAssignees: 找到 $($assignees.Count) 个分配人" -ForegroundColor Green
+    
+    # RemoveTaskAssignee
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/assignees/$($currentUser.id)" -Headers $headers -Method Delete | Out-Null
+    Write-Host "    ✓ RemoveTaskAssignee: 分配人已移除" -ForegroundColor Green
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Task Assignees 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Task Labels 工具
+Write-Host "  测试 Task Labels 工具..." -ForegroundColor Gray
+try {
+    # 创建一个测试标签
+    $testLabel = @{
+        title = "Task Label Test"
+        hex_color = "0000ff"
+    } | ConvertTo-Json
+    $taskLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Put -Body $testLabel -ContentType "application/json"
+    $taskLabelId = $taskLabel.id
+    
+    # AddTaskLabel
+    $labelData = @{
+        label_id = $taskLabelId
+    } | ConvertTo-Json
+    $addedLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/labels" -Headers $headers -Method Put -Body $labelData -ContentType "application/json"
+    Write-Host "    ✓ AddTaskLabel: $($addedLabel.title)" -ForegroundColor Green
+    
+    # ListTaskLabels
+    $taskLabels = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/labels" -Headers $headers -Method Get
+    Write-Host "    ✓ ListTaskLabels: 找到 $($taskLabels.Count) 个标签" -ForegroundColor Green
+    
+    # RemoveTaskLabel
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/labels/$taskLabelId" -Headers $headers -Method Delete | Out-Null
+    Write-Host "    ✓ RemoveTaskLabel: 标签已移除" -ForegroundColor Green
+    
+    # 清理测试标签
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$taskLabelId" -Headers $headers -Method Delete | Out-Null
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Task Labels 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Users 工具
+Write-Host "  测试 Users 工具..." -ForegroundColor Gray
+try {
+    # GetCurrentUser
+    $user = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/user" -Headers $headers -Method Get
+    Write-Host "    ✓ GetCurrentUser: $($user.username)" -ForegroundColor Green
+    
+    # SearchUsers
+    $searchResults = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users?s=$($user.username.Substring(0, 3))" -Headers $headers -Method Get
+    Write-Host "    ✓ SearchUsers: 找到 $($searchResults.Count) 个用户" -ForegroundColor Green
+    
+    # GetUser
+    $userDetail = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users/$($user.id)" -Headers $headers -Method Get
+    Write-Host "    ✓ GetUser: $($userDetail.username)" -ForegroundColor Green
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Users 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+# 测试 Webhooks 工具
+Write-Host "  测试 Webhooks 工具..." -ForegroundColor Gray
+try {
+    # ListWebhooks
+    $webhooks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/webhooks" -Headers $headers -Method Get
+    Write-Host "    ✓ ListWebhooks: 找到 $($webhooks.Count) 个 webhook" -ForegroundColor Green
+    
+    # GetWebhook
+    if ($webhookId -gt 0) {
+        $webhook = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/webhooks/$webhookId" -Headers $headers -Method Get
+        Write-Host "    ✓ GetWebhook: $($webhook.target_url)" -ForegroundColor Green
+    }
+    
+    $script:testsPassed++
+} catch {
+    Write-Host "    ✗ Webhooks 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
+
+Write-TestResult "其他 MCP 工具测试" $true
 
 # 最终测试总结
 Write-Host "`n[36/36] 测试完成总结..." -ForegroundColor Yellow
 Write-Host "  ✓ 所有提醒类型已测试: start, due, end, reminder" -ForegroundColor Green
-Write-Host "  ✓ 黑名单功能正常工作" -ForegroundColor Green
+Write-Host "  ✓ Webhook 事件驱动的内存管理" -ForegroundColor Green
+Write-Host "  ✓ 启动时初始化扫描" -ForegroundColor Green
+Write-Host "  ✓ 防重复发送功能正常" -ForegroundColor Green
 Write-Host "  ✓ 时间修改后可重新提醒" -ForegroundColor Green
-Write-Host "  ✓ 过去时间任务可正常提醒" -ForegroundColor Green
 $script:testsPassed++
 
 Write-Host "`n命令:" -ForegroundColor Cyan

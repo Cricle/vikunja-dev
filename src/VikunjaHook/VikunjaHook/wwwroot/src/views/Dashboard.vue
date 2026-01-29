@@ -40,10 +40,10 @@
         <va-card class="stats-card">
           <va-card-content>
             <div class="stats-content">
-              <va-icon name="label" size="2rem" color="warning" />
+              <va-icon name="notifications_active" size="2rem" color="warning" />
               <div class="stats-info">
-                <div class="stats-number">{{ vikunjaLabels.length }}</div>
-                <div class="stats-label">{{ t('dashboard.stats.labels') }}</div>
+                <div class="stats-number">{{ reminderStatus?.pendingTasks || 0 }}</div>
+                <div class="stats-label">{{ t('dashboard.stats.monitoredTasks') }}</div>
               </div>
             </div>
           </va-card-content>
@@ -52,10 +52,10 @@
         <va-card class="stats-card">
           <va-card-content>
             <div class="stats-content">
-              <va-icon name="notifications" size="2rem" color="info" />
+              <va-icon name="label" size="2rem" color="info" />
               <div class="stats-info">
-                <div class="stats-number">{{ providers.length }}</div>
-                <div class="stats-label">{{ t('dashboard.stats.providers') }}</div>
+                <div class="stats-number">{{ vikunjaLabels.length }}</div>
+                <div class="stats-label">{{ t('dashboard.stats.labels') }}</div>
               </div>
             </div>
           </va-card-content>
@@ -103,6 +103,17 @@
                 </span>
                 <span v-else>-</span>
               </template>
+              <template #cell(reminder)="{ rowData }">
+                <va-chip 
+                  v-if="isTaskMonitored(rowData.id)" 
+                  size="small" 
+                  color="warning"
+                  icon="notifications_active"
+                >
+                  {{ t('dashboard.monitoring') }}
+                </va-chip>
+                <span v-else>-</span>
+              </template>
             </va-data-table>
           </va-inner-loading>
         </va-card-content>
@@ -116,22 +127,46 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/configStore'
 import { vikunjaService, type VikunjaTask, type VikunjaProject, type VikunjaLabel } from '@/services/vikunjaApi'
+import axios from 'axios'
+
+interface ReminderStatus {
+  pendingTasks: number
+  sentReminders: number
+  isInitialized: boolean
+  tasks: Array<{
+    taskId: number
+    title: string
+    projectTitle: string
+    startDate: string | null
+    dueDate: string | null
+    endDate: string | null
+    reminderCount: number
+  }>
+}
 
 const { t } = useI18n()
 const configStore = useConfigStore()
 const vikunjaTasks = ref<VikunjaTask[]>([])
 const vikunjaProjects = ref<VikunjaProject[]>([])
 const vikunjaLabels = ref<VikunjaLabel[]>([])
+const reminderStatus = ref<ReminderStatus | null>(null)
 const loadingTasks = ref(false)
 
 const loading = computed(() => configStore.loading)
 const error = computed(() => configStore.error)
 const providers = computed(() => configStore.providers)
 
+// 获取正在监听的任务ID集合
+const monitoredTaskIds = computed(() => {
+  if (!reminderStatus.value) return new Set<number>()
+  return new Set(reminderStatus.value.tasks.map(t => t.taskId))
+})
+
 const taskColumns = computed(() => [
   { key: 'title', label: t('dashboard.taskTitle'), sortable: true },
   { key: 'priority', label: t('dashboard.priority'), sortable: true },
-  { key: 'dueDate', label: t('dashboard.dueDate'), sortable: true }
+  { key: 'dueDate', label: t('dashboard.dueDate'), sortable: true },
+  { key: 'reminder', label: t('dashboard.reminderStatus'), sortable: false }
 ])
 
 function getPriorityColor(priority: number): string {
@@ -151,6 +186,19 @@ function getPriorityLabel(priority: number): string {
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
   return date.toLocaleDateString()
+}
+
+function isTaskMonitored(taskId: number): boolean {
+  return monitoredTaskIds.value.has(taskId)
+}
+
+async function loadReminderStatus() {
+  try {
+    const response = await axios.get<ReminderStatus>('/api/reminder-status')
+    reminderStatus.value = response.data
+  } catch (err) {
+    console.error('Failed to load reminder status:', err)
+  }
 }
 
 async function loadVikunjaData() {
@@ -183,6 +231,10 @@ async function loadVikunjaData() {
 onMounted(async () => {
   await configStore.loadConfig('default')
   await loadVikunjaData()
+  await loadReminderStatus()
+  
+  // Auto-refresh reminder status every 10 seconds
+  setInterval(loadReminderStatus, 10000)
 })
 </script>
 

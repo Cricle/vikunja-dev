@@ -97,20 +97,24 @@ builder.Services.AddSingleton(sp =>
 {
     var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
     var templateEngine = sp.GetRequiredService<SimpleTemplateEngine>();
+    var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
     var mcpTools = sp.GetRequiredService<McpToolsAdapter>();
     var providers = sp.GetServices<PushDeerProvider>();
     var pushHistory = sp.GetRequiredService<InMemoryPushEventHistory>();
+    var reminderService = sp.GetRequiredService<TaskReminderService>();
     var logger = sp.GetRequiredService<ILogger<EventRouter>>();
     
     // Get Vikunja URL from configuration (environment variable or appsettings)
     var vikunjaUrl = builder.Configuration["VIKUNJA_URL"];
     
     return new EventRouter(
+        clientFactory,
         configManager,
         templateEngine,
         mcpTools,
         providers,
         pushHistory,
+        reminderService,
         logger,
         vikunjaUrl);
 });
@@ -555,10 +559,10 @@ app.MapGet("/api/mcp/labels", async (
     }
 });
 
-// Get reminder blacklist status (for monitoring)
-app.MapGet("/api/reminder-blacklist", (TaskReminderService reminderService) =>
+// Get reminder status (for monitoring)
+app.MapGet("/api/reminder-status", (TaskReminderService reminderService) =>
 {
-    var status = reminderService.GetBlacklistStatus();
+    var status = reminderService.GetReminderStatus();
     return Results.Ok(status);
 });
 

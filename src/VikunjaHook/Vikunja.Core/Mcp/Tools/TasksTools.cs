@@ -119,6 +119,12 @@ public class TasksTools
         [Description("Mark as done (optional)")] bool? done = null,
         [Description("New priority (0-5, optional)")] int? priority = null,
         [Description("New due date in ISO 8601 format (optional)")] string? dueDate = null,
+        [Description("New start date in ISO 8601 format (optional)")] string? startDate = null,
+        [Description("New end date in ISO 8601 format (optional)")] string? endDate = null,
+        [Description("Percent done (0-100, optional)")] int? percentDone = null,
+        [Description("Hex color code (optional)")] string? hexColor = null,
+        [Description("Repeat after X days (optional)")] int? repeatAfter = null,
+        [Description("Repeat mode (optional)")] string? repeatMode = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Updating task {TaskId}", taskId);
@@ -129,13 +135,31 @@ public class TasksTools
             parsedDueDate = date;
         }
 
+        DateTime? parsedStartDate = null;
+        if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var sDate))
+        {
+            parsedStartDate = sDate;
+        }
+
+        DateTime? parsedEndDate = null;
+        if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var eDate))
+        {
+            parsedEndDate = eDate;
+        }
+
         var request = new UpdateTaskRequest(
             Id: taskId,
             Title: title,
             Description: description,
             Done: done,
             Priority: priority,
-            DueDate: parsedDueDate
+            DueDate: parsedDueDate,
+            StartDate: parsedStartDate,
+            EndDate: parsedEndDate,
+            PercentDone: percentDone,
+            HexColor: hexColor,
+            RepeatAfter: repeatAfter,
+            RepeatMode: repeatMode
         );
 
         var task = await _clientFactory.PostAsync<VikunjaTask>(

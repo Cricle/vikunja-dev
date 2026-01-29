@@ -55,7 +55,8 @@ export default {
       events: 'Supported Events',
       projects: 'Vikunja Projects',
       tasks: 'Tasks',
-      labels: 'Labels'
+      labels: 'Labels',
+      monitoredTasks: 'Monitored Tasks'
     },
     quickStart: {
       title: 'Quick Start',
@@ -75,6 +76,8 @@ export default {
     taskTitle: 'Task Title',
     priority: 'Priority',
     dueDate: 'Due Date',
+    reminderStatus: 'Reminder',
+    monitoring: 'Monitoring',
     priorityHigh: 'High',
     priorityMedium: 'Medium',
     priorityLow: 'Low',
@@ -242,9 +245,9 @@ export default {
     title: 'Task Reminder',
     description: 'Configure automatic task reminders based on due dates, start dates, and reminder times',
     enabled: 'Enable Task Reminders',
-    enabledHint: 'When enabled, the system will scan tasks and send reminders for upcoming due dates, start dates, and reminder times',
-    scanInterval: 'Scan Interval',
-    scanIntervalHint: 'How often to scan for tasks that need reminders (minimum 5 seconds, recommended 10-60 seconds)',
+    enabledHint: 'When enabled, the system uses webhook-based memory management to track tasks and send reminders for upcoming due dates, start dates, end dates, and reminder times',
+    scanInterval: 'Check Interval',
+    scanIntervalHint: 'How often to check memory for pending reminders (minimum 5 seconds, recommended 10-60 seconds). Uses webhook events for real-time updates, not API scanning',
     seconds: 'seconds',
     providers: 'Notification Providers',
     providersHint: 'Select specific providers for reminders. If not specified, default providers will be used.',

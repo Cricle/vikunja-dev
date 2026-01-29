@@ -18,33 +18,29 @@ public class TaskReminderService : IDisposable
     private readonly ILogger<TaskReminderService> _logger;
     private readonly string? _vikunjaUrl;
     
-    // Blacklist: taskId_type -> reminder info (when it was reminded and expiry time)
-    private readonly ConcurrentDictionary<string, BlacklistEntry> _remindedTasks = new();
-    private const int MaxBlacklistSize = 10000; // 防止内存泄漏的最大条目数
+    // 内存中的待提醒任务: taskId -> TaskReminderInfo
+    private readonly ConcurrentDictionary<long, TaskReminderInfo> _pendingReminders = new();
     
-    private Timer? _timer;
+    // 已发送提醒的记录: "taskId_type_time" -> 发送时间
+    private readonly ConcurrentDictionary<string, DateTime> _sentReminders = new();
+    private const int MaxSentRemindersSize = 10000;
+    
+    private Timer? _checkTimer;
     private Timer? _cleanupTimer;
-    private bool _isScanning = false;
+    private bool _isInitialized = false;
 
-    // 黑名单条目
-    private record BlacklistEntry(DateTime RemindedAt, DateTime ExpiresAt);
-
-    private bool ShouldSendReminder(UserConfig config, VikunjaTask task)
-    {
-        if (config.ReminderConfig!.EnableLabelFilter && 
-            config.ReminderConfig.FilterLabelIds.Any())
-        {
-            var hasMatchingLabel = task.Labels != null && 
-                task.Labels.Any(label => config.ReminderConfig.FilterLabelIds.Contains(label.Id));
-            
-            if (!hasMatchingLabel)
-            {
-                return false;
-            }
-        }
-        
-        return true;
-    }
+    // 任务提醒信息
+    private record TaskReminderInfo(
+        long TaskId,
+        string Title,
+        long ProjectId,
+        string ProjectTitle,
+        DateTime? StartDate,
+        DateTime? DueDate,
+        DateTime? EndDate,
+        List<DateTime> Reminders,
+        List<long> LabelIds
+    );
 
     public TaskReminderService(
         IVikunjaClientFactory clientFactory,
@@ -68,118 +64,32 @@ public class TaskReminderService : IDisposable
 
     public void Start()
     {
-        _logger.LogInformation("Starting TaskReminderService");
+        _logger.LogInformation("Starting TaskReminderService with webhook-based memory management");
         
-        // Start with default 10 second interval, will adjust based on user configs
-        _timer = new Timer(async _ => await ScanTasksAsync(), null, TimeSpan.Zero, TimeSpan.FromSeconds(10));
+        // 启动时扫描一次所有任务初始化内存
+        Task.Run(async () => await InitializeTasksAsync());
         
-        // Start cleanup timer - runs every 10 minutes to clean up expired entries
-        _cleanupTimer = new Timer(_ => CleanupBlacklist(), null, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10));
+        // 启动定时检查器 - 每10秒检查一次内存中的任务
+        _checkTimer = new Timer(async _ => await CheckPendingRemindersAsync(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        
+        // 启动清理定时器 - 每小时清理一次已发送记录
+        _cleanupTimer = new Timer(_ => CleanupSentReminders(), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
     
-    private void CleanupBlacklist()
+    // 初始化：扫描所有任务加载到内存
+    private async Task InitializeTasksAsync()
     {
-        try
+        if (_isInitialized)
         {
-            var now = DateTime.UtcNow;
-            var expiredKeys = _remindedTasks
-                .Where(kvp => kvp.Value.ExpiresAt < now)
-                .Select(kvp => kvp.Key)
-                .ToList();
-            
-            foreach (var key in expiredKeys)
-            {
-                _remindedTasks.TryRemove(key, out _);
-            }
-            
-            // 如果黑名单过大，移除最旧的条目
-            if (_remindedTasks.Count > MaxBlacklistSize)
-            {
-                var toRemove = _remindedTasks
-                    .OrderBy(kvp => kvp.Value.RemindedAt)
-                    .Take(_remindedTasks.Count - MaxBlacklistSize)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-                
-                foreach (var key in toRemove)
-                {
-                    _remindedTasks.TryRemove(key, out _);
-                }
-                
-                _logger.LogWarning("Blacklist size exceeded {MaxSize}, removed {Count} oldest entries", 
-                    MaxBlacklistSize, toRemove.Count);
-            }
-            
-            if (expiredKeys.Count > 0)
-            {
-                _logger.LogInformation("Cleaned up {Count} expired blacklist entries, current size: {Size}", 
-                    expiredKeys.Count, _remindedTasks.Count);
-            }
+            return;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error cleaning up blacklist");
-        }
-    }
-
-    private async Task ScanTasksAsync()
-    {
-        if (_isScanning)
-        {
-            return; // Skip if already scanning
-        }
-
-        _isScanning = true;
         
         try
         {
-            var configs = await _configManager.LoadAllConfigsAsync(CancellationToken.None);
+            _logger.LogInformation("Initializing task reminders - scanning all tasks");
             
-            // Find minimum scan interval from all enabled configs
-            var minInterval = 10;
-            var enabledConfigs = configs.Where(c => c.ReminderConfig?.Enabled == true).ToList();
+            var projects = await _clientFactory.GetAsync<List<VikunjaProject>>("projects", CancellationToken.None) ?? new();
             
-            if (enabledConfigs.Any())
-            {
-                minInterval = enabledConfigs.Min(c => c.ReminderConfig!.ScanIntervalSeconds);
-                
-                // Update timer interval if needed
-                if (_timer != null)
-                {
-                    _timer.Change(TimeSpan.FromSeconds(minInterval), TimeSpan.FromSeconds(minInterval));
-                }
-            }
-            
-            // Clean up old blacklist entries (older than 1 hour) - 快速清理
-            var oneHourAgo = DateTime.UtcNow.AddHours(-1);
-            var oldKeys = _remindedTasks
-                .Where(kvp => kvp.Value.ExpiresAt < oneHourAgo)
-                .Select(kvp => kvp.Key)
-                .Take(100) // 每次最多清理100个，避免阻塞
-                .ToList();
-            
-            foreach (var key in oldKeys)
-            {
-                _remindedTasks.TryRemove(key, out _);
-            }
-            
-            // Get all projects to scan tasks
-            List<VikunjaProject> projects;
-            try
-            {
-                projects = await _clientFactory.GetAsync<List<VikunjaProject>>("projects", CancellationToken.None) ?? new();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to get projects for task reminder scan");
-                return;
-            }
-            
-            var now = DateTime.UtcNow;
-            var fiveMinutesAgo = now.AddMinutes(-5);
-            var fiveMinutesLater = now.AddMinutes(5);
-            
-            // Scan tasks in each project
             foreach (var project in projects)
             {
                 try
@@ -190,139 +100,226 @@ public class TaskReminderService : IDisposable
                     
                     foreach (var task in tasks)
                     {
-                        // Skip completed tasks
-                        if (task.Done)
+                        if (!task.Done)
                         {
-                            continue;
-                        }
-                        
-                        // Check start date (within past 5 minutes to future 5 minutes)
-                        if (task.StartDate.HasValue && 
-                            task.StartDate.Value >= fiveMinutesAgo && 
-                            task.StartDate.Value <= fiveMinutesLater)
-                        {
-                            var reminderTime = task.StartDate.Value.ToString("yyyy-MM-dd HH:mm");
-                            var blacklistKey = $"{task.Id}_start_{reminderTime}";
-                            
-                            if (!_remindedTasks.ContainsKey(blacklistKey))
-                            {
-                                foreach (var config in enabledConfigs)
-                                {
-                                    if (ShouldSendReminder(config, task))
-                                    {
-                                        await SendReminderAsync(config, task, project, "start");
-                                    }
-                                }
-                                
-                                var expiresAt = DateTime.UtcNow.AddHours(2);
-                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
-                                
-                                _logger.LogInformation("Sent start reminder for task {TaskId}, blacklist size: {Size}", 
-                                    task.Id, _remindedTasks.Count);
-                            }
-                        }
-                        
-                        // Check due date (within past 5 minutes to future 5 minutes)
-                        if (task.DueDate.HasValue && 
-                            task.DueDate.Value >= fiveMinutesAgo && 
-                            task.DueDate.Value <= fiveMinutesLater)
-                        {
-                            var reminderTime = task.DueDate.Value.ToString("yyyy-MM-dd HH:mm");
-                            var blacklistKey = $"{task.Id}_due_{reminderTime}";
-                            
-                            if (!_remindedTasks.ContainsKey(blacklistKey))
-                            {
-                                foreach (var config in enabledConfigs)
-                                {
-                                    if (ShouldSendReminder(config, task))
-                                    {
-                                        await SendReminderAsync(config, task, project, "due");
-                                    }
-                                }
-                                
-                                var expiresAt = DateTime.UtcNow.AddHours(2);
-                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
-                                
-                                _logger.LogInformation("Sent due reminder for task {TaskId}, blacklist size: {Size}", 
-                                    task.Id, _remindedTasks.Count);
-                            }
-                        }
-                        
-                        // Check end date (within past 5 minutes to future 5 minutes)
-                        if (task.EndDate.HasValue && 
-                            task.EndDate.Value >= fiveMinutesAgo && 
-                            task.EndDate.Value <= fiveMinutesLater)
-                        {
-                            var reminderTime = task.EndDate.Value.ToString("yyyy-MM-dd HH:mm");
-                            var blacklistKey = $"{task.Id}_end_{reminderTime}";
-                            
-                            if (!_remindedTasks.ContainsKey(blacklistKey))
-                            {
-                                foreach (var config in enabledConfigs)
-                                {
-                                    if (ShouldSendReminder(config, task))
-                                    {
-                                        await SendReminderAsync(config, task, project, "end");
-                                    }
-                                }
-                                
-                                var expiresAt = DateTime.UtcNow.AddHours(2);
-                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
-                                
-                                _logger.LogInformation("Sent end reminder for task {TaskId}, blacklist size: {Size}", 
-                                    task.Id, _remindedTasks.Count);
-                            }
-                        }
-                        
-                        // Check reminders (within past 5 minutes to future 5 minutes)
-                        if (task.Reminders != null && task.Reminders.Any())
-                        {
-                            foreach (var reminder in task.Reminders)
-                            {
-                                if (reminder.Reminder >= fiveMinutesAgo && 
-                                    reminder.Reminder <= fiveMinutesLater)
-                                {
-                                    var reminderTime = reminder.Reminder.ToString("yyyy-MM-dd HH:mm");
-                                    var blacklistKey = $"{task.Id}_reminder_{reminderTime}";
-                                    
-                                    if (!_remindedTasks.ContainsKey(blacklistKey))
-                                    {
-                                        foreach (var config in enabledConfigs)
-                                        {
-                                            if (ShouldSendReminder(config, task))
-                                            {
-                                                await SendReminderAsync(config, task, project, "reminder");
-                                            }
-                                        }
-                                        
-                                        var expiresAt = DateTime.UtcNow.AddHours(2);
-                                        _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
-                                        
-                                        _logger.LogInformation("Sent reminder for task {TaskId}, blacklist size: {Size}", 
-                                            task.Id, _remindedTasks.Count);
-                                    }
-                                }
-                            }
+                            UpdateTaskInMemory(task, project);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to scan tasks in project {ProjectId}", project.Id);
+                    _logger.LogWarning(ex, "Failed to load tasks from project {ProjectId}", project.Id);
+                }
+            }
+            
+            _isInitialized = true;
+            _logger.LogInformation("Task reminder initialization complete - loaded {Count} pending tasks", _pendingReminders.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize task reminders");
+        }
+    }
+    
+    // 通过 webhook 更新内存中的任务
+    public void OnTaskCreated(VikunjaTask task, VikunjaProject project)
+    {
+        if (!task.Done)
+        {
+            UpdateTaskInMemory(task, project);
+            _logger.LogInformation("Task {TaskId} added to reminder memory", task.Id);
+        }
+    }
+    
+    public void OnTaskUpdated(VikunjaTask task, VikunjaProject project)
+    {
+        if (task.Done)
+        {
+            // 任务完成，从内存中移除
+            _pendingReminders.TryRemove(task.Id, out _);
+            _logger.LogInformation("Task {TaskId} removed from reminder memory (completed)", task.Id);
+        }
+        else
+        {
+            // 更新任务信息
+            UpdateTaskInMemory(task, project);
+            _logger.LogInformation("Task {TaskId} updated in reminder memory", task.Id);
+        }
+    }
+    
+    public void OnTaskDeleted(long taskId)
+    {
+        _pendingReminders.TryRemove(taskId, out _);
+        _logger.LogInformation("Task {TaskId} removed from reminder memory (deleted)", taskId);
+    }
+    
+    // 更新内存中的任务信息
+    private void UpdateTaskInMemory(VikunjaTask task, VikunjaProject project)
+    {
+        var labelIds = task.Labels?.Select(l => l.Id).ToList() ?? new List<long>();
+        var reminders = task.Reminders?.Select(r => r.Reminder).ToList() ?? new List<DateTime>();
+        
+        var info = new TaskReminderInfo(
+            task.Id,
+            task.Title ?? string.Empty,
+            project.Id,
+            project.Title ?? string.Empty,
+            task.StartDate,
+            task.DueDate,
+            task.EndDate,
+            reminders,
+            labelIds
+        );
+        
+        _pendingReminders.AddOrUpdate(task.Id, info, (_, _) => info);
+    }
+    
+    // 定时检查内存中的待提醒任务
+    private async Task CheckPendingRemindersAsync()
+    {
+        try
+        {
+            var configs = await _configManager.LoadAllConfigsAsync(CancellationToken.None);
+            var enabledConfigs = configs.Where(c => c.ReminderConfig?.Enabled == true).ToList();
+            
+            if (!enabledConfigs.Any())
+            {
+                return;
+            }
+            
+            var now = DateTime.UtcNow;
+            var checkWindow = TimeSpan.FromMinutes(5); // 检查未来5分钟内的提醒
+            
+            foreach (var kvp in _pendingReminders)
+            {
+                var taskInfo = kvp.Value;
+                
+                // 检查开始时间
+                if (taskInfo.StartDate.HasValue && ShouldSendReminder(taskInfo.StartDate.Value, now, checkWindow))
+                {
+                    await ProcessReminderAsync(taskInfo, "start", taskInfo.StartDate.Value, enabledConfigs);
+                }
+                
+                // 检查截止时间
+                if (taskInfo.DueDate.HasValue && ShouldSendReminder(taskInfo.DueDate.Value, now, checkWindow))
+                {
+                    await ProcessReminderAsync(taskInfo, "due", taskInfo.DueDate.Value, enabledConfigs);
+                }
+                
+                // 检查结束时间
+                if (taskInfo.EndDate.HasValue && ShouldSendReminder(taskInfo.EndDate.Value, now, checkWindow))
+                {
+                    await ProcessReminderAsync(taskInfo, "end", taskInfo.EndDate.Value, enabledConfigs);
+                }
+                
+                // 检查提醒时间
+                foreach (var reminderTime in taskInfo.Reminders)
+                {
+                    if (ShouldSendReminder(reminderTime, now, checkWindow))
+                    {
+                        await ProcessReminderAsync(taskInfo, "reminder", reminderTime, enabledConfigs);
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in task reminder scan");
+            _logger.LogError(ex, "Error checking pending reminders");
         }
-        finally
+    }
+    
+    // 判断是否应该发送提醒
+    private bool ShouldSendReminder(DateTime reminderTime, DateTime now, TimeSpan checkWindow)
+    {
+        var diff = reminderTime - now;
+        return diff >= TimeSpan.Zero && diff <= checkWindow;
+    }
+    
+    // 处理提醒发送
+    private async Task ProcessReminderAsync(TaskReminderInfo taskInfo, string reminderType, DateTime reminderTime, List<UserConfig> configs)
+    {
+        var key = $"{taskInfo.TaskId}_{reminderType}_{reminderTime:yyyy-MM-dd HH:mm}";
+        
+        // 检查是否已发送
+        if (_sentReminders.ContainsKey(key))
         {
-            _isScanning = false;
+            return;
+        }
+        
+        // 标记为已发送
+        _sentReminders.TryAdd(key, DateTime.UtcNow);
+        
+        // 发送提醒给所有启用的用户
+        foreach (var config in configs)
+        {
+            if (ShouldSendReminderForUser(config, taskInfo))
+            {
+                await SendReminderAsync(config, taskInfo, reminderType);
+            }
+        }
+        
+        _logger.LogInformation("Sent {Type} reminder for task {TaskId} at {Time}", reminderType, taskInfo.TaskId, reminderTime);
+    }
+    
+    // 判断是否应该为该用户发送提醒
+    private bool ShouldSendReminderForUser(UserConfig config, TaskReminderInfo taskInfo)
+    {
+        if (config.ReminderConfig!.EnableLabelFilter && config.ReminderConfig.FilterLabelIds.Any())
+        {
+            return taskInfo.LabelIds.Any(labelId => config.ReminderConfig.FilterLabelIds.Contains(labelId));
+        }
+        
+        return true;
+    }
+    
+    // 清理已发送记录
+    private void CleanupSentReminders()
+    {
+        try
+        {
+            var twoHoursAgo = DateTime.UtcNow.AddHours(-2);
+            var expiredKeys = _sentReminders
+                .Where(kvp => kvp.Value < twoHoursAgo)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            
+            foreach (var key in expiredKeys)
+            {
+                _sentReminders.TryRemove(key, out _);
+            }
+            
+            // 防止内存泄漏
+            if (_sentReminders.Count > MaxSentRemindersSize)
+            {
+                var toRemove = _sentReminders
+                    .OrderBy(kvp => kvp.Value)
+                    .Take(_sentReminders.Count - MaxSentRemindersSize)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+                
+                foreach (var key in toRemove)
+                {
+                    _sentReminders.TryRemove(key, out _);
+                }
+                
+                _logger.LogWarning("Sent reminders size exceeded {MaxSize}, removed {Count} oldest entries", 
+                    MaxSentRemindersSize, toRemove.Count);
+            }
+            
+            if (expiredKeys.Count > 0)
+            {
+                _logger.LogInformation("Cleaned up {Count} expired sent reminder records, current size: {Size}", 
+                    expiredKeys.Count, _sentReminders.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cleaning up sent reminders");
         }
     }
 
-    private async Task SendReminderAsync(UserConfig config, VikunjaTask task, VikunjaProject project, string reminderType)
+
+    private async Task SendReminderAsync(UserConfig config, TaskReminderInfo taskInfo, string reminderType)
     {
         try
         {
@@ -343,40 +340,40 @@ public class TaskReminderService : IDisposable
             {
                 Task = new TaskTemplateData
                 {
-                    Id = (int)task.Id,
-                    Title = task.Title ?? string.Empty,
-                    Description = task.Description ?? string.Empty,
-                    Done = task.Done,
-                    Priority = task.Priority,
-                    DueDate = task.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
+                    Id = (int)taskInfo.TaskId,
+                    Title = taskInfo.Title,
+                    Description = string.Empty,
+                    Done = false,
+                    Priority = 0,
+                    DueDate = taskInfo.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
                     Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{task.Id}" 
-                        : $"Task ID: {task.Id}"
+                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
+                        : $"Task ID: {taskInfo.TaskId}"
                 },
                 Project = new ProjectTemplateData
                 {
-                    Id = (int)project.Id,
-                    Title = project.Title ?? string.Empty,
-                    Description = project.Description ?? string.Empty,
+                    Id = (int)taskInfo.ProjectId,
+                    Title = taskInfo.ProjectTitle,
+                    Description = string.Empty,
                     Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/projects/{project.Id}" 
-                        : $"Project ID: {project.Id}"
+                        ? $"{_vikunjaUrl.TrimEnd('/')}/projects/{taskInfo.ProjectId}" 
+                        : $"Project ID: {taskInfo.ProjectId}"
                 },
                 Event = new EventData
                 {
                     Type = $"task.reminder.{reminderType}",
                     Timestamp = DateTime.UtcNow,
                     Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{task.Id}" 
-                        : $"Task ID: {task.Id}"
+                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
+                        : $"Task ID: {taskInfo.TaskId}"
                 }
             };
             
             // Add custom properties for reminder-specific data
-            var startDate = task.StartDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
-            var endDate = task.EndDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
-            var reminders = task.Reminders != null && task.Reminders.Any() 
-                ? string.Join(", ", task.Reminders.Select(r => r.Reminder.ToString("yyyy-MM-dd HH:mm")))
+            var startDate = taskInfo.StartDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
+            var endDate = taskInfo.EndDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
+            var reminders = taskInfo.Reminders.Any() 
+                ? string.Join(", ", taskInfo.Reminders.Select(r => r.ToString("yyyy-MM-dd HH:mm")))
                 : "None";
             
             var title = _templateEngine.Render(template.TitleTemplate, context)
@@ -467,9 +464,9 @@ public class TaskReminderService : IDisposable
                     {
                         Id = Guid.NewGuid().ToString(),
                         Timestamp = DateTime.UtcNow,
-                        TaskId = task.Id,
-                        TaskTitle = task.Title ?? string.Empty,
-                        ProjectTitle = project.Title ?? string.Empty,
+                        TaskId = taskInfo.TaskId,
+                        TaskTitle = taskInfo.Title,
+                        ProjectTitle = taskInfo.ProjectTitle,
                         ReminderType = reminderType,
                         UserId = config.UserId,
                         Title = title,
@@ -482,7 +479,7 @@ public class TaskReminderService : IDisposable
                     if (result.Success)
                     {
                         _logger.LogInformation("Reminder sent to {UserId} via {Provider} for task {TaskId}", 
-                            config.UserId, providerType, task.Id);
+                            config.UserId, providerType, taskInfo.TaskId);
                     }
                     else
                     {
@@ -499,9 +496,9 @@ public class TaskReminderService : IDisposable
                     {
                         Id = Guid.NewGuid().ToString(),
                         Timestamp = DateTime.UtcNow,
-                        TaskId = task.Id,
-                        TaskTitle = task.Title ?? string.Empty,
-                        ProjectTitle = project.Title ?? string.Empty,
+                        TaskId = taskInfo.TaskId,
+                        TaskTitle = taskInfo.Title,
+                        ProjectTitle = taskInfo.ProjectTitle,
                         ReminderType = reminderType,
                         UserId = config.UserId,
                         Title = title,
@@ -515,53 +512,56 @@ public class TaskReminderService : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending reminder for task {TaskId}", task.Id);
+            _logger.LogError(ex, "Error sending reminder for task {TaskId}", taskInfo.TaskId);
         }
     }
 
     public void Dispose()
     {
-        _timer?.Dispose();
+        _checkTimer?.Dispose();
         _cleanupTimer?.Dispose();
-        _remindedTasks.Clear();
+        _pendingReminders.Clear();
+        _sentReminders.Clear();
     }
     
-    // 获取黑名单状态（用于监控和调试）
-    public BlacklistStatus GetBlacklistStatus()
+    // 获取提醒状态（用于监控和调试）
+    public ReminderStatus GetReminderStatus()
     {
-        var now = DateTime.UtcNow;
-        var entries = _remindedTasks.Select(kvp => new BlacklistEntryInfo
+        return new ReminderStatus
         {
-            Key = kvp.Key,
-            RemindedAt = kvp.Value.RemindedAt,
-            ExpiresAt = kvp.Value.ExpiresAt,
-            IsExpired = kvp.Value.ExpiresAt < now
-        }).ToList();
-        
-        return new BlacklistStatus
-        {
-            TotalEntries = _remindedTasks.Count,
-            MaxSize = MaxBlacklistSize,
-            ExpiredEntries = entries.Count(e => e.IsExpired),
-            Entries = entries.OrderByDescending(e => e.RemindedAt).Take(100).ToList()
+            PendingTasks = _pendingReminders.Count,
+            SentReminders = _sentReminders.Count,
+            IsInitialized = _isInitialized,
+            Tasks = _pendingReminders.Values.Take(50).Select(t => new TaskReminderSummary
+            {
+                TaskId = t.TaskId,
+                Title = t.Title,
+                ProjectTitle = t.ProjectTitle,
+                StartDate = t.StartDate,
+                DueDate = t.DueDate,
+                EndDate = t.EndDate,
+                ReminderCount = t.Reminders.Count
+            }).ToList()
         };
     }
 }
 
-// 黑名单状态响应
-public record BlacklistStatus
+// 提醒状态响应
+public record ReminderStatus
 {
-    public int TotalEntries { get; init; }
-    public int MaxSize { get; init; }
-    public int ExpiredEntries { get; init; }
-    public List<BlacklistEntryInfo> Entries { get; init; } = new();
+    public int PendingTasks { get; init; }
+    public int SentReminders { get; init; }
+    public bool IsInitialized { get; init; }
+    public List<TaskReminderSummary> Tasks { get; init; } = new();
 }
 
-public record BlacklistEntryInfo
+public record TaskReminderSummary
 {
-    public string Key { get; init; } = "";
-    public DateTime RemindedAt { get; init; }
-    public DateTime ExpiresAt { get; init; }
-    public bool IsExpired { get; init; }
+    public long TaskId { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string ProjectTitle { get; init; } = string.Empty;
+    public DateTime? StartDate { get; init; }
+    public DateTime? DueDate { get; init; }
+    public DateTime? EndDate { get; init; }
+    public int ReminderCount { get; init; }
 }
-

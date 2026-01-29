@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Vikunja.Core.Mcp.Models;
+using Vikunja.Core.Mcp.Services;
 using Vikunja.Core.Models;
 using Vikunja.Core.Notifications.Models;
 using Vikunja.Core.Notifications.Providers;
@@ -7,28 +9,34 @@ namespace Vikunja.Core.Notifications;
 
 public class EventRouter
 {
+    private readonly IVikunjaClientFactory _clientFactory;
     private readonly JsonFileConfigurationManager _configManager;
     private readonly SimpleTemplateEngine _templateEngine;
     private readonly McpToolsAdapter _mcpTools;
     private readonly IEnumerable<PushDeerProvider> _providers;
     private readonly InMemoryPushEventHistory _pushHistory;
+    private readonly TaskReminderService _reminderService;
     private readonly ILogger<EventRouter> _logger;
     private readonly string? _vikunjaUrl;
 
     public EventRouter(
+        IVikunjaClientFactory clientFactory,
         JsonFileConfigurationManager configManager,
         SimpleTemplateEngine templateEngine,
         McpToolsAdapter mcpTools,
         IEnumerable<PushDeerProvider> providers,
         InMemoryPushEventHistory pushHistory,
+        TaskReminderService reminderService,
         ILogger<EventRouter> logger,
         string? vikunjaUrl = null)
     {
+        _clientFactory = clientFactory;
         _configManager = configManager;
         _templateEngine = templateEngine;
         _mcpTools = mcpTools;
         _providers = providers;
         _pushHistory = pushHistory;
+        _reminderService = reminderService;
         _logger = logger;
         _vikunjaUrl = vikunjaUrl?.TrimEnd('/');
     }
@@ -39,6 +47,9 @@ public class EventRouter
     {
         _logger.LogInformation("Routing webhook event: {EventType} for project {ProjectId}",
             webhookEvent.EventType, webhookEvent.ProjectId);
+
+        // 更新任务提醒服务的内存
+        await UpdateReminderServiceAsync(webhookEvent, cancellationToken);
 
         // Load all user configurations
         var configs = await _configManager.LoadAllConfigsAsync(cancellationToken);
@@ -52,6 +63,58 @@ public class EventRouter
         // Process each user configuration asynchronously
         var tasks = configs.Select(config => ProcessUserConfigAsync(config, webhookEvent, cancellationToken));
         await Task.WhenAll(tasks);
+    }
+    
+    // 根据 webhook 事件更新提醒服务的内存
+    private async Task UpdateReminderServiceAsync(WebhookEvent webhookEvent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (webhookEvent.EventType == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null)
+            {
+                // 获取完整的任务信息
+                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
+                var project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                
+                if (task != null && project != null)
+                {
+                    _reminderService.OnTaskCreated(task, project);
+                }
+            }
+            else if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && webhookEvent.Task != null)
+            {
+                // 获取完整的任务信息
+                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
+                var project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                
+                if (task != null && project != null)
+                {
+                    _reminderService.OnTaskUpdated(task, project);
+                }
+            }
+            else if (webhookEvent.EventType == VikunjaEventTypes.TaskDeleted && webhookEvent.Task != null)
+            {
+                _reminderService.OnTaskDeleted(webhookEvent.Task.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update reminder service for event {EventType}", webhookEvent.EventType);
+        }
+    }
+    
+    // 获取项目信息
+    private async Task<VikunjaProject?> GetProjectInfoAsync(long projectId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _clientFactory.GetAsync<VikunjaProject>($"projects/{projectId}", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get project {ProjectId}", projectId);
+            return null;
+        }
     }
 
     private async Task ProcessUserConfigAsync(

@@ -55,7 +55,8 @@ export default {
       events: '支持的事件',
       projects: 'Vikunja 项目',
       tasks: '任务数量',
-      labels: '标签数量'
+      labels: '标签数量',
+      monitoredTasks: '监听中的任务'
     },
     quickStart: {
       title: '快速开始',
@@ -75,6 +76,8 @@ export default {
     taskTitle: '任务标题',
     priority: '优先级',
     dueDate: '截止日期',
+    reminderStatus: '提醒状态',
+    monitoring: '监听中',
     priorityHigh: '高',
     priorityMedium: '中',
     priorityLow: '低',
@@ -243,9 +246,9 @@ export default {
     title: '任务提醒',
     description: '根据截止时间、开始时间和提醒时间配置自动任务提醒',
     enabled: '启用任务提醒',
-    enabledHint: '启用后，系统将扫描任务并为即将到来的截止时间、开始时间和提醒时间发送通知',
-    scanInterval: '扫描间隔',
-    scanIntervalHint: '扫描需要提醒的任务的频率（最小5秒，建议10-60秒）',
+    enabledHint: '启用后，系统使用基于webhook的内存管理来跟踪任务，并为即将到来的截止时间、开始时间、结束时间和提醒时间发送通知',
+    scanInterval: '检查间隔',
+    scanIntervalHint: '检查内存中待处理提醒的频率（最小5秒，建议10-60秒）。使用webhook事件进行实时更新，而非API扫描',
     seconds: '秒',
     providers: '通知提供者',
     providersHint: '为提醒选择特定的提供者。如果未指定，将使用默认提供者。',

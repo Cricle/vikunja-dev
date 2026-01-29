@@ -136,9 +136,9 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(ReminderHistoryResponse))]
 [JsonSerializable(typeof(ReminderTestResponse))]
 [JsonSerializable(typeof(ReminderClearResponse))]
-[JsonSerializable(typeof(BlacklistStatus))]
-[JsonSerializable(typeof(BlacklistEntryInfo))]
-[JsonSerializable(typeof(List<BlacklistEntryInfo>))]
+[JsonSerializable(typeof(ReminderStatus))]
+[JsonSerializable(typeof(TaskReminderSummary))]
+[JsonSerializable(typeof(List<TaskReminderSummary>))]
 
 // Collections
 [JsonSerializable(typeof(List<VikunjaTask>))]

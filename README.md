@@ -43,11 +43,15 @@ VIKUNJA_URL=http://localhost:3456  # For task links
 ### Task Reminders
 
 Configure in web UI:
-- **Scan Interval**: 10-300 seconds
+- **Check Interval**: 10-300 seconds (checks memory, not API)
 - **Time Window**: Past 5 min to future 5 min
 - **Label Filter**: OR logic, optional
-- **Templates**: Separate for start/due/reminder
-- **Blacklist**: Auto-prevents duplicates (2h expiry)
+- **Templates**: Separate for start/due/end/reminder
+- **Architecture**: Webhook-based memory management
+  - Startup: Scans all tasks once
+  - Updates: Real-time via webhook events
+  - Checking: Timer checks memory every 10s
+- **Duplicate Prevention**: Tracks sent reminders (2h expiry, auto-cleanup)
 
 ## Notification Templates
 
@@ -76,12 +80,14 @@ Link: {{event.url}}
 - **User**: created
 
 ### Task Reminders
-- Scans tasks every 10s (configurable)
-- Checks start date, due date, reminder times
+- **Webhook-based memory management** for real-time updates
+- Startup initialization scans all tasks once
+- Timer checks memory every 10s (not API)
+- Supports start date, due date, end date, reminder times
 - Time window: -5min to +5min (catches past times)
-- Cache key includes time (supports time changes)
+- Duplicate prevention with sent reminder tracking
 - Label filtering with OR logic
-- Blacklist prevents duplicates (2h expiry, auto-cleanup)
+- Auto-cleanup of old records (2h expiry)
 
 ### MCP Tools (54)
 - Tasks (5), Projects (5), Labels (5)
@@ -97,7 +103,7 @@ GET  /api/webhook-config/{userId}      - Get config
 PUT  /api/webhook-config/{userId}      - Update config
 GET  /api/push-history                 - Push history
 GET  /api/reminder-history             - Reminder history
-GET  /api/reminder-blacklist           - Blacklist status
+GET  /api/reminder-status              - Reminder status (memory state)
 GET  /api/mcp/labels                   - Get labels
 POST /mcp                              - MCP protocol
 GET  /health                           - Health check
