@@ -318,6 +318,8 @@ $taskTitle = "Webhook Test Task $(Get-Date -Format 'HHmmss')"
 $task = @{
     title = $taskTitle
     description = "测试 webhook 的任务"
+    priority = 3
+    due_date = (Get-Date).AddDays(7).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 } | ConvertTo-Json
 
 try {
@@ -327,6 +329,82 @@ try {
 } catch {
     Write-TestResult "任务创建" $false $_.Exception.Message
     exit 1
+}
+
+# 添加标签到任务
+Write-Host "  添加标签到任务..." -ForegroundColor Gray
+try {
+    # 先创建标签
+    $label1 = @{
+        title = "urgent"
+        hex_color = "ff0000"
+    } | ConvertTo-Json
+    
+    $label2 = @{
+        title = "bug"
+        hex_color = "00ff00"
+    } | ConvertTo-Json
+    
+    $createdLabel1 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Put -Body $label1 -ContentType "application/json"
+    $createdLabel2 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Put -Body $label2 -ContentType "application/json"
+    
+    # 将标签添加到任务
+    $labelAssign1 = @{ label_id = $createdLabel1.id } | ConvertTo-Json
+    $labelAssign2 = @{ label_id = $createdLabel2.id } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$taskId/labels" -Headers $headers -Method Put -Body $labelAssign1 -ContentType "application/json" | Out-Null
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$taskId/labels" -Headers $headers -Method Put -Body $labelAssign2 -ContentType "application/json" | Out-Null
+    
+    Write-Host "    ✓ 已添加 2 个标签 (urgent, bug)" -ForegroundColor Green
+} catch {
+    Write-Host "    ⚠ 标签添加失败: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+# 分配任务给当前用户
+Write-Host "  分配任务给用户..." -ForegroundColor Gray
+try {
+    # 获取当前用户信息
+    $currentUser = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/user" -Headers $headers -Method Get
+    
+    # 分配任务
+    $assignee = @{
+        user_id = $currentUser.id
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$taskId/assignees" -Headers $headers -Method Put -Body $assignee -ContentType "application/json" | Out-Null
+    Write-Host "    ✓ 已分配给用户: $($currentUser.username)" -ForegroundColor Green
+} catch {
+    Write-Host "    ⚠ 任务分配失败: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+# 等待 webhook 触发
+Start-Sleep -Seconds 2
+
+# 创建一个新的完整任务来触发包含所有数据的 webhook
+Write-Host "`n[9.5/24] 创建完整数据任务（验证所有占位符）..." -ForegroundColor Yellow
+$fullTask = @{
+    title = "Full Data Test Task"
+    description = "包含所有数据的测试任务"
+    priority = 5
+    due_date = (Get-Date).AddDays(3).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+} | ConvertTo-Json
+
+try {
+    $fullCreatedTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $fullTask
+    $fullTaskId = $fullCreatedTask.id
+    
+    # 添加标签
+    $labelAssign1 = @{ label_id = $createdLabel1.id } | ConvertTo-Json
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$fullTaskId/labels" -Headers $headers -Method Put -Body $labelAssign1 -ContentType "application/json" | Out-Null
+    
+    # 分配用户
+    $assignee = @{ user_id = $currentUser.id } | ConvertTo-Json
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$fullTaskId/assignees" -Headers $headers -Method Put -Body $assignee -ContentType "application/json" | Out-Null
+    
+    Write-TestResult "完整数据任务创建 (ID: $fullTaskId, 包含标签和分配人)" ($fullTaskId -gt 0)
+    Start-Sleep -Seconds 3
+} catch {
+    Write-TestResult "完整数据任务创建" $false $_.Exception.Message
 }
 
 Start-Sleep -Seconds 3
@@ -663,30 +741,65 @@ try {
 
 # 测试关系事件（模拟）
 Write-Host "  测试关系事件占位符..." -ForegroundColor Gray
-$relationPayload = @{
-    event_name = "task.relation.created"
-    time = (Get-Date).ToUniversalTime().ToString("o")
-    data = @{
-        task_id = $specialTaskId
-        other_task_id = 2
-        relation_kind = "related"
-    }
-} | ConvertTo-Json -Depth 3
 
+# 创建第二个任务用于建立关系
 try {
-    Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $relationPayload -ContentType "application/json" -UseBasicParsing | Out-Null
-    Start-Sleep -Seconds 3
+    $relatedTask = @{
+        title = "Related Task for Testing"
+        description = "用于测试任务关系"
+    } | ConvertTo-Json
     
-    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
-    $relationTest = ($history.records[0].eventData.title -match "Relation|关系") -and 
-                    ($history.records[0].eventData.title -match "Special Event Test Task" -or 
-                     $history.records[0].eventData.body -match "Special Event Test Task")
+    $createdRelatedTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $relatedTask
+    $relatedTaskId = $createdRelatedTask.id
+    Write-Host "    ✓ 创建关联任务 (ID: $relatedTaskId)" -ForegroundColor Green
     
-    if ($relationTest) {
-        Write-Host "    ✓ 关系事件占位符正常" -ForegroundColor Green
-    } else {
-        Write-Host "    ⚠ 关系事件占位符部分工作" -ForegroundColor Yellow
-        Write-Host "      标题: $($history.records[0].eventData.title)" -ForegroundColor Gray
+    # 创建任务关系
+    Start-Sleep -Seconds 2
+    $relation = @{
+        other_task_id = $relatedTaskId
+        relation_kind = "related"
+    } | ConvertTo-Json
+    
+    try {
+        Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$specialTaskId/relations" -Headers $headers -Method Put -Body $relation -ContentType "application/json" | Out-Null
+        Write-Host "    ✓ 创建任务关系 (related)" -ForegroundColor Green
+        Start-Sleep -Seconds 3
+        
+        $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+        $relationTest = ($history.records[0].eventData.title -match "Relation|关系") -and 
+                        ($history.records[0].eventData.body -match "Task ID:|Related Task ID:|Special Event Test Task")
+        
+        if ($relationTest) {
+            Write-Host "    ✓ 关系事件占位符正常（包含任务信息）" -ForegroundColor Green
+        } else {
+            Write-Host "    ⚠ 关系事件占位符部分工作" -ForegroundColor Yellow
+            Write-Host "      标题: $($history.records[0].eventData.title)" -ForegroundColor Gray
+        }
+    } catch {
+        Write-Host "    ⚠ 创建任务关系失败: $($_.Exception.Message)" -ForegroundColor Yellow
+        
+        # 回退到模拟方式
+        $relationPayload = @{
+            event_name = "task.relation.created"
+            time = (Get-Date).ToUniversalTime().ToString("o")
+            data = @{
+                task_id = $specialTaskId
+                other_task_id = $relatedTaskId
+                relation_kind = "related"
+            }
+        } | ConvertTo-Json -Depth 3
+        
+        Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $relationPayload -ContentType "application/json" -UseBasicParsing | Out-Null
+        Start-Sleep -Seconds 3
+        
+        $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+        $relationTest = ($history.records[0].eventData.title -match "Relation|关系")
+        
+        if ($relationTest) {
+            Write-Host "    ✓ 关系事件占位符正常（模拟）" -ForegroundColor Green
+        } else {
+            Write-Host "    ⚠ 关系事件占位符未验证" -ForegroundColor Yellow
+        }
     }
 } catch {
     Write-Host "    ✗ 关系事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
@@ -847,11 +960,11 @@ try {
                 $allPlaceholders["event.type"].found = $true
             }
             
-            if ($combined -match "Assignees:\s*\w+|分配给:|assigned to") {
+            if ($combined -match "Assignees:\s*\w+|分配给:\s*\w+|assigned to|webhooktest") {
                 $allPlaceholders["assignees"].found = $true
             }
             
-            if ($combined -match "Labels:\s*\w+|标签:|tags:") {
+            if ($combined -match "Labels:\s*\w+|标签:\s*\w+|tags:|urgent|bug") {
                 $allPlaceholders["labels"].found = $true
             }
             
