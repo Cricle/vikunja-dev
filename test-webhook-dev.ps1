@@ -684,6 +684,43 @@ try {
     Write-TestResult "VikunjaHook 端点响应" $false $_.Exception.Message
 }
 
+# 测试 projectId 为 0 的情况（不应该导致错误）
+Write-Host "`n[21.2/24] 测试 projectId 为 0 的情况..." -ForegroundColor Yellow
+$testPayloadNoProject = @{
+    event_name = "task.created"
+    time = (Get-Date).ToUniversalTime().ToString("o")
+    project_id = 0
+    data = @{ 
+        id = 9998
+        title = "Test Task Without Project"
+        description = "测试无项目ID的任务"
+        done = $false
+        project_id = 0
+    }
+} | ConvertTo-Json -Depth 3
+
+try {
+    $response = Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $testPayloadNoProject -ContentType "application/json" -UseBasicParsing
+    $noProjectWorks = $response.StatusCode -eq 202
+    Write-TestResult "ProjectId=0 处理 (Status: $($response.StatusCode))" $noProjectWorks
+    
+    if ($noProjectWorks) {
+        Start-Sleep -Seconds 2
+        $logs = Get-WebhookLogs -SinceSeconds 5
+        # 检查是否有 404 错误（不应该有）
+        $has404Error = $logs -match "HTTP 404" -or $logs -match "This project does not exist"
+        if ($has404Error) {
+            Write-Host "  ✗ 发现 404 错误（projectId=0 应该被跳过）" -ForegroundColor Red
+            $script:testsFailed++
+        } else {
+            Write-Host "  ✓ 正确处理 projectId=0（无 404 错误）" -ForegroundColor Green
+            $script:testsPassed++
+        }
+    }
+} catch {
+    Write-TestResult "ProjectId=0 处理" $false $_.Exception.Message
+}
+
 # 验证占位符替换
 Write-Host "`n[21.5/24] 验证占位符替换..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
