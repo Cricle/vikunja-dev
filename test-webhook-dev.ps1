@@ -120,27 +120,18 @@ if (-not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
 }
 
-Write-Host "`n[1/24] 启动开发环境..." -ForegroundColor Yellow
+Write-Host "`n[1/24] 启动 Vikunja (不启动 VikunjaHook)..." -ForegroundColor Yellow
 try {
     docker-compose -f docker-compose.dev.yml down -v 2>&1 | Out-Null
-    docker-compose -f docker-compose.dev.yml up -d --build 2>&1 | Out-Null
-    Write-TestResult "开发环境启动" $true
+    docker-compose -f docker-compose.dev.yml up -d vikunja 2>&1 | Out-Null
+    Write-TestResult "Vikunja 启动" $true
 } catch {
-    Write-TestResult "开发环境启动" $false $_.Exception.Message
+    Write-TestResult "Vikunja 启动" $false $_.Exception.Message
     exit 1
 }
 
-Write-Host "`n[2/24] 等待服务就绪..." -ForegroundColor Yellow
-Start-Sleep -Seconds 20
-
-# 清理旧的配置文件，使用内置默认模板
-Write-Host "  清理旧配置文件..." -ForegroundColor Gray
-try {
-    docker-compose -f docker-compose.dev.yml exec -T vikunja-hook sh -c "rm -f /app/data/configs/*.json" 2>&1 | Out-Null
-    Write-Host "  ✓ 配置文件已清理" -ForegroundColor Green
-} catch {
-    Write-Host "  ⚠ 配置文件清理失败（可能不存在）" -ForegroundColor Yellow
-}
+Write-Host "`n[2/24] 等待 Vikunja 就绪..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
 
 # 检查 Vikunja
 $maxRetries = 10
@@ -160,18 +151,8 @@ for ($i = 1; $i -le $maxRetries; $i++) {
     }
 }
 
-# 检查 VikunjaHook
-Write-Host "`n[3/24] 检查 VikunjaHook 服务..." -ForegroundColor Yellow
-try {
-    $health = Invoke-RestMethod -Uri "http://localhost:5082/health" -Method Get -TimeoutSec 5
-    Write-TestResult "VikunjaHook 服务就绪 (status: $($health.status))" $true
-} catch {
-    Write-TestResult "VikunjaHook 服务就绪" $false $_.Exception.Message
-    exit 1
-}
-
 # 注册用户
-Write-Host "`n[4/24] 注册测试用户..." -ForegroundColor Yellow
+Write-Host "`n[3/24] 注册测试用户..." -ForegroundColor Yellow
 $username = "webhooktest_$(Get-Random -Maximum 9999)"
 $password = "TestPass123!"
 $email = "$username@test.local"
@@ -190,7 +171,7 @@ try {
 }
 
 # 登录
-Write-Host "`n[5/24] 用户登录..." -ForegroundColor Yellow
+Write-Host "`n[4/24] 用户登录..." -ForegroundColor Yellow
 $loginData = @{
     username = $username
     password = $password
@@ -211,11 +192,41 @@ try {
     exit 1
 }
 
-# 重启 VikunjaHook 使用新 Token
-Write-Host "`n[6/24] 重启 VikunjaHook..." -ForegroundColor Yellow
-docker-compose -f docker-compose.dev.yml restart vikunja-hook 2>&1 | Out-Null
-Start-Sleep -Seconds 5
-Write-TestResult "VikunjaHook 重启完成" $true
+# 启动 VikunjaHook (使用正确的 Token)
+Write-Host "`n[5/24] 启动 VikunjaHook..." -ForegroundColor Yellow
+try {
+    docker-compose -f docker-compose.dev.yml up -d vikunja-hook 2>&1 | Out-Null
+    Start-Sleep -Seconds 8
+    Write-TestResult "VikunjaHook 启动" $true
+} catch {
+    Write-TestResult "VikunjaHook 启动" $false $_.Exception.Message
+    exit 1
+}
+
+# 清理旧的配置文件，使用内置默认模板
+Write-Host "  清理旧配置文件..." -ForegroundColor Gray
+try {
+    docker-compose -f docker-compose.dev.yml exec -T vikunja-hook sh -c "rm -f /app/data/configs/*.json" 2>&1 | Out-Null
+    Write-Host "  ✓ 配置文件已清理" -ForegroundColor Green
+} catch {
+    Write-Host "  ⚠ 配置文件清理失败（可能不存在）" -ForegroundColor Yellow
+}
+
+# 检查 VikunjaHook
+Write-Host "`n[6/24] 检查 VikunjaHook 服务..." -ForegroundColor Yellow
+try {
+    $health = Invoke-RestMethod -Uri "http://localhost:5082/health" -Method Get -TimeoutSec 5
+    Write-TestResult "VikunjaHook 服务就绪 (status: $($health.status))" $true
+} catch {
+    Write-TestResult "VikunjaHook 服务就绪" $false $_.Exception.Message
+    exit 1
+}
+    $apiToken = $loginResponse.token
+    
+    # 更新 .env
+    $envContent = Get-Content ".env" -Raw
+    $envContent = $envContent -replace 'VIKUNJA_API_TOKEN=.*', "VIKUNJA_API_TOKEN=$apiToken"
+    Set-Content ".env" $envContent
 
 $headers = @{
     "Authorization" = "Bearer $apiToken"
@@ -1200,12 +1211,7 @@ try {
     
     if ($reminderEnabled) {
         Write-Host "  ✓ 提醒功能已启用，扫描间隔: $($updatedConfig.reminderConfig.scanIntervalSeconds) 秒" -ForegroundColor Green
-        
-        # 重启服务以应用新配置
-        Write-Host "  重启 VikunjaHook 以应用提醒配置..." -ForegroundColor Gray
-        docker-compose -f docker-compose.dev.yml restart vikunja-hook 2>&1 | Out-Null
-        Start-Sleep -Seconds 8
-        Write-Host "  ✓ VikunjaHook 已重启" -ForegroundColor Green
+        Write-Host "  ✓ 配置已热更新，无需重启服务" -ForegroundColor Green
     }
 } catch {
     Write-TestResult "配置任务提醒" $false $_.Exception.Message
