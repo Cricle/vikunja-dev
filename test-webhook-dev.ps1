@@ -247,14 +247,7 @@ $webhook = @{
         "task.updated", 
         "task.deleted",
         "task.comment.created",
-        "task.comment.updated",
-        "task.comment.deleted",
-        "task.attachment.created",
-        "task.attachment.deleted",
-        "task.relation.created",
-        "task.relation.deleted",
-        "task.assignee.created",
-        "task.assignee.deleted"
+        "task.assignee.created"
     )
     project_id = $projectId
 } | ConvertTo-Json
