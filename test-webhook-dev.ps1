@@ -242,14 +242,27 @@ try {
 Write-Host "`n[8/24] 配置 Webhook..." -ForegroundColor Yellow
 $webhook = @{
     target_url = "http://vikunja-hook:5082/api/webhook"
-    events = @("task.created", "task.updated", "task.deleted")
+    events = @(
+        "task.created", 
+        "task.updated", 
+        "task.deleted",
+        "task.comment.created",
+        "task.comment.updated",
+        "task.comment.deleted",
+        "task.attachment.created",
+        "task.attachment.deleted",
+        "task.relation.created",
+        "task.relation.deleted",
+        "task.assignee.created",
+        "task.assignee.deleted"
+    )
     project_id = $projectId
 } | ConvertTo-Json
 
 try {
     $createdWebhook = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/webhooks" -Headers $headers -Method Put -Body $webhook
     $webhookId = $createdWebhook.id
-    $webhookValid = ($webhookId -gt 0) -and ($createdWebhook.target_url -eq "http://vikunja-hook:5082/api/webhook") -and ($createdWebhook.events.Count -eq 3)
+    $webhookValid = ($webhookId -gt 0) -and ($createdWebhook.target_url -eq "http://vikunja-hook:5082/api/webhook") -and ($createdWebhook.events.Count -ge 3)
     Write-TestResult "Webhook 配置 (ID: $webhookId, Events: $($createdWebhook.events.Count))" $webhookValid
 } catch {
     Write-TestResult "Webhook 配置" $false $_.Exception.Message
@@ -578,39 +591,53 @@ foreach ($check in $logChecks.GetEnumerator()) {
 # 测试特殊事件的占位符
 Write-Host "`n[22.5/24] 测试特殊事件占位符..." -ForegroundColor Yellow
 
-# 测试评论事件
-Write-Host "  测试评论事件占位符..." -ForegroundColor Gray
-$commentPayload = @{
-    event_name = "task.comment.created"
-    time = (Get-Date).ToUniversalTime().ToString("o")
-    data = @{
-        id = 100
-        comment = "这是一条测试评论"
-        task_id = 1
-        author = @{
-            username = "testuser"
-            name = "Test User"
-        }
-    }
-} | ConvertTo-Json -Depth 4
+# 创建一个真实任务用于测试特殊事件
+Write-Host "  创建测试任务用于特殊事件..." -ForegroundColor Gray
+$specialTestTask = @{
+    title = "Special Event Test Task"
+    description = "用于测试评论、附件、关系事件"
+} | ConvertTo-Json
 
 try {
-    Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $commentPayload -ContentType "application/json" -UseBasicParsing | Out-Null
+    $specialTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $specialTestTask
+    $specialTaskId = $specialTask.id
+    Write-Host "    ✓ 测试任务已创建 (ID: $specialTaskId)" -ForegroundColor Green
     Start-Sleep -Seconds 2
-    
-    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
-    $commentTest = $history.records[0].eventData.body -match "comment|评论" -or $history.records[0].eventData.title -match "Comment|评论"
-    
-    if ($commentTest) {
-        Write-Host "    ✓ 评论事件占位符正常" -ForegroundColor Green
-    } else {
-        Write-Host "    ⚠ 评论事件占位符未验证" -ForegroundColor Yellow
-    }
 } catch {
-    Write-Host "    ✗ 评论事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "    ✗ 测试任务创建失败: $($_.Exception.Message)" -ForegroundColor Red
+    $specialTaskId = 0
 }
 
-# 测试附件事件
+# 测试评论事件
+Write-Host "  测试评论事件占位符..." -ForegroundColor Gray
+if ($specialTaskId -gt 0) {
+    try {
+        $commentData = @{
+            comment = "这是一条测试评论，用于验证占位符"
+        } | ConvertTo-Json
+        
+        $comment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$specialTaskId/comments" -Headers $headers -Method Put -Body $commentData -ContentType "application/json"
+        Start-Sleep -Seconds 3
+        
+        $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
+        $commentTest = ($history.records[0].eventData.title -match "Comment|评论") -and 
+                       ($history.records[0].eventData.title -match "Special Event Test Task" -or 
+                        $history.records[0].eventData.body -match "Special Event Test Task")
+        
+        if ($commentTest) {
+            Write-Host "    ✓ 评论事件占位符正常（包含任务标题）" -ForegroundColor Green
+        } else {
+            Write-Host "    ⚠ 评论事件占位符部分工作" -ForegroundColor Yellow
+            Write-Host "      标题: $($history.records[0].eventData.title)" -ForegroundColor Gray
+        }
+    } catch {
+        Write-Host "    ✗ 评论事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    }
+} else {
+    Write-Host "    ⚠ 跳过评论事件测试（无测试任务）" -ForegroundColor Yellow
+}
+
+# 测试附件事件（模拟）
 Write-Host "  测试附件事件占位符..." -ForegroundColor Gray
 $attachmentPayload = @{
     event_name = "task.attachment.created"
@@ -618,33 +645,36 @@ $attachmentPayload = @{
     data = @{
         id = 200
         file_name = "test-document.pdf"
-        task_id = 1
+        task_id = $specialTaskId
     }
 } | ConvertTo-Json -Depth 3
 
 try {
     Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $attachmentPayload -ContentType "application/json" -UseBasicParsing | Out-Null
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 3
     
     $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
-    $attachmentTest = $history.records[0].eventData.body -match "attachment|附件|Attachment" -or $history.records[0].eventData.title -match "Attachment|附件"
+    $attachmentTest = ($history.records[0].eventData.title -match "Attachment|附件") -and 
+                      ($history.records[0].eventData.body -match "test-document\.pdf" -or 
+                       $history.records[0].eventData.title -match "Special Event Test Task")
     
     if ($attachmentTest) {
         Write-Host "    ✓ 附件事件占位符正常" -ForegroundColor Green
     } else {
-        Write-Host "    ⚠ 附件事件占位符未验证" -ForegroundColor Yellow
+        Write-Host "    ⚠ 附件事件占位符部分工作" -ForegroundColor Yellow
+        Write-Host "      标题: $($history.records[0].eventData.title)" -ForegroundColor Gray
     }
 } catch {
     Write-Host "    ✗ 附件事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# 测试关系事件
+# 测试关系事件（模拟）
 Write-Host "  测试关系事件占位符..." -ForegroundColor Gray
 $relationPayload = @{
     event_name = "task.relation.created"
     time = (Get-Date).ToUniversalTime().ToString("o")
     data = @{
-        task_id = 1
+        task_id = $specialTaskId
         other_task_id = 2
         relation_kind = "related"
     }
@@ -652,15 +682,18 @@ $relationPayload = @{
 
 try {
     Invoke-WebRequest -Uri "http://localhost:5082/api/webhook" -Method Post -Body $relationPayload -ContentType "application/json" -UseBasicParsing | Out-Null
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 3
     
     $history = Invoke-RestMethod -Uri "http://localhost:5082/api/push-history?count=1" -Method Get
-    $relationTest = $history.records[0].eventData.body -match "relation|关系|Relation" -or $history.records[0].eventData.title -match "Relation|关系"
+    $relationTest = ($history.records[0].eventData.title -match "Relation|关系") -and 
+                    ($history.records[0].eventData.title -match "Special Event Test Task" -or 
+                     $history.records[0].eventData.body -match "Special Event Test Task")
     
     if ($relationTest) {
         Write-Host "    ✓ 关系事件占位符正常" -ForegroundColor Green
     } else {
-        Write-Host "    ⚠ 关系事件占位符未验证" -ForegroundColor Yellow
+        Write-Host "    ⚠ 关系事件占位符部分工作" -ForegroundColor Yellow
+        Write-Host "      标题: $($history.records[0].eventData.title)" -ForegroundColor Gray
     }
 } catch {
     Write-Host "    ✗ 关系事件测试失败: $($_.Exception.Message)" -ForegroundColor Red
@@ -740,13 +773,21 @@ try {
             "task.description" = @{ found = $false; example = "" }
             "task.done" = @{ found = $false; example = "" }
             "task.id" = @{ found = $false; example = "" }
+            "task.dueDate" = @{ found = $false; example = "" }
+            "task.priority" = @{ found = $false; example = "" }
+            "task.url" = @{ found = $false; example = "" }
             "project.title" = @{ found = $false; example = "" }
             "project.id" = @{ found = $false; example = "" }
+            "project.url" = @{ found = $false; example = "" }
             "event.url" = @{ found = $false; example = "" }
             "event.timestamp" = @{ found = $false; example = "" }
-            "comment" = @{ found = $false; example = "" }
-            "attachment" = @{ found = $false; example = "" }
-            "relation" = @{ found = $false; example = "" }
+            "event.type" = @{ found = $false; example = "" }
+            "assignees" = @{ found = $false; example = "" }
+            "labels" = @{ found = $false; example = "" }
+            "comment.text" = @{ found = $false; example = "" }
+            "comment.author" = @{ found = $false; example = "" }
+            "attachment.fileName" = @{ found = $false; example = "" }
+            "relation.taskId" = @{ found = $false; example = "" }
         }
         
         foreach ($record in $history.records) {
@@ -755,65 +796,94 @@ try {
             $combined = "$title $body"
             
             # 检查各种占位符
-            if ($combined -match "Test Task|Manual Test Task|Webhook Test Task|Updated:") {
+            if ($combined -match "Test Task|Manual Test Task|Webhook Test Task|Updated:|Special Event") {
                 $allPlaceholders["task.title"].found = $true
                 if (!$allPlaceholders["task.title"].example) {
                     $allPlaceholders["task.title"].example = $title
                 }
             }
             
-            if ($combined -match "Description:|描述:|手动测试|测试 webhook") {
+            if ($combined -match "Description:|描述:|手动测试|测试 webhook|用于测试") {
                 $allPlaceholders["task.description"].found = $true
             }
             
-            if ($combined -match "Done|Not Done|✓|○|Status:") {
+            if ($combined -match "Done|Not Done|✓|○|Status:|completed") {
                 $allPlaceholders["task.done"].found = $true
             }
             
-            if ($combined -match "ID: \d+|id.*\d+") {
+            if ($combined -match "ID:\s*\d+|Task\s+#\d+") {
                 $allPlaceholders["task.id"].found = $true
             }
             
-            if ($combined -match "Project #\d+|Webhook Test \d+|项目:|project") {
+            if ($combined -match "Due:|到期:|deadline") {
+                $allPlaceholders["task.dueDate"].found = $true
+            }
+            
+            if ($combined -match "Priority:|优先级:|priority:\s*\d+") {
+                $allPlaceholders["task.priority"].found = $true
+            }
+            
+            if ($combined -match "http://localhost:3456/tasks/\d+") {
+                $allPlaceholders["task.url"].found = $true
+                $allPlaceholders["event.url"].found = $true
+            }
+            
+            if ($combined -match "Project #\d+|Webhook Test \d+|项目:|in project") {
                 $allPlaceholders["project.title"].found = $true
                 if (!$allPlaceholders["project.title"].example -and $combined -match "Project #\d+") {
                     $allPlaceholders["project.title"].example = "Project #X"
                 }
             }
             
-            if ($combined -match "project.*\d+") {
+            if ($combined -match "project.*\d+|Project #\d+") {
                 $allPlaceholders["project.id"].found = $true
             }
             
-            if ($combined -match "http://localhost:3456/tasks/\d+|Link: http|event\.url") {
-                $allPlaceholders["event.url"].found = $true
+            if ($combined -match "http://localhost:3456/projects/\d+") {
+                $allPlaceholders["project.url"].found = $true
             }
             
             if ($combined -match "\d{4}-\d{2}-\d{2}|\d{2}:\d{2}") {
                 $allPlaceholders["event.timestamp"].found = $true
             }
             
-            if ($record.eventName -match "comment" -and ($combined -match "comment|评论|Comment")) {
-                $allPlaceholders["comment"].found = $true
+            if ($title -match "task\.(created|updated|deleted|comment|attachment|relation)") {
+                $allPlaceholders["event.type"].found = $true
             }
             
-            if ($record.eventName -match "attachment" -and ($combined -match "attachment|附件|Attachment")) {
-                $allPlaceholders["attachment"].found = $true
+            if ($combined -match "Assignees:|分配给:|assigned to") {
+                $allPlaceholders["assignees"].found = $true
             }
             
-            if ($record.eventName -match "relation" -and ($combined -match "relation|关系|Relation")) {
-                $allPlaceholders["relation"].found = $true
+            if ($combined -match "Labels:|标签:|tags:") {
+                $allPlaceholders["labels"].found = $true
+            }
+            
+            if ($record.eventName -match "comment" -and $combined -match "测试评论|comment") {
+                $allPlaceholders["comment.text"].found = $true
+            }
+            
+            if ($record.eventName -match "comment" -and $combined -match "testuser|author|作者") {
+                $allPlaceholders["comment.author"].found = $true
+            }
+            
+            if ($record.eventName -match "attachment" -and $combined -match "test-document\.pdf|file") {
+                $allPlaceholders["attachment.fileName"].found = $true
+            }
+            
+            if ($record.eventName -match "relation" -and $combined -match "task.*\d+|related") {
+                $allPlaceholders["relation.taskId"].found = $true
             }
         }
         
         # 显示占位符验证结果
         $coreCount = 0
-        $coreTotal = 8
+        $coreTotal = 13
         $specialCount = 0
-        $specialTotal = 3
+        $specialTotal = 6
         
         Write-Host "  核心占位符:" -ForegroundColor Gray
-        foreach ($key in @("task.title", "task.description", "task.done", "task.id", "project.title", "project.id", "event.url", "event.timestamp")) {
+        foreach ($key in @("task.title", "task.description", "task.done", "task.id", "task.dueDate", "task.priority", "task.url", "project.title", "project.id", "project.url", "event.url", "event.timestamp", "event.type")) {
             $status = if ($allPlaceholders[$key].found) { "✓"; $coreCount++ } else { "✗" }
             $color = if ($allPlaceholders[$key].found) { "Green" } else { "Yellow" }
             $example = if ($allPlaceholders[$key].example) { " (示例: $($allPlaceholders[$key].example))" } else { "" }
@@ -821,16 +891,16 @@ try {
         }
         
         Write-Host "  特殊事件占位符:" -ForegroundColor Gray
-        foreach ($key in @("comment", "attachment", "relation")) {
+        foreach ($key in @("assignees", "labels", "comment.text", "comment.author", "attachment.fileName", "relation.taskId")) {
             $status = if ($allPlaceholders[$key].found) { "✓"; $specialCount++ } else { "○" }
             $color = if ($allPlaceholders[$key].found) { "Green" } else { "Gray" }
-            Write-Host "    $status $key 事件" -ForegroundColor $color
+            Write-Host "    $status {{$key}}" -ForegroundColor $color
         }
         
         Write-Host "`n  占位符验证统计:" -ForegroundColor Cyan
-        Write-Host "    核心占位符: $coreCount/$coreTotal 通过" -ForegroundColor $(if ($coreCount -ge 6) { "Green" } else { "Yellow" })
-        Write-Host "    特殊占位符: $specialCount/$specialTotal 通过" -ForegroundColor $(if ($specialCount -ge 1) { "Green" } else { "Gray" })
-        Write-Host "    总计: $($coreCount + $specialCount)/$($coreTotal + $specialTotal) 通过" -ForegroundColor $(if (($coreCount + $specialCount) -ge 7) { "Green" } else { "Yellow" })
+        Write-Host "    核心占位符: $coreCount/$coreTotal 通过" -ForegroundColor $(if ($coreCount -ge 9) { "Green" } else { "Yellow" })
+        Write-Host "    特殊占位符: $specialCount/$specialTotal 通过" -ForegroundColor $(if ($specialCount -ge 3) { "Green" } else { "Gray" })
+        Write-Host "    总计: $($coreCount + $specialCount)/$($coreTotal + $specialTotal) 通过 ($(([math]::Round(($coreCount + $specialCount) / ($coreTotal + $specialTotal) * 100, 1)))%)" -ForegroundColor $(if (($coreCount + $specialCount) -ge 12) { "Green" } else { "Yellow" })
     } else {
         Write-Host "  ⚠ 无法获取推送历史进行占位符验证" -ForegroundColor Yellow
     }

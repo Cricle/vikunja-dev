@@ -188,6 +188,43 @@ public class EventRouter
                 }
                 
                 context = context with { Comment = comment };
+                
+                // Try to get task info from task_id in comment event
+                if (webhookEvent.Data.TryGetProperty("task_id", out var commentTaskId) && commentTaskId.GetInt32() > 0)
+                {
+                    try
+                    {
+                        var taskData = await _mcpTools.GetTaskAsync(commentTaskId.GetInt32(), cancellationToken);
+                        if (taskData != null)
+                        {
+                            context = context with { Task = taskData };
+                        }
+                        else
+                        {
+                            // Create basic task data
+                            context = context with 
+                            { 
+                                Task = new TaskTemplateData 
+                                { 
+                                    Id = commentTaskId.GetInt32(),
+                                    Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{commentTaskId.GetInt32()}"
+                                } 
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get task data for comment event");
+                        context = context with 
+                        { 
+                            Task = new TaskTemplateData 
+                            { 
+                                Id = commentTaskId.GetInt32(),
+                                Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{commentTaskId.GetInt32()}"
+                            } 
+                        };
+                    }
+                }
             }
         }
 
@@ -205,6 +242,42 @@ public class EventRouter
                 };
                 
                 context = context with { Attachment = attachment };
+                
+                // Try to get task info from task_id in attachment event
+                if (webhookEvent.Data.TryGetProperty("task_id", out var attachmentTaskId) && attachmentTaskId.GetInt32() > 0)
+                {
+                    try
+                    {
+                        var taskData = await _mcpTools.GetTaskAsync(attachmentTaskId.GetInt32(), cancellationToken);
+                        if (taskData != null)
+                        {
+                            context = context with { Task = taskData };
+                        }
+                        else
+                        {
+                            context = context with 
+                            { 
+                                Task = new TaskTemplateData 
+                                { 
+                                    Id = attachmentTaskId.GetInt32(),
+                                    Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{attachmentTaskId.GetInt32()}"
+                                } 
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get task data for attachment event");
+                        context = context with 
+                        { 
+                            Task = new TaskTemplateData 
+                            { 
+                                Id = attachmentTaskId.GetInt32(),
+                                Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{attachmentTaskId.GetInt32()}"
+                            } 
+                        };
+                    }
+                }
             }
         }
 
@@ -227,6 +300,42 @@ public class EventRouter
                 }
                 
                 context = context with { Relation = relation };
+                
+                // Try to get task info from task_id in relation event
+                if (taskId.GetInt32() > 0)
+                {
+                    try
+                    {
+                        var taskData = await _mcpTools.GetTaskAsync(taskId.GetInt32(), cancellationToken);
+                        if (taskData != null)
+                        {
+                            context = context with { Task = taskData };
+                        }
+                        else
+                        {
+                            context = context with 
+                            { 
+                                Task = new TaskTemplateData 
+                                { 
+                                    Id = taskId.GetInt32(),
+                                    Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{taskId.GetInt32()}"
+                                } 
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get task data for relation event");
+                        context = context with 
+                        { 
+                            Task = new TaskTemplateData 
+                            { 
+                                Id = taskId.GetInt32(),
+                                Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{taskId.GetInt32()}"
+                            } 
+                        };
+                    }
+                }
             }
         }
 
