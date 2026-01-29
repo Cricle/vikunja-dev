@@ -29,6 +29,23 @@ public class TaskReminderService : IDisposable
     // 黑名单条目
     private record BlacklistEntry(DateTime RemindedAt, DateTime ExpiresAt);
 
+    private bool ShouldSendReminder(UserConfig config, VikunjaTask task)
+    {
+        if (config.ReminderConfig!.EnableLabelFilter && 
+            config.ReminderConfig.FilterLabelIds.Any())
+        {
+            var hasMatchingLabel = task.Labels != null && 
+                task.Labels.Any(label => config.ReminderConfig.FilterLabelIds.Contains(label.Id));
+            
+            if (!hasMatchingLabel)
+            {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
     public TaskReminderService(
         IVikunjaClientFactory clientFactory,
         JsonFileConfigurationManager configManager,
@@ -159,6 +176,7 @@ public class TaskReminderService : IDisposable
             }
             
             var now = DateTime.UtcNow;
+            var fiveMinutesAgo = now.AddMinutes(-5);
             var fiveMinutesLater = now.AddMinutes(5);
             
             // Scan tasks in each project
@@ -178,69 +196,87 @@ public class TaskReminderService : IDisposable
                             continue;
                         }
                         
-                        // Check if task has any time-based triggers within next 5 minutes
-                        var shouldRemind = false;
-                        var reminderType = "";
-                        
-                        if (task.StartDate.HasValue && task.StartDate.Value <= fiveMinutesLater && task.StartDate.Value >= now)
+                        // Check start date (within past 5 minutes to future 5 minutes)
+                        if (task.StartDate.HasValue && 
+                            task.StartDate.Value >= fiveMinutesAgo && 
+                            task.StartDate.Value <= fiveMinutesLater)
                         {
-                            shouldRemind = true;
-                            reminderType = "start";
-                        }
-                        else if (task.DueDate.HasValue && task.DueDate.Value <= fiveMinutesLater && task.DueDate.Value >= now)
-                        {
-                            shouldRemind = true;
-                            reminderType = "due";
-                        }
-                        else if (task.Reminders != null && task.Reminders.Any())
-                        {
-                            foreach (var reminder in task.Reminders)
-                            {
-                                if (reminder.Reminder <= fiveMinutesLater && reminder.Reminder >= now)
-                                {
-                                    shouldRemind = true;
-                                    reminderType = "reminder";
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (shouldRemind)
-                        {
-                            var blacklistKey = $"{task.Id}_{reminderType}";
+                            var reminderTime = task.StartDate.Value.ToString("yyyy-MM-dd HH:mm");
+                            var blacklistKey = $"{task.Id}_start_{reminderTime}";
                             
-                            // Check if already reminded
-                            if (_remindedTasks.ContainsKey(blacklistKey))
+                            if (!_remindedTasks.ContainsKey(blacklistKey))
                             {
-                                continue;
-                            }
-                            
-                            // Send reminders to all enabled users (with label filtering per user)
-                            foreach (var config in enabledConfigs)
-                            {
-                                // Apply label filter if enabled for this user
-                                if (config.ReminderConfig!.EnableLabelFilter && 
-                                    config.ReminderConfig.FilterLabelIds.Any())
+                                foreach (var config in enabledConfigs)
                                 {
-                                    // Check if task has at least one of the filter labels (OR logic)
-                                    var hasMatchingLabel = task.Labels != null && 
-                                        task.Labels.Any(label => config.ReminderConfig.FilterLabelIds.Contains(label.Id));
-                                    
-                                    if (!hasMatchingLabel)
+                                    if (ShouldSendReminder(config, task))
                                     {
-                                        continue; // Skip this task for this user
+                                        await SendReminderAsync(config, task, project, "start");
                                     }
                                 }
                                 
-                                await SendReminderAsync(config, task, project, reminderType);
+                                var expiresAt = DateTime.UtcNow.AddHours(2);
+                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
+                                
+                                _logger.LogInformation("Sent start reminder for task {TaskId}, blacklist size: {Size}", 
+                                    task.Id, _remindedTasks.Count);
                             }
+                        }
+                        
+                        // Check due date (within past 5 minutes to future 5 minutes)
+                        if (task.DueDate.HasValue && 
+                            task.DueDate.Value >= fiveMinutesAgo && 
+                            task.DueDate.Value <= fiveMinutesLater)
+                        {
+                            var reminderTime = task.DueDate.Value.ToString("yyyy-MM-dd HH:mm");
+                            var blacklistKey = $"{task.Id}_due_{reminderTime}";
                             
-                            // Add to blacklist with 1 hour expiry
-                            var expiresAt = DateTime.UtcNow.AddHours(1);
-                            _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
-                            
-                            _logger.LogInformation("Sent reminder for task {TaskId} ({Type}), blacklist size: {Size}", 
-                                task.Id, reminderType, _remindedTasks.Count);
+                            if (!_remindedTasks.ContainsKey(blacklistKey))
+                            {
+                                foreach (var config in enabledConfigs)
+                                {
+                                    if (ShouldSendReminder(config, task))
+                                    {
+                                        await SendReminderAsync(config, task, project, "due");
+                                    }
+                                }
+                                
+                                var expiresAt = DateTime.UtcNow.AddHours(2);
+                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
+                                
+                                _logger.LogInformation("Sent due reminder for task {TaskId}, blacklist size: {Size}", 
+                                    task.Id, _remindedTasks.Count);
+                            }
+                        }
+                        
+                        // Check reminders (within past 5 minutes to future 5 minutes)
+                        if (task.Reminders != null && task.Reminders.Any())
+                        {
+                            foreach (var reminder in task.Reminders)
+                            {
+                                if (reminder.Reminder >= fiveMinutesAgo && 
+                                    reminder.Reminder <= fiveMinutesLater)
+                                {
+                                    var reminderTime = reminder.Reminder.ToString("yyyy-MM-dd HH:mm");
+                                    var blacklistKey = $"{task.Id}_reminder_{reminderTime}";
+                                    
+                                    if (!_remindedTasks.ContainsKey(blacklistKey))
+                                    {
+                                        foreach (var config in enabledConfigs)
+                                        {
+                                            if (ShouldSendReminder(config, task))
+                                            {
+                                                await SendReminderAsync(config, task, project, "reminder");
+                                            }
+                                        }
+                                        
+                                        var expiresAt = DateTime.UtcNow.AddHours(2);
+                                        _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
+                                        
+                                        _logger.LogInformation("Sent reminder for task {TaskId}, blacklist size: {Size}", 
+                                            task.Id, _remindedTasks.Count);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
