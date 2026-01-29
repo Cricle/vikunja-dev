@@ -198,7 +198,7 @@
               <va-input
                 v-model="currentTemplate.title"
                 :label="t('templates.titleTemplate')"
-                :placeholder="t('templates.titlePlaceholder')"
+                placeholder="e.g., New Task: {task.title}"
               >
                 <template #prepend>
                   <va-icon name="title" />
