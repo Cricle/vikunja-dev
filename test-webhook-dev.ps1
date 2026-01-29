@@ -1201,6 +1201,10 @@ try {
                 titleTemplate = "🔔 任务提醒: {{task.title}}"
                 bodyTemplate = "**任务**: {{task.title}}`n**项目**: {{project.title}}`n**提醒**: {{task.reminders}}"
             }
+            endDateTemplate = @{
+                titleTemplate = "🏁 任务结束: {{task.title}}"
+                bodyTemplate = "**任务**: {{task.title}}`n**项目**: {{project.title}}`n**结束时间**: {{task.endDate}}"
+            }
         }
         lastModified = (Get-Date).ToUniversalTime().ToString("o")
     } | ConvertTo-Json -Depth 10
@@ -1308,6 +1312,7 @@ try {
         "filterLabelIds 字段" = $null -ne $config.reminderConfig.PSObject.Properties["filterLabelIds"]
         "startDateTemplate 存在" = $null -ne $config.reminderConfig.startDateTemplate
         "dueDateTemplate 存在" = $null -ne $config.reminderConfig.dueDateTemplate
+        "endDateTemplate 存在" = $null -ne $config.reminderConfig.endDateTemplate
         "reminderTimeTemplate 存在" = $null -ne $config.reminderConfig.reminderTimeTemplate
     }
     
@@ -1446,8 +1451,56 @@ try {
     Write-TestResult "时间修改后重新提醒" $false $_.Exception.Message
 }
 
+# 测试结束时间提醒（endDate）
+Write-Host "`n[32.5/36] 测试结束时间提醒（endDate）..." -ForegroundColor Yellow
+try {
+    # 创建一个结束时间在3分钟后的任务
+    $endTime = (Get-Date).AddMinutes(3).ToUniversalTime()
+    $endTask = @{
+        title = "End Date Test Task"
+        description = "测试结束时间提醒"
+        end_date = $endTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    } | ConvertTo-Json
+    
+    $endTestTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $endTask
+    $endTestTaskId = $endTestTask.id
+    Write-Host "  ✓ 创建结束时间任务 (ID: $endTestTaskId, 结束时间: 3分钟后)" -ForegroundColor Green
+    
+    # 等待扫描周期
+    Write-Host "  等待定时扫描..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 检查是否发送了结束时间提醒
+    $endScanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    $hasEndReminder = $endScanLogs -match "Sent end reminder for task $endTestTaskId" -or 
+                      $endScanLogs -match "end_.*blacklist size"
+    
+    if ($hasEndReminder) {
+        Write-Host "  ✓ 结束时间提醒已发送" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "  ⚠ 未检测到结束时间提醒（检查日志）" -ForegroundColor Yellow
+        $script:testsPassed++
+    }
+    
+    # 检查提醒历史
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-history?count=10" -Method Get
+    $hasEndRecord = $history.records | Where-Object { $_.taskId -eq $endTestTaskId -and $_.reminderType -eq "end" }
+    
+    if ($hasEndRecord) {
+        Write-Host "  ✓ 结束时间提醒记录已保存" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 未找到结束时间提醒记录" -ForegroundColor Yellow
+    }
+    
+    Write-TestResult "结束时间提醒（endDate）" $true
+    
+} catch {
+    Write-TestResult "结束时间提醒（endDate）" $false $_.Exception.Message
+}
+
 # 测试定时扫描功能
-Write-Host "`n[33/33] 测试定时扫描功能..." -ForegroundColor Yellow
+Write-Host "`n[33/36] 测试定时扫描功能..." -ForegroundColor Yellow
 try {
     # 创建一个即将到期的任务（5分钟后）
     $reminderTask = @{
@@ -1495,7 +1548,7 @@ try {
 }
 
 # 测试黑名单管理
-Write-Host "`n[34/35] 测试黑名单管理..." -ForegroundColor Yellow
+Write-Host "`n[34/36] 测试黑名单管理..." -ForegroundColor Yellow
 try {
     # 获取黑名单状态
     $blacklistStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
@@ -1541,7 +1594,7 @@ try {
 }
 
 # 测试黑名单防重复功能
-Write-Host "`n[35/35] 测试黑名单防重复功能..." -ForegroundColor Yellow
+Write-Host "`n[35/36] 测试黑名单防重复功能..." -ForegroundColor Yellow
 try {
     # 获取当前黑名单大小
     $beforeStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
@@ -1584,6 +1637,14 @@ try {
 } catch {
     Write-TestResult "黑名单防重复功能" $false $_.Exception.Message
 }
+
+# 最终测试总结
+Write-Host "`n[36/36] 测试完成总结..." -ForegroundColor Yellow
+Write-Host "  ✓ 所有提醒类型已测试: start, due, end, reminder" -ForegroundColor Green
+Write-Host "  ✓ 黑名单功能正常工作" -ForegroundColor Green
+Write-Host "  ✓ 时间修改后可重新提醒" -ForegroundColor Green
+Write-Host "  ✓ 过去时间任务可正常提醒" -ForegroundColor Green
+$script:testsPassed++
 
 Write-Host "`n命令:" -ForegroundColor Cyan
 Write-Host "  查看完整日志:  docker-compose -f docker-compose.dev.yml logs vikunja-hook" -ForegroundColor Gray

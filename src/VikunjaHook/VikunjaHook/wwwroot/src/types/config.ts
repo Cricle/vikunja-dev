@@ -16,6 +16,7 @@ export interface TaskReminderConfig {
   filterLabelIds: number[]
   startDateTemplate: ReminderTemplate
   dueDateTemplate: ReminderTemplate
+  endDateTemplate: ReminderTemplate
   reminderTimeTemplate: ReminderTemplate
 }
 

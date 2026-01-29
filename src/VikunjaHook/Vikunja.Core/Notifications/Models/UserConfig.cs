@@ -65,6 +65,15 @@ public class TaskReminderConfig
     };
     
     /// <summary>
+    /// Template for end date reminders
+    /// </summary>
+    public ReminderTemplate EndDateTemplate { get; set; } = new()
+    {
+        TitleTemplate = "🏁 Task Ending: {{task.title}}",
+        BodyTemplate = "Task: {{task.title}}\nProject: {{project.title}}\nEnd Time: {{task.endDate}}"
+    };
+    
+    /// <summary>
     /// Template for reminder time notifications
     /// </summary>
     public ReminderTemplate ReminderTimeTemplate { get; set; } = new()

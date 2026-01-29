@@ -257,11 +257,13 @@ export default {
     templates: 'Reminder Templates',
     startDateTemplate: 'Start Date Reminder',
     dueDateTemplate: 'Due Date Reminder',
+    endDateTemplate: 'End Date Reminder',
     reminderTimeTemplate: 'Reminder Time Notification',
     titleTemplate: 'Title Template',
     bodyTemplate: 'Body Template',
     bodyPlaceholderStart: 'e.g., Task: {{task.title}}\\nProject: {{project.title}}\\nStart Time: {{task.startDate}}',
     bodyPlaceholderDue: 'e.g., Task: {{task.title}}\\nProject: {{project.title}}\\nDue Time: {{task.dueDate}}',
+    bodyPlaceholderEnd: 'e.g., Task: {{task.title}}\\nProject: {{project.title}}\\nEnd Time: {{task.endDate}}',
     bodyPlaceholderReminder: 'e.g., Task: {{task.title}}\\nProject: {{project.title}}\\nReminder: {{task.reminders}}',
     availablePlaceholders: 'Available Placeholders',
     saved: 'Reminder configuration saved',
@@ -273,6 +275,7 @@ export default {
     type: {
       due: 'Due Date',
       start: 'Start Date',
+      end: 'End Date',
       reminder: 'Reminder Time'
     }
   }

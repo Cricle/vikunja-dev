@@ -133,6 +133,26 @@
             </div>
           </div>
 
+          <!-- End Date Template -->
+          <div class="template-group">
+            <h4 class="template-title">
+              <va-icon name="flag" size="small" />
+              {{ t('reminder.endDateTemplate') }}
+            </h4>
+            <va-input
+              v-model="reminderConfig.endDateTemplate.titleTemplate"
+              :label="t('reminder.titleTemplate')"
+            >
+              <template #prepend>
+                <va-icon name="title" size="small" />
+              </template>
+            </va-input>
+            <div class="markdown-editor-wrapper">
+              <label class="editor-label">{{ t('reminder.bodyTemplate') }}</label>
+              <textarea ref="endBodyEditor" class="markdown-editor"></textarea>
+            </div>
+          </div>
+
           <!-- Reminder Time Template -->
           <div class="template-group">
             <h4 class="template-title">
@@ -266,6 +286,10 @@ const reminderConfig = ref<TaskReminderConfig>({
     titleTemplate: '⏰ Task Due Soon: {{task.title}}',
     bodyTemplate: 'Task: {{task.title}}\nProject: {{project.title}}\nDue Time: {{task.dueDate}}'
   },
+  endDateTemplate: {
+    titleTemplate: '🏁 Task Ending: {{task.title}}',
+    bodyTemplate: 'Task: {{task.title}}\nProject: {{project.title}}\nEnd Time: {{task.endDate}}'
+  },
   reminderTimeTemplate: {
     titleTemplate: '🔔 Task Reminder: {{task.title}}',
     bodyTemplate: 'Task: {{task.title}}\nProject: {{project.title}}\nReminder: {{task.reminders}}'
@@ -279,10 +303,12 @@ const saving = ref(false)
 // Markdown editors
 const startBodyEditor = ref<HTMLTextAreaElement>()
 const dueBodyEditor = ref<HTMLTextAreaElement>()
+const endBodyEditor = ref<HTMLTextAreaElement>()
 const reminderBodyEditor = ref<HTMLTextAreaElement>()
 
 let startMDE: EasyMDE | null = null
 let dueMDE: EasyMDE | null = null
+let endMDE: EasyMDE | null = null
 let reminderMDE: EasyMDE | null = null
 
 const providerOptions = computed(() => {
@@ -344,6 +370,21 @@ function initMarkdownEditors() {
     })
   }
   
+  if (endBodyEditor.value && !endMDE) {
+    endMDE = new EasyMDE({
+      element: endBodyEditor.value,
+      spellChecker: false,
+      placeholder: t('reminder.bodyPlaceholderEnd'),
+      toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', '|', 'preview', 'guide'],
+      status: false,
+      autosave: { enabled: false },
+      minHeight: '150px'
+    })
+    endMDE.codemirror.on('change', () => {
+      reminderConfig.value.endDateTemplate.bodyTemplate = endMDE?.value() || ''
+    })
+  }
+  
   if (reminderBodyEditor.value && !reminderMDE) {
     reminderMDE = new EasyMDE({
       element: reminderBodyEditor.value,
@@ -368,6 +409,10 @@ function destroyMarkdownEditors() {
   if (dueMDE) {
     dueMDE.toTextArea()
     dueMDE = null
+  }
+  if (endMDE) {
+    endMDE.toTextArea()
+    endMDE = null
   }
   if (reminderMDE) {
     reminderMDE.toTextArea()
@@ -409,6 +454,9 @@ async function saveConfig() {
     }
     if (dueMDE) {
       reminderConfig.value.dueDateTemplate.bodyTemplate = dueMDE.value()
+    }
+    if (endMDE) {
+      reminderConfig.value.endDateTemplate.bodyTemplate = endMDE.value()
     }
     if (reminderMDE) {
       reminderConfig.value.reminderTimeTemplate.bodyTemplate = reminderMDE.value()
@@ -475,7 +523,13 @@ function getReminderTypeColor(type: string): string {
 }
 
 function getReminderTypeLabel(type: string): string {
-  return t(`reminder.type.${type}`)
+  const typeMap: Record<string, string> = {
+    'due': t('reminder.type.due'),
+    'start': t('reminder.type.start'),
+    'end': t('reminder.type.end'),
+    'reminder': t('reminder.type.reminder')
+  }
+  return typeMap[type] || type
 }
 
 function formatTime(timestamp: string): string {
@@ -519,6 +573,7 @@ onMounted(async () => {
   // Set initial values
   if (startMDE) startMDE.value(reminderConfig.value.startDateTemplate.bodyTemplate)
   if (dueMDE) dueMDE.value(reminderConfig.value.dueDateTemplate.bodyTemplate)
+  if (endMDE) endMDE.value(reminderConfig.value.endDateTemplate.bodyTemplate)
   if (reminderMDE) reminderMDE.value(reminderConfig.value.reminderTimeTemplate.bodyTemplate)
   
   // Load history if enabled

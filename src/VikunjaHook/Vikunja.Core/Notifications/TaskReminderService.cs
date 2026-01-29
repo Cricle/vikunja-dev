@@ -248,6 +248,32 @@ public class TaskReminderService : IDisposable
                             }
                         }
                         
+                        // Check end date (within past 5 minutes to future 5 minutes)
+                        if (task.EndDate.HasValue && 
+                            task.EndDate.Value >= fiveMinutesAgo && 
+                            task.EndDate.Value <= fiveMinutesLater)
+                        {
+                            var reminderTime = task.EndDate.Value.ToString("yyyy-MM-dd HH:mm");
+                            var blacklistKey = $"{task.Id}_end_{reminderTime}";
+                            
+                            if (!_remindedTasks.ContainsKey(blacklistKey))
+                            {
+                                foreach (var config in enabledConfigs)
+                                {
+                                    if (ShouldSendReminder(config, task))
+                                    {
+                                        await SendReminderAsync(config, task, project, "end");
+                                    }
+                                }
+                                
+                                var expiresAt = DateTime.UtcNow.AddHours(2);
+                                _remindedTasks.TryAdd(blacklistKey, new BlacklistEntry(DateTime.UtcNow, expiresAt));
+                                
+                                _logger.LogInformation("Sent end reminder for task {TaskId}, blacklist size: {Size}", 
+                                    task.Id, _remindedTasks.Count);
+                            }
+                        }
+                        
                         // Check reminders (within past 5 minutes to future 5 minutes)
                         if (task.Reminders != null && task.Reminders.Any())
                         {
@@ -307,6 +333,7 @@ public class TaskReminderService : IDisposable
             {
                 "start" => reminderConfig.StartDateTemplate,
                 "due" => reminderConfig.DueDateTemplate,
+                "end" => reminderConfig.EndDateTemplate,
                 "reminder" => reminderConfig.ReminderTimeTemplate,
                 _ => reminderConfig.ReminderTimeTemplate
             };

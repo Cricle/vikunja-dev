@@ -258,11 +258,13 @@ export default {
     templates: '提醒模板',
     startDateTemplate: '开始时间提醒',
     dueDateTemplate: '截止时间提醒',
+    endDateTemplate: '结束时间提醒',
     reminderTimeTemplate: '提醒时间通知',
     titleTemplate: '标题模板',
     bodyTemplate: '正文模板',
     bodyPlaceholderStart: '例如：任务：{{task.title}}\\n项目：{{project.title}}\\n开始时间：{{task.startDate}}',
     bodyPlaceholderDue: '例如：任务：{{task.title}}\\n项目：{{project.title}}\\n截止时间：{{task.dueDate}}',
+    bodyPlaceholderEnd: '例如：任务：{{task.title}}\\n项目：{{project.title}}\\n结束时间：{{task.endDate}}',
     bodyPlaceholderReminder: '例如：任务：{{task.title}}\\n项目：{{project.title}}\\n提醒：{{task.reminders}}',
     availablePlaceholders: '可用占位符',
     saved: '提醒配置已保存',
@@ -274,6 +276,7 @@ export default {
     type: {
       due: '截止时间',
       start: '开始时间',
+      end: '结束时间',
       reminder: '提醒时间'
     }
   }
