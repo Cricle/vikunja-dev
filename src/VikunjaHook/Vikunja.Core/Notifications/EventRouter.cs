@@ -74,7 +74,13 @@ public class EventRouter
             {
                 // 获取完整的任务信息
                 var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                var project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                
+                // Only get project if projectId is valid
+                VikunjaProject? project = null;
+                if (webhookEvent.ProjectId > 0)
+                {
+                    project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                }
                 
                 if (task != null && project != null)
                 {
@@ -85,7 +91,13 @@ public class EventRouter
             {
                 // 获取完整的任务信息
                 var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                var project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                
+                // Only get project if projectId is valid
+                VikunjaProject? project = null;
+                if (webhookEvent.ProjectId > 0)
+                {
+                    project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
+                }
                 
                 if (task != null && project != null)
                 {
