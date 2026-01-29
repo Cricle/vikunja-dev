@@ -421,11 +421,11 @@ function destroyMarkdownEditors() {
 }
 
 function formatPlaceholder(placeholder: string): string {
-  return `{{${placeholder}}}`
+  return `{${placeholder}}`
 }
 
 function copyPlaceholder(placeholder: string) {
-  const text = `{{${placeholder}}}`
+  const text = `{${placeholder}}`
   navigator.clipboard.writeText(text)
   notify({
     message: t('templates.placeholderCopied'),

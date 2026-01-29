@@ -415,8 +415,8 @@ function selectEvent(eventType: string) {
   } else {
     currentTemplate.value = {
       eventType,
-      title: `{{event.type}}`,
-      body: `Event occurred at {{event.timestamp}}`,
+      title: `{event.type}`,
+      body: `Event occurred at {event.timestamp}`,
       format: NotificationFormat.Markdown,
       providers: [],
       onlyNotifyWhenCompleted: false
@@ -489,7 +489,7 @@ async function resetTemplate() {
 }
 
 function copyPlaceholder(placeholder: string) {
-  const text = `{{${placeholder}}}`
+  const text = `{${placeholder}}`
   navigator.clipboard.writeText(text)
   notify({
     message: t('templates.placeholderCopied'),
@@ -499,7 +499,7 @@ function copyPlaceholder(placeholder: string) {
 }
 
 function formatPlaceholder(placeholder: string): string {
-  return `{{${placeholder}}}`
+  return `{${placeholder}}`
 }
 
 async function copyTemplate() {
