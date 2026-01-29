@@ -503,30 +503,30 @@ onMounted(async () => {
     if (configStore.config?.reminderConfig) {
       reminderConfig.value = { ...configStore.config.reminderConfig }
     }
-    
-    // Load labels
-    await loadLabels()
-    
-    // Initialize markdown editors
-    await nextTick()
-    initMarkdownEditors()
-    
-    // Set initial values
-    if (startMDE) startMDE.value(reminderConfig.value.startDateTemplate.bodyTemplate)
-    if (dueMDE) dueMDE.value(reminderConfig.value.dueDateTemplate.bodyTemplate)
-    if (reminderMDE) reminderMDE.value(reminderConfig.value.reminderTimeTemplate.bodyTemplate)
-    
-    // Load history if enabled
-    if (reminderConfig.value.enabled) {
-      await loadHistory()
-      
-      // Auto-refresh every 10 seconds
-      setInterval(loadHistory, 10000)
-    }
   } catch (error) {
     console.error('Failed to load config:', error)
     // Create a default config if loading fails
     configStore.setDefaultConfig('default')
+  }
+  
+  // Load labels
+  await loadLabels()
+  
+  // Initialize markdown editors
+  await nextTick()
+  initMarkdownEditors()
+  
+  // Set initial values
+  if (startMDE) startMDE.value(reminderConfig.value.startDateTemplate.bodyTemplate)
+  if (dueMDE) dueMDE.value(reminderConfig.value.dueDateTemplate.bodyTemplate)
+  if (reminderMDE) reminderMDE.value(reminderConfig.value.reminderTimeTemplate.bodyTemplate)
+  
+  // Load history if enabled
+  if (reminderConfig.value.enabled) {
+    await loadHistory()
+    
+    // Auto-refresh every 10 seconds
+    setInterval(loadHistory, 10000)
   }
 })
 
