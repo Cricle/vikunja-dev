@@ -23,13 +23,8 @@ public class DefaultWebhookHandler : WebhookHandlerBase
 
         try
         {
-            // Convert VikunjaWebhookPayload to WebhookEvent for notification system
             var webhookEvent = ConvertToWebhookEvent(payload);
-
-            // Route event to notification system
             await _eventRouter.RouteEventAsync(webhookEvent, cancellationToken);
-
-            // Call base handler for any custom event handling
             await base.HandleWebhookAsync(payload, cancellationToken);
         }
         catch (Exception ex)
@@ -41,7 +36,6 @@ public class DefaultWebhookHandler : WebhookHandlerBase
 
     private WebhookEvent ConvertToWebhookEvent(VikunjaWebhookPayload payload)
     {
-        // Serialize the payload data to JsonElement
         var dataJson = JsonSerializer.Serialize(payload.Data, AppJsonSerializerContext.Default.Object);
         var dataElement = JsonDocument.Parse(dataJson).RootElement;
 

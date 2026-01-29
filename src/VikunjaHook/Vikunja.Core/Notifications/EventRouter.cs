@@ -99,20 +99,30 @@ public class EventRouter
             }
         };
 
-        // Enrich with project data
-        if (webhookEvent.ProjectId > 0)
-        {
-            var projectData = await _mcpTools.GetProjectAsync(webhookEvent.ProjectId, cancellationToken);
-            context = context with { Project = projectData };
-        }
-
-        // Enrich with task data
+        // Enrich with task data - use webhook data first, then try API
         if (webhookEvent.Task != null && webhookEvent.Task.Id > 0)
         {
-            var taskData = await _mcpTools.GetTaskAsync(webhookEvent.Task.Id, cancellationToken);
-            
-            if (taskData != null)
+            // Start with webhook data
+            var taskData = new TaskTemplateData
             {
+                Id = webhookEvent.Task.Id,
+                Title = webhookEvent.Task.Title,
+                Description = webhookEvent.Task.Description,
+                Done = webhookEvent.Task.Done,
+                Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{webhookEvent.Task.Id}"
+            };
+            
+            // Try to enrich with API data (may fail if token is invalid)
+            try
+            {
+                var apiTaskData = await _mcpTools.GetTaskAsync(webhookEvent.Task.Id, cancellationToken);
+                if (apiTaskData != null)
+                {
+                    // Merge API data with webhook data
+                    taskData.DueDate = apiTaskData.DueDate;
+                    taskData.Priority = apiTaskData.Priority;
+                }
+                
                 var assignees = await _mcpTools.GetTaskAssigneesAsync(webhookEvent.Task.Id, cancellationToken);
                 var labels = await _mcpTools.GetTaskLabelsAsync(webhookEvent.Task.Id, cancellationToken);
                 
@@ -121,6 +131,35 @@ public class EventRouter
                     Task = taskData,
                     Assignees = assignees,
                     Labels = labels
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to enrich task data from API, using webhook data only");
+                context = context with { Task = taskData };
+            }
+        }
+
+        // Enrich with project data - try API, fallback to basic data from webhook
+        if (webhookEvent.ProjectId > 0)
+        {
+            var projectData = await _mcpTools.GetProjectAsync(webhookEvent.ProjectId, cancellationToken);
+            if (projectData != null)
+            {
+                context = context with { Project = projectData };
+            }
+            else
+            {
+                // API failed, create basic project data with URL
+                _logger.LogWarning("Failed to get project data from API for project {ProjectId}, using basic data", webhookEvent.ProjectId);
+                context = context with 
+                { 
+                    Project = new ProjectTemplateData 
+                    { 
+                        Id = webhookEvent.ProjectId,
+                        Title = $"Project #{webhookEvent.ProjectId}",
+                        Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/projects/{webhookEvent.ProjectId}"
+                    } 
                 };
             }
         }
