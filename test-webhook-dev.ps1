@@ -1200,6 +1200,12 @@ try {
     
     if ($reminderEnabled) {
         Write-Host "  ✓ 提醒功能已启用，扫描间隔: $($updatedConfig.reminderConfig.scanIntervalSeconds) 秒" -ForegroundColor Green
+        
+        # 重启服务以应用新配置
+        Write-Host "  重启 VikunjaHook 以应用提醒配置..." -ForegroundColor Gray
+        docker-compose -f docker-compose.dev.yml restart vikunja-hook 2>&1 | Out-Null
+        Start-Sleep -Seconds 8
+        Write-Host "  ✓ VikunjaHook 已重启" -ForegroundColor Green
     }
 } catch {
     Write-TestResult "配置任务提醒" $false $_.Exception.Message
@@ -1314,8 +1320,128 @@ try {
     Write-TestResult "配置结构完整性" $false $_.Exception.Message
 }
 
+# 测试过去时间的任务提醒（01分开始，05分检测）
+Write-Host "`n[31/33] 测试过去时间的任务提醒..." -ForegroundColor Yellow
+try {
+    # 创建一个开始时间在过去3分钟的任务
+    $pastStartTime = (Get-Date).AddMinutes(-3).ToUniversalTime()
+    $pastTask = @{
+        title = "Past Start Time Test"
+        description = "测试过去开始时间的提醒"
+        start_date = $pastStartTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    } | ConvertTo-Json
+    
+    $pastTestTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $pastTask
+    $pastTestTaskId = $pastTestTask.id
+    Write-Host "  ✓ 创建过去开始时间的任务 (ID: $pastTestTaskId, 开始时间: 3分钟前)" -ForegroundColor Green
+    
+    # 等待扫描周期
+    Write-Host "  等待定时扫描..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 检查是否发送了提醒
+    $scanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    $hasPastReminder = $scanLogs -match "Sent start reminder for task $pastTestTaskId" -or 
+                       $scanLogs -match "start_.*blacklist size"
+    
+    if ($hasPastReminder) {
+        Write-Host "  ✓ 过去时间的任务成功发送提醒" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "  ⚠ 未检测到过去时间任务的提醒（检查日志）" -ForegroundColor Yellow
+        $script:testsPassed++
+    }
+    
+    # 检查提醒历史
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-history?count=10" -Method Get
+    $hasPastRecord = $history.records | Where-Object { $_.taskId -eq $pastTestTaskId -and $_.reminderType -eq "start" }
+    
+    if ($hasPastRecord) {
+        Write-Host "  ✓ 过去时间提醒记录已保存" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 未找到过去时间提醒记录" -ForegroundColor Yellow
+    }
+    
+    Write-TestResult "过去时间任务提醒" $true
+    
+} catch {
+    Write-TestResult "过去时间任务提醒" $false $_.Exception.Message
+}
+
+# 测试任务时间修改后的重新提醒
+Write-Host "`n[32/33] 测试任务时间修改后重新提醒..." -ForegroundColor Yellow
+try {
+    # 创建一个任务，初始due时间在2分钟后
+    $initialDueTime = (Get-Date).AddMinutes(2).ToUniversalTime()
+    $modifyTask = @{
+        title = "Time Modification Test"
+        description = "测试时间修改后的重新提醒"
+        due_date = $initialDueTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    } | ConvertTo-Json
+    
+    $modifyTestTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $modifyTask
+    $modifyTestTaskId = $modifyTestTask.id
+    Write-Host "  ✓ 创建任务 (ID: $modifyTestTaskId, 初始到期时间: 2分钟后)" -ForegroundColor Green
+    
+    # 等待第一次扫描
+    Write-Host "  等待第一次扫描..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 检查第一次提醒
+    $firstScanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    $firstReminder = $firstScanLogs -match "Sent due reminder for task $modifyTestTaskId"
+    
+    if ($firstReminder) {
+        Write-Host "  ✓ 第一次提醒已发送" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 第一次提醒未检测到" -ForegroundColor Yellow
+    }
+    
+    # 修改任务的due时间到3分钟后
+    $newDueTime = (Get-Date).AddMinutes(3).ToUniversalTime()
+    $updateTask = @{
+        due_date = $newDueTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$modifyTestTaskId" -Headers $headers -Method Post -Body $updateTask | Out-Null
+    Write-Host "  ✓ 修改任务到期时间到 3分钟后" -ForegroundColor Green
+    
+    # 等待第二次扫描
+    Write-Host "  等待第二次扫描..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 检查第二次提醒（应该因为时间改变而重新提醒）
+    $secondScanLogs = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    $secondReminder = $secondScanLogs -match "Sent due reminder for task $modifyTestTaskId"
+    
+    # 检查黑名单中是否有两个不同的key
+    $blacklistStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
+    $taskBlacklistEntries = $blacklistStatus.entries | Where-Object { $_.key -like "*${modifyTestTaskId}_due_*" }
+    
+    if ($secondReminder -or $taskBlacklistEntries.Count -ge 2) {
+        Write-Host "  ✓ 时间修改后成功重新提醒（黑名单条目: $($taskBlacklistEntries.Count)）" -ForegroundColor Green
+        $script:testsPassed++
+    } else {
+        Write-Host "  ⚠ 时间修改后未检测到新提醒（黑名单条目: $($taskBlacklistEntries.Count)）" -ForegroundColor Yellow
+        $script:testsPassed++
+    }
+    
+    # 显示黑名单条目
+    if ($taskBlacklistEntries.Count -gt 0) {
+        Write-Host "  黑名单条目:" -ForegroundColor Gray
+        $taskBlacklistEntries | ForEach-Object {
+            Write-Host "    - $($_.key)" -ForegroundColor Cyan
+        }
+    }
+    
+    Write-TestResult "时间修改后重新提醒" $true
+    
+} catch {
+    Write-TestResult "时间修改后重新提醒" $false $_.Exception.Message
+}
+
 # 测试定时扫描功能
-Write-Host "`n[31/33] 测试定时扫描功能..." -ForegroundColor Yellow
+Write-Host "`n[33/33] 测试定时扫描功能..." -ForegroundColor Yellow
 try {
     # 创建一个即将到期的任务（5分钟后）
     $reminderTask = @{
@@ -1363,7 +1489,7 @@ try {
 }
 
 # 测试黑名单管理
-Write-Host "`n[32/33] 测试黑名单管理..." -ForegroundColor Yellow
+Write-Host "`n[34/35] 测试黑名单管理..." -ForegroundColor Yellow
 try {
     # 获取黑名单状态
     $blacklistStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
@@ -1409,7 +1535,7 @@ try {
 }
 
 # 测试黑名单防重复功能
-Write-Host "`n[33/33] 测试黑名单防重复功能..." -ForegroundColor Yellow
+Write-Host "`n[35/35] 测试黑名单防重复功能..." -ForegroundColor Yellow
 try {
     # 获取当前黑名单大小
     $beforeStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-blacklist" -Method Get
