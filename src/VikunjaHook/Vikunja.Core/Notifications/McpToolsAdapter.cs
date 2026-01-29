@@ -10,20 +10,23 @@ public class McpToolsAdapter
     private readonly TasksTools _tasksTools;
     private readonly UsersTools _usersTools;
     private readonly ILogger<McpToolsAdapter> _logger;
+    private readonly string? _vikunjaUrl;
 
     public McpToolsAdapter(
         ProjectsTools projectsTools,
         TasksTools tasksTools,
         UsersTools usersTools,
-        ILogger<McpToolsAdapter> logger)
+        ILogger<McpToolsAdapter> logger,
+        string? vikunjaUrl = null)
     {
         _projectsTools = projectsTools;
         _tasksTools = tasksTools;
         _usersTools = usersTools;
         _logger = logger;
+        _vikunjaUrl = vikunjaUrl?.TrimEnd('/');
     }
 
-    public async Task<ProjectData?> GetProjectAsync(
+    public async Task<ProjectTemplateData?> GetProjectAsync(
         int projectId,
         CancellationToken cancellationToken = default)
     {
@@ -31,11 +34,12 @@ public class McpToolsAdapter
         {
             var project = await _projectsTools.GetProject(projectId, cancellationToken);
             
-            return new ProjectData
+            return new ProjectTemplateData
             {
                 Id = (int)project.Id,
                 Title = project.Title,
-                Description = project.Description ?? string.Empty
+                Description = project.Description ?? string.Empty,
+                Url = !string.IsNullOrEmpty(_vikunjaUrl) ? $"{_vikunjaUrl}/projects/{project.Id}" : string.Empty
             };
         }
         catch (Exception ex)
@@ -45,7 +49,7 @@ public class McpToolsAdapter
         }
     }
 
-    public async Task<TaskData?> GetTaskAsync(
+    public async Task<TaskTemplateData?> GetTaskAsync(
         int taskId,
         CancellationToken cancellationToken = default)
     {
@@ -53,12 +57,15 @@ public class McpToolsAdapter
         {
             var task = await _tasksTools.GetTask(taskId, cancellationToken);
             
-            return new TaskData
+            return new TaskTemplateData
             {
                 Id = (int)task.Id,
                 Title = task.Title,
                 Description = task.Description ?? string.Empty,
-                Done = task.Done
+                Done = task.Done,
+                DueDate = task.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
+                Priority = task.Priority,
+                Url = !string.IsNullOrEmpty(_vikunjaUrl) ? $"{_vikunjaUrl}/tasks/{task.Id}" : string.Empty
             };
         }
         catch (Exception ex)
@@ -68,7 +75,7 @@ public class McpToolsAdapter
         }
     }
 
-    public async Task<UserData?> GetUserAsync(
+    public async Task<UserTemplateData?> GetUserAsync(
         int userId,
         CancellationToken cancellationToken = default)
     {
@@ -76,8 +83,9 @@ public class McpToolsAdapter
         {
             var user = await _usersTools.GetUser(userId, cancellationToken);
             
-            return new UserData
+            return new UserTemplateData
             {
+                Id = (int)user.Id,
                 Name = user.Name ?? string.Empty,
                 Username = user.Username,
                 Email = user.Email ?? string.Empty

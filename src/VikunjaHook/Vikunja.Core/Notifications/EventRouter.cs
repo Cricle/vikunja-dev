@@ -103,19 +103,11 @@ public class EventRouter
         if (webhookEvent.ProjectId > 0)
         {
             var projectData = await _mcpTools.GetProjectAsync(webhookEvent.ProjectId, cancellationToken);
-            context = new TemplateContext
-            {
-                Event = context.Event,
-                Project = projectData,
-                Task = context.Task,
-                User = context.User,
-                Assignees = context.Assignees,
-                Labels = context.Labels
-            };
+            context = context with { Project = projectData };
         }
 
         // Enrich with task data
-        if (webhookEvent.Task != null)
+        if (webhookEvent.Task != null && webhookEvent.Task.Id > 0)
         {
             var taskData = await _mcpTools.GetTaskAsync(webhookEvent.Task.Id, cancellationToken);
             
@@ -124,15 +116,111 @@ public class EventRouter
                 var assignees = await _mcpTools.GetTaskAssigneesAsync(webhookEvent.Task.Id, cancellationToken);
                 var labels = await _mcpTools.GetTaskLabelsAsync(webhookEvent.Task.Id, cancellationToken);
                 
-                context = new TemplateContext
-                {
-                    Event = context.Event,
-                    Project = context.Project,
+                context = context with 
+                { 
                     Task = taskData,
-                    User = context.User,
                     Assignees = assignees,
                     Labels = labels
                 };
+            }
+        }
+
+        // Extract comment data from webhook event
+        if (webhookEvent.EventType.Contains("comment") && 
+            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (webhookEvent.Data.TryGetProperty("id", out var commentId) &&
+                webhookEvent.Data.TryGetProperty("comment", out var commentText))
+            {
+                var comment = new CommentTemplateData
+                {
+                    Id = commentId.GetInt32(),
+                    Text = commentText.GetString() ?? string.Empty
+                };
+                
+                // Try to get author info
+                if (webhookEvent.Data.TryGetProperty("author", out var authorProp) &&
+                    authorProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    if (authorProp.TryGetProperty("username", out var username))
+                    {
+                        comment.Author = username.GetString() ?? string.Empty;
+                    }
+                }
+                
+                context = context with { Comment = comment };
+            }
+        }
+
+        // Extract attachment data from webhook event
+        if (webhookEvent.EventType.Contains("attachment") &&
+            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (webhookEvent.Data.TryGetProperty("id", out var attachmentId) &&
+                webhookEvent.Data.TryGetProperty("file_name", out var fileName))
+            {
+                var attachment = new AttachmentTemplateData
+                {
+                    Id = attachmentId.GetInt32(),
+                    FileName = fileName.GetString() ?? string.Empty
+                };
+                
+                context = context with { Attachment = attachment };
+            }
+        }
+
+        // Extract relation data from webhook event
+        if (webhookEvent.EventType.Contains("relation") &&
+            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (webhookEvent.Data.TryGetProperty("task_id", out var taskId) &&
+                webhookEvent.Data.TryGetProperty("other_task_id", out var otherTaskId))
+            {
+                var relation = new RelationTemplateData
+                {
+                    TaskId = taskId.GetInt32(),
+                    RelatedTaskId = otherTaskId.GetInt32()
+                };
+                
+                if (webhookEvent.Data.TryGetProperty("relation_kind", out var relationType))
+                {
+                    relation.RelationType = relationType.GetString() ?? string.Empty;
+                }
+                
+                context = context with { Relation = relation };
+            }
+        }
+
+        // Try to extract user data from webhook event data
+        if (webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            // Try to get user_id or userId
+            if (webhookEvent.Data.TryGetProperty("user_id", out var userIdProp) ||
+                webhookEvent.Data.TryGetProperty("userId", out userIdProp))
+            {
+                if (userIdProp.TryGetInt32(out var userId) && userId > 0)
+                {
+                    var userData = await _mcpTools.GetUserAsync(userId, cancellationToken);
+                    context = context with { User = userData };
+                }
+            }
+            
+            // Try to get username directly from event data
+            if (context.User == null && 
+                webhookEvent.Data.TryGetProperty("username", out var usernameProp))
+            {
+                var username = usernameProp.GetString();
+                if (!string.IsNullOrEmpty(username))
+                {
+                    context = context with 
+                    { 
+                        User = new UserTemplateData 
+                        { 
+                            Username = username,
+                            Name = username 
+                        } 
+                    };
+                }
             }
         }
 

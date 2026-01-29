@@ -241,54 +241,84 @@ export const EventMetadataMap: Record<EventType, EventMetadata> = {
 
 export const PlaceholdersByEventType: Record<string, string[]> = {
   task: [
+    'event.type',
+    'event.timestamp',
+    'event.url',
     'task.title',
     'task.description',
     'task.id',
     'task.done',
+    'task.dueDate',
+    'task.priority',
+    'task.url',
     'project.title',
     'project.id',
     'project.description',
+    'project.url',
     'assignees',
     'assignee.count',
     'labels',
-    'label.count',
-    'event.type',
-    'event.timestamp',
-    'event.url'
+    'label.count'
   ],
   project: [
+    'event.type',
+    'event.timestamp',
+    'event.url',
     'project.title',
     'project.id',
     'project.description',
-    'event.type',
-    'event.timestamp',
-    'event.url'
+    'project.url'
   ],
   team: [
+    'event.type',
+    'event.timestamp',
+    'event.url',
     'team.name',
     'team.id',
+    'team.description',
     'user.name',
     'user.username',
     'user.email',
-    'event.type',
-    'event.timestamp',
-    'event.url'
+    'user.id'
   ],
   label: [
-    'label.title',
-    'label.id',
-    'label.description',
     'event.type',
     'event.timestamp',
-    'event.url'
+    'event.url',
+    'label.title',
+    'label.id',
+    'label.description'
   ],
   user: [
+    'event.type',
+    'event.timestamp',
+    'event.url',
     'user.name',
     'user.username',
     'user.email',
-    'user.id',
-    'event.type',
-    'event.timestamp',
-    'event.url'
+    'user.id'
   ]
+}
+
+// Get placeholders for specific event type (more precise than category)
+export function getPlaceholdersForEvent(eventType: EventType): string[] {
+  const metadata = EventMetadataMap[eventType]
+  const basePlaceholders = PlaceholdersByEventType[metadata.category] || []
+  
+  // Add event-specific placeholders
+  const specificPlaceholders: string[] = []
+  
+  if (eventType.includes('comment')) {
+    specificPlaceholders.push('comment.id', 'comment.text', 'comment.author')
+  }
+  
+  if (eventType.includes('attachment')) {
+    specificPlaceholders.push('attachment.id', 'attachment.fileName')
+  }
+  
+  if (eventType.includes('relation')) {
+    specificPlaceholders.push('relation.taskId', 'relation.relatedTaskId', 'relation.relationType')
+  }
+  
+  return [...basePlaceholders, ...specificPlaceholders]
 }

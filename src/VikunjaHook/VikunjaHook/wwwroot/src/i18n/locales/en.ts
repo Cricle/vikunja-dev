@@ -149,7 +149,20 @@ export default {
     providers: 'Notification Providers',
     providersHint: 'Select specific providers for this template. If not specified, default providers will be used.',
     selectProviders: 'Select Providers',
-    useDefaultProviders: 'Use default providers'
+    useDefaultProviders: 'Use default providers',
+    placeholderGroups: {
+      event: 'Event Info',
+      task: 'Task Info',
+      project: 'Project Info',
+      user: 'User Info',
+      team: 'Team Info',
+      label: 'Label Info',
+      comment: 'Comment Info',
+      attachment: 'Attachment Info',
+      relation: 'Relation Info',
+      assignees: 'Assignees',
+      labels: 'Labels'
+    }
   },
   events: {
     taskCreated: 'Task Created',

@@ -150,7 +150,20 @@ export default {
     providers: '通知提供者',
     providersHint: '为此模板选择特定的提供者。如果未指定，将使用默认提供者。',
     selectProviders: '选择提供者',
-    useDefaultProviders: '使用默认提供者'
+    useDefaultProviders: '使用默认提供者',
+    placeholderGroups: {
+      event: '事件信息',
+      task: '任务信息',
+      project: '项目信息',
+      user: '用户信息',
+      team: '团队信息',
+      label: '标签信息',
+      comment: '评论信息',
+      attachment: '附件信息',
+      relation: '关系信息',
+      assignees: '分配者',
+      labels: '标签'
+    }
   },
   events: {
     taskCreated: '任务已创建',

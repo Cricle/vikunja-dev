@@ -77,7 +77,17 @@ builder.Services.AddSingleton<ProjectsTools>();
 builder.Services.AddSingleton<TasksTools>();
 builder.Services.AddSingleton<UsersTools>();
 
-builder.Services.AddSingleton<McpToolsAdapter>();
+// Register McpToolsAdapter with Vikunja URL
+builder.Services.AddSingleton(sp =>
+{
+    var projectsTools = sp.GetRequiredService<ProjectsTools>();
+    var tasksTools = sp.GetRequiredService<TasksTools>();
+    var usersTools = sp.GetRequiredService<UsersTools>();
+    var logger = sp.GetRequiredService<ILogger<McpToolsAdapter>>();
+    var vikunjaUrl = builder.Configuration["VIKUNJA_URL"];
+    
+    return new McpToolsAdapter(projectsTools, tasksTools, usersTools, logger, vikunjaUrl);
+});
 
 // Register EventRouter with Vikunja URL from configuration
 builder.Services.AddSingleton(sp =>

@@ -263,18 +263,21 @@
           </va-card-title>
           <va-card-content class="placeholders-content">
             <p class="placeholders-hint">{{ t('common.clickToCopy') }}</p>
-            <div class="placeholder-list">
-              <va-chip
-                v-for="placeholder in availablePlaceholders"
-                :key="placeholder"
-                @click="copyPlaceholder(placeholder)"
-                class="placeholder-chip"
-                color="info"
-                outline
-              >
-                <code>{{ formatPlaceholder(placeholder) }}</code>
-                <va-icon name="content_copy" size="small" />
-              </va-chip>
+            <div v-for="(placeholders, group) in groupedPlaceholders" :key="group" class="placeholder-group">
+              <h4 class="group-title">{{ t(`templates.placeholderGroups.${group}`) }}</h4>
+              <div class="placeholder-list">
+                <va-chip
+                  v-for="placeholder in placeholders"
+                  :key="placeholder"
+                  @click="copyPlaceholder(placeholder)"
+                  class="placeholder-chip"
+                  color="info"
+                  outline
+                >
+                  <code>{{ formatPlaceholder(placeholder) }}</code>
+                  <va-icon name="content_copy" size="small" />
+                </va-chip>
+              </div>
             </div>
           </va-card-content>
         </va-card>
@@ -288,7 +291,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/configStore'
 import { useEventStore } from '@/stores/eventStore'
-import { PlaceholdersByEventType, type EventType } from '@/types/events'
+import { getPlaceholdersForEvent, type EventType } from '@/types/events'
 import type { NotificationTemplate } from '@/types/config'
 import { NotificationFormat } from '@/types/config'
 import EasyMDE from 'easymde'
@@ -328,8 +331,22 @@ const providerOptions = computed(() => {
 const availablePlaceholders = computed(() => {
   if (!selectedEvent.value) return []
   
-  const metadata = eventStore.getEventMetadata(selectedEvent.value as EventType)
-  return PlaceholdersByEventType[metadata.category] || []
+  return getPlaceholdersForEvent(selectedEvent.value as EventType)
+})
+
+const groupedPlaceholders = computed(() => {
+  const placeholders = availablePlaceholders.value
+  const groups: Record<string, string[]> = {}
+  
+  placeholders.forEach(placeholder => {
+    const category = placeholder.split('.')[0]
+    if (!groups[category]) {
+      groups[category] = []
+    }
+    groups[category].push(placeholder)
+  })
+  
+  return groups
 })
 
 function getEventLabel(eventType: string): string {
@@ -727,6 +744,23 @@ onUnmounted(() => {
 
 .placeholders-hint {
   margin: 0 0 1rem 0;
+}
+
+.placeholder-group {
+  margin-bottom: 1.5rem;
+}
+
+.placeholder-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--va-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .placeholder-list {
