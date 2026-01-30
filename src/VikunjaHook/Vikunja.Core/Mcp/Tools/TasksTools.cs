@@ -34,14 +34,6 @@ public class TasksTools
     {
         _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}", projectId, page);
 
-        // If no projectId is specified, return empty list
-        // The tasks/all endpoint requires complex filter parameters that are not well documented
-        if (!projectId.HasValue)
-        {
-            _logger.LogWarning("ListTasks called without projectId - returning empty list");
-            return new List<VikunjaTask>();
-        }
-
         var queryParams = new List<string>
         {
             $"page={page}",
@@ -53,7 +45,17 @@ public class TasksTools
             queryParams.Add($"s={Uri.EscapeDataString(search)}");
         }
 
-        var endpoint = $"projects/{projectId.Value}/tasks?{string.Join("&", queryParams)}";
+        string endpoint;
+        if (projectId.HasValue)
+        {
+            // Get tasks for a specific project
+            endpoint = $"projects/{projectId.Value}/tasks?{string.Join("&", queryParams)}";
+        }
+        else
+        {
+            // Get all tasks across all projects
+            endpoint = $"tasks/all?{string.Join("&", queryParams)}";
+        }
 
         var tasks = await _clientFactory.GetAsync<List<VikunjaTask>>(endpoint, cancellationToken);
         return tasks ?? new List<VikunjaTask>();
@@ -157,6 +159,7 @@ public class TasksTools
         [Description("Hex color code (optional)")] string? hexColor = null,
         [Description("Repeat after X days (optional)")] int? repeatAfter = null,
         [Description("Repeat mode (optional)")] string? repeatMode = null,
+        [Description("Reminder dates in ISO 8601 format, comma-separated (optional)")] string? reminders = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Updating task {TaskId}", taskId);
@@ -179,6 +182,20 @@ public class TasksTools
             parsedEndDate = eDate;
         }
 
+        List<DateTime>? parsedReminders = null;
+        if (!string.IsNullOrWhiteSpace(reminders))
+        {
+            parsedReminders = new List<DateTime>();
+            var reminderStrings = reminders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var reminderStr in reminderStrings)
+            {
+                if (DateTime.TryParse(reminderStr, out var reminderDateTime))
+                {
+                    parsedReminders.Add(reminderDateTime);
+                }
+            }
+        }
+
         var request = new UpdateTaskRequest(
             Id: taskId,
             Title: title,
@@ -191,7 +208,8 @@ public class TasksTools
             PercentDone: percentDone,
             HexColor: hexColor,
             RepeatAfter: repeatAfter,
-            RepeatMode: repeatMode
+            RepeatMode: repeatMode,
+            Reminders: parsedReminders
         );
 
         var task = await _clientFactory.PostAsync<VikunjaTask>(

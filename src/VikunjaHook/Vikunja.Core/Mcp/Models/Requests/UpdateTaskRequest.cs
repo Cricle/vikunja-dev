@@ -17,5 +17,6 @@ public record UpdateTaskRequest(
     int? RepeatAfter = null,
     string? RepeatMode = null,
     List<long>? Labels = null,
-    List<long>? Assignees = null
+    List<long>? Assignees = null,
+    List<DateTime>? Reminders = null
 );
