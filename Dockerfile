@@ -71,11 +71,11 @@ RUN addgroup -g 1000 vikunja \
 WORKDIR /app
 
 # 复制应用程序
-COPY --link --from=backend-build --chown=vikunja:vikunja /app .
+COPY --from=backend-build /app .
 
-# 创建数据目录
+# 创建数据目录并设置权限
 RUN mkdir -p /app/data/configs \
-    && chown -R vikunja:vikunja /app/data
+    && chown -R vikunja:vikunja /app /app/data
 
 # 切换到非 root 用户
 USER vikunja
