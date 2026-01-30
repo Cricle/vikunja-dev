@@ -54,6 +54,9 @@ public class TasksTools
         else
         {
             // Get all tasks across all projects
+            // The tasks/all endpoint requires a filter parameter
+            // Use a simple filter to get all incomplete tasks
+            queryParams.Add("filter=done=false");
             endpoint = $"tasks/all?{string.Join("&", queryParams)}";
         }
 
