@@ -67,49 +67,11 @@ public class DefaultWebhookHandler : WebhookHandlerBase
         {
             if (webhookEvent.EventType == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null)
             {
-                // 获取完整的任务信息
-                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                
-                // Only get project if projectId is valid
-                VikunjaProject? project = null;
-                if (webhookEvent.ProjectId > 0)
-                {
-                    project = await _clientFactory.GetAsync<VikunjaProject>($"projects/{webhookEvent.ProjectId}", cancellationToken);
-                }
-                
-                if (task != null && project != null)
-                {
-                    Logger.LogInformation("TaskCreated: Updating reminder service for task {TaskId}, Reminders={ReminderCount}",
-                        task.Id, task.Reminders?.Count ?? 0);
-                    _reminderService.OnTaskCreated(task, project);
-                }
-                else
-                {
-                    Logger.LogWarning("TaskCreated: Failed to get complete task or project info for task {TaskId}", webhookEvent.Task.Id);
-                }
+                await HandleTaskCreatedOrUpdatedAsync(webhookEvent, true, cancellationToken);
             }
             else if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && webhookEvent.Task != null)
             {
-                // 获取完整的任务信息
-                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                
-                // Only get project if projectId is valid
-                VikunjaProject? project = null;
-                if (webhookEvent.ProjectId > 0)
-                {
-                    project = await _clientFactory.GetAsync<VikunjaProject>($"projects/{webhookEvent.ProjectId}", cancellationToken);
-                }
-                
-                if (task != null && project != null)
-                {
-                    Logger.LogInformation("TaskUpdated: Updating reminder service for task {TaskId}, Done={Done}, Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
-                        task.Id, task.Done, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
-                    _reminderService.OnTaskUpdated(task, project);
-                }
-                else
-                {
-                    Logger.LogWarning("TaskUpdated: Failed to get complete task or project info for task {TaskId}", webhookEvent.Task.Id);
-                }
+                await HandleTaskCreatedOrUpdatedAsync(webhookEvent, false, cancellationToken);
             }
             else if (webhookEvent.EventType == VikunjaEventTypes.TaskDeleted && webhookEvent.Task != null)
             {
@@ -121,6 +83,41 @@ public class DefaultWebhookHandler : WebhookHandlerBase
         {
             Logger.LogWarning(ex, "Failed to update reminder service for event {EventType}, TaskId={TaskId}", 
                 webhookEvent.EventType, webhookEvent.Task?.Id);
+        }
+    }
+
+    // 处理任务创建或更新事件
+    private async Task HandleTaskCreatedOrUpdatedAsync(WebhookEvent webhookEvent, bool isCreated, CancellationToken cancellationToken)
+    {
+        var eventType = isCreated ? "TaskCreated" : "TaskUpdated";
+        
+        // 获取完整的任务信息
+        var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task!.Id}", cancellationToken);
+        
+        // 获取项目信息（如果有效）
+        VikunjaProject? project = null;
+        if (webhookEvent.ProjectId > 0)
+        {
+            project = await _clientFactory.GetAsync<VikunjaProject>($"projects/{webhookEvent.ProjectId}", cancellationToken);
+        }
+        
+        if (task != null && project != null)
+        {
+            Logger.LogInformation("{EventType}: Updating reminder service for task {TaskId}, Done={Done}, Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
+                eventType, task.Id, task.Done, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
+            
+            if (isCreated)
+            {
+                _reminderService.OnTaskCreated(task, project);
+            }
+            else
+            {
+                _reminderService.OnTaskUpdated(task, project);
+            }
+        }
+        else
+        {
+            Logger.LogWarning("{EventType}: Failed to get complete task or project info for task {TaskId}", eventType, webhookEvent.Task.Id);
         }
     }
 }
