@@ -1688,7 +1688,7 @@ try {
     Start-Sleep -Seconds 2
     
     # 测试1: 更新基本属性（title, description, done, priority）
-    Write-Host "  测试1: 更新基本属性..." -ForegroundColor Gray
+    Write-Host "  测试1: 更新基本属性 (title, description, done, priority)..." -ForegroundColor Gray
     $updateBasic = @{
         title = "MCP Updated Title"
         description = "Updated description via MCP"
@@ -1696,26 +1696,33 @@ try {
         priority = 5
     } | ConvertTo-Json
     
-    $updated1 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateBasic -ContentType "application/json"
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateBasic -ContentType "application/json" | Out-Null
     
-    $basicCheck = ($updated1.title -eq "MCP Updated Title") -and 
-                  ($updated1.description -eq "Updated description via MCP") -and
-                  ($updated1.done -eq $true) -and
-                  ($updated1.priority -eq 5)
+    # 重新获取任务验证
+    $verified1 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+    
+    $basicCheck = ($verified1.title -eq "MCP Updated Title") -and 
+                  ($verified1.description -eq "Updated description via MCP") -and
+                  ($verified1.done -eq $true) -and
+                  ($verified1.priority -eq 5)
     
     if ($basicCheck) {
-        Write-Host "    ✓ 基本属性更新成功" -ForegroundColor Green
+        Write-Host "    ✓ 基本属性更新并验证成功" -ForegroundColor Green
+        Write-Host "      Title: $($verified1.title)" -ForegroundColor Cyan
+        Write-Host "      Description: $($verified1.description)" -ForegroundColor Cyan
+        Write-Host "      Done: $($verified1.done)" -ForegroundColor Cyan
+        Write-Host "      Priority: $($verified1.priority)" -ForegroundColor Cyan
         $script:testsPassed++
     } else {
-        Write-Host "    ✗ 基本属性更新失败" -ForegroundColor Red
-        Write-Host "      Title: $($updated1.title)" -ForegroundColor Gray
-        Write-Host "      Done: $($updated1.done)" -ForegroundColor Gray
-        Write-Host "      Priority: $($updated1.priority)" -ForegroundColor Gray
+        Write-Host "    ✗ 基本属性更新验证失败" -ForegroundColor Red
+        Write-Host "      Expected Title: 'MCP Updated Title', Got: '$($verified1.title)'" -ForegroundColor Gray
+        Write-Host "      Expected Done: true, Got: $($verified1.done)" -ForegroundColor Gray
+        Write-Host "      Expected Priority: 5, Got: $($verified1.priority)" -ForegroundColor Gray
         $script:testsFailed++
     }
     
     # 测试2: 更新时间属性（start_date, due_date, end_date）
-    Write-Host "  测试2: 更新时间属性..." -ForegroundColor Gray
+    Write-Host "  测试2: 更新时间属性 (start_date, due_date, end_date)..." -ForegroundColor Gray
     $futureStart = (Get-Date).AddMinutes(10).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     $futureDue = (Get-Date).AddMinutes(15).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     $futureEnd = (Get-Date).AddMinutes(20).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -1726,51 +1733,113 @@ try {
         end_date = $futureEnd
     } | ConvertTo-Json
     
-    $updated2 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateDates -ContentType "application/json"
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateDates -ContentType "application/json" | Out-Null
     
-    $hasStartDate = $null -ne $updated2.start_date -and $updated2.start_date -ne "0001-01-01T00:00:00Z"
-    $hasDueDate = $null -ne $updated2.due_date -and $updated2.due_date -ne "0001-01-01T00:00:00Z"
-    $hasEndDate = $null -ne $updated2.end_date -and $updated2.end_date -ne "0001-01-01T00:00:00Z"
+    # 重新获取任务验证
+    $verified2 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+    
+    $hasStartDate = $null -ne $verified2.start_date -and $verified2.start_date -ne "0001-01-01T00:00:00Z"
+    $hasDueDate = $null -ne $verified2.due_date -and $verified2.due_date -ne "0001-01-01T00:00:00Z"
+    $hasEndDate = $null -ne $verified2.end_date -and $verified2.end_date -ne "0001-01-01T00:00:00Z"
     
     if ($hasStartDate -and $hasDueDate -and $hasEndDate) {
-        Write-Host "    ✓ 时间属性更新成功" -ForegroundColor Green
-        Write-Host "      Start: $($updated2.start_date)" -ForegroundColor Cyan
-        Write-Host "      Due: $($updated2.due_date)" -ForegroundColor Cyan
-        Write-Host "      End: $($updated2.end_date)" -ForegroundColor Cyan
+        Write-Host "    ✓ 时间属性更新并验证成功" -ForegroundColor Green
+        Write-Host "      Start: $($verified2.start_date)" -ForegroundColor Cyan
+        Write-Host "      Due: $($verified2.due_date)" -ForegroundColor Cyan
+        Write-Host "      End: $($verified2.end_date)" -ForegroundColor Cyan
         $script:testsPassed++
     } else {
-        Write-Host "    ✗ 时间属性更新失败" -ForegroundColor Red
-        Write-Host "      Start: $($updated2.start_date)" -ForegroundColor Gray
-        Write-Host "      Due: $($updated2.due_date)" -ForegroundColor Gray
-        Write-Host "      End: $($updated2.end_date)" -ForegroundColor Gray
+        Write-Host "    ✗ 时间属性更新验证失败" -ForegroundColor Red
+        Write-Host "      Start: $($verified2.start_date)" -ForegroundColor Gray
+        Write-Host "      Due: $($verified2.due_date)" -ForegroundColor Gray
+        Write-Host "      End: $($verified2.end_date)" -ForegroundColor Gray
         $script:testsFailed++
     }
     
     # 测试3: 更新进度和颜色（percent_done, hex_color）
-    Write-Host "  测试3: 更新进度和颜色..." -ForegroundColor Gray
+    Write-Host "  测试3: 更新进度和颜色 (percent_done, hex_color)..." -ForegroundColor Gray
     $updateProgress = @{
         percent_done = 75
         hex_color = "ff5733"
     } | ConvertTo-Json
     
-    $updated3 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateProgress -ContentType "application/json"
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateProgress -ContentType "application/json" | Out-Null
     
-    $progressCheck = ($updated3.percent_done -eq 75) -and ($updated3.hex_color -eq "ff5733")
+    # 重新获取任务验证
+    $verified3 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+    
+    $progressCheck = ($verified3.percent_done -eq 75) -and ($verified3.hex_color -eq "ff5733")
     
     if ($progressCheck) {
-        Write-Host "    ✓ 进度和颜色更新成功" -ForegroundColor Green
-        Write-Host "      Percent: $($updated3.percent_done)%" -ForegroundColor Cyan
-        Write-Host "      Color: #$($updated3.hex_color)" -ForegroundColor Cyan
+        Write-Host "    ✓ 进度和颜色更新并验证成功" -ForegroundColor Green
+        Write-Host "      Percent: $($verified3.percent_done)%" -ForegroundColor Cyan
+        Write-Host "      Color: #$($verified3.hex_color)" -ForegroundColor Cyan
         $script:testsPassed++
     } else {
-        Write-Host "    ✗ 进度和颜色更新失败" -ForegroundColor Red
-        Write-Host "      Percent: $($updated3.percent_done)" -ForegroundColor Gray
-        Write-Host "      Color: $($updated3.hex_color)" -ForegroundColor Gray
+        Write-Host "    ✗ 进度和颜色更新验证失败" -ForegroundColor Red
+        Write-Host "      Expected Percent: 75, Got: $($verified3.percent_done)" -ForegroundColor Gray
+        Write-Host "      Expected Color: ff5733, Got: $($verified3.hex_color)" -ForegroundColor Gray
         $script:testsFailed++
     }
     
-    # 测试4: 验证 webhook 更新内存
-    Write-Host "  测试4: 验证 webhook 更新内存..." -ForegroundColor Gray
+    # 测试4: 更新提醒时间（reminders）
+    Write-Host "  测试4: 更新提醒时间 (reminders)..." -ForegroundColor Gray
+    $reminder1 = (Get-Date).AddMinutes(8).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $reminder2 = (Get-Date).AddMinutes(12).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    
+    $updateReminders = @{
+        reminders = @(
+            @{ reminder = $reminder1 }
+            @{ reminder = $reminder2 }
+        )
+    } | ConvertTo-Json -Depth 3
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateReminders -ContentType "application/json" | Out-Null
+    
+    # 重新获取任务验证
+    $verified4 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+    
+    if ($verified4.reminders -and $verified4.reminders.Count -ge 2) {
+        Write-Host "    ✓ 提醒时间更新并验证成功" -ForegroundColor Green
+        Write-Host "      提醒数量: $($verified4.reminders.Count)" -ForegroundColor Cyan
+        foreach ($r in $verified4.reminders) {
+            Write-Host "      - $($r.reminder)" -ForegroundColor Cyan
+        }
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 提醒时间更新验证失败" -ForegroundColor Red
+        Write-Host "      Expected: 2 reminders, Got: $($verified4.reminders.Count)" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 测试5: 更新重复设置（repeat_after, repeat_mode）
+    Write-Host "  测试5: 更新重复设置 (repeat_after, repeat_mode)..." -ForegroundColor Gray
+    $updateRepeat = @{
+        repeat_after = 7
+        repeat_mode = 0
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Post -Body $updateRepeat -ContentType "application/json" | Out-Null
+    
+    # 重新获取任务验证
+    $verified5 = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+    
+    $repeatCheck = ($verified5.repeat_after -eq 7) -and ($verified5.repeat_mode -eq 0)
+    
+    if ($repeatCheck) {
+        Write-Host "    ✓ 重复设置更新并验证成功" -ForegroundColor Green
+        Write-Host "      Repeat After: $($verified5.repeat_after) days" -ForegroundColor Cyan
+        Write-Host "      Repeat Mode: $($verified5.repeat_mode)" -ForegroundColor Cyan
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 重复设置更新验证失败" -ForegroundColor Red
+        Write-Host "      Expected Repeat After: 7, Got: $($verified5.repeat_after)" -ForegroundColor Gray
+        Write-Host "      Expected Repeat Mode: 0, Got: $($verified5.repeat_mode)" -ForegroundColor Gray
+        $script:testsFailed++
+    }
+    
+    # 测试6: 验证 webhook 更新内存
+    Write-Host "  测试6: 验证 webhook 更新内存..." -ForegroundColor Gray
     Start-Sleep -Seconds 3
     
     $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
@@ -1802,45 +1871,78 @@ try {
         $script:testsPassed++
     }
     
-    Write-TestResult "MCP UpdateTask 完整功能验证" $true
+    Write-TestResult "MCP UpdateTask 完整功能验证 (6个属性组)" $true
     
 } catch {
     Write-TestResult "MCP UpdateTask 完整功能验证" $false $_.Exception.Message
 }
 
-# 测试 MCP CreateTask 带提醒时间
-Write-Host "`n[35.55/36] 测试 MCP CreateTask 带提醒时间..." -ForegroundColor Yellow
+# 测试 MCP CreateTask 带完整属性
+Write-Host "`n[35.55/36] 测试 MCP CreateTask 带完整属性..." -ForegroundColor Yellow
 try {
-    # 创建一个带提醒时间的任务
+    # 创建一个带所有属性的任务
     $reminderTime1 = (Get-Date).AddMinutes(5).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     $reminderTime2 = (Get-Date).AddMinutes(10).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $taskStartDate = (Get-Date).AddMinutes(3).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     $taskDueDate = (Get-Date).AddMinutes(20).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $taskEndDate = (Get-Date).AddMinutes(25).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     
-    $createTaskWithReminders = @{
-        title = "Task with Reminders"
-        description = "测试创建任务时设置提醒时间"
+    $createTaskFull = @{
+        title = "Task with All Properties"
+        description = "测试创建任务时设置所有属性"
+        start_date = $taskStartDate
         due_date = $taskDueDate
-        priority = 3
+        end_date = $taskEndDate
+        priority = 4
         reminders = @(
             @{ reminder = $reminderTime1 }
             @{ reminder = $reminderTime2 }
         )
     } | ConvertTo-Json -Depth 3
     
-    $taskWithReminders = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $createTaskWithReminders -ContentType "application/json"
-    $reminderTaskId = $taskWithReminders.id
+    $taskFull = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $createTaskFull -ContentType "application/json"
+    $fullTaskId = $taskFull.id
     
-    Write-Host "  ✓ 创建任务 (ID: $reminderTaskId)" -ForegroundColor Green
+    Write-Host "  ✓ 创建任务 (ID: $fullTaskId)" -ForegroundColor Green
     
-    # 验证任务是否包含提醒时间
-    if ($taskWithReminders.reminders -and $taskWithReminders.reminders.Count -gt 0) {
-        Write-Host "    ✓ 任务包含 $($taskWithReminders.reminders.Count) 个提醒时间" -ForegroundColor Green
-        foreach ($reminder in $taskWithReminders.reminders) {
+    # 重新获取任务验证所有属性
+    $verifiedFull = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$fullTaskId" -Headers $headers -Method Get
+    
+    # 验证基本属性
+    $titleOk = $verifiedFull.title -eq "Task with All Properties"
+    $descOk = $verifiedFull.description -eq "测试创建任务时设置所有属性"
+    $priorityOk = $verifiedFull.priority -eq 4
+    
+    # 验证时间属性
+    $hasStart = $null -ne $verifiedFull.start_date -and $verifiedFull.start_date -ne "0001-01-01T00:00:00Z"
+    $hasDue = $null -ne $verifiedFull.due_date -and $verifiedFull.due_date -ne "0001-01-01T00:00:00Z"
+    $hasEnd = $null -ne $verifiedFull.end_date -and $verifiedFull.end_date -ne "0001-01-01T00:00:00Z"
+    
+    # 验证提醒时间
+    $hasReminders = $verifiedFull.reminders -and $verifiedFull.reminders.Count -ge 2
+    
+    Write-Host "  验证创建的任务属性:" -ForegroundColor Gray
+    Write-Host "    Title: $(if ($titleOk) {'✓'} else {'✗'}) $($verifiedFull.title)" -ForegroundColor $(if ($titleOk) {'Green'} else {'Red'})
+    Write-Host "    Description: $(if ($descOk) {'✓'} else {'✗'}) $($verifiedFull.description)" -ForegroundColor $(if ($descOk) {'Green'} else {'Red'})
+    Write-Host "    Priority: $(if ($priorityOk) {'✓'} else {'✗'}) $($verifiedFull.priority)" -ForegroundColor $(if ($priorityOk) {'Green'} else {'Red'})
+    Write-Host "    Start Date: $(if ($hasStart) {'✓'} else {'✗'}) $($verifiedFull.start_date)" -ForegroundColor $(if ($hasStart) {'Green'} else {'Red'})
+    Write-Host "    Due Date: $(if ($hasDue) {'✓'} else {'✗'}) $($verifiedFull.due_date)" -ForegroundColor $(if ($hasDue) {'Green'} else {'Red'})
+    Write-Host "    End Date: $(if ($hasEnd) {'✓'} else {'✗'}) $($verifiedFull.end_date)" -ForegroundColor $(if ($hasEnd) {'Green'} else {'Red'})
+    Write-Host "    Reminders: $(if ($hasReminders) {'✓'} else {'✗'}) $($verifiedFull.reminders.Count) 个" -ForegroundColor $(if ($hasReminders) {'Green'} else {'Red'})
+    
+    if ($hasReminders) {
+        foreach ($reminder in $verifiedFull.reminders) {
             Write-Host "      - $($reminder.reminder)" -ForegroundColor Cyan
         }
+    }
+    
+    $allPropsOk = $titleOk -and $descOk -and $priorityOk -and $hasStart -and $hasDue -and $hasEnd -and $hasReminders
+    
+    if ($allPropsOk) {
+        Write-Host "  ✓ 所有属性创建并验证成功" -ForegroundColor Green
         $script:testsPassed++
     } else {
-        Write-Host "    ✗ 任务不包含提醒时间" -ForegroundColor Red
+        Write-Host "  ✗ 部分属性验证失败" -ForegroundColor Red
         $script:testsFailed++
     }
     
@@ -1849,25 +1951,67 @@ try {
     
     # 验证任务是否在提醒内存中
     $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
-    $taskInMemory = $reminderStatus.tasks | Where-Object { $_.taskId -eq $reminderTaskId }
+    $taskInMemory = $reminderStatus.tasks | Where-Object { $_.taskId -eq $fullTaskId }
     
     if ($taskInMemory) {
-        Write-Host "    ✓ 任务已添加到提醒内存" -ForegroundColor Green
-        Write-Host "      提醒数量: $($taskInMemory.reminderCount)" -ForegroundColor Cyan
+        Write-Host "  ✓ 任务已添加到提醒内存" -ForegroundColor Green
+        Write-Host "    提醒数量: $($taskInMemory.reminderCount)" -ForegroundColor Cyan
         $script:testsPassed++
     } else {
-        Write-Host "    ⚠ 任务未在提醒内存中（可能时间不在窗口内）" -ForegroundColor Yellow
+        Write-Host "  ⚠ 任务未在提醒内存中（可能时间不在窗口内）" -ForegroundColor Yellow
         $script:testsPassed++
     }
     
-    Write-TestResult "MCP CreateTask 带提醒时间" $true
+    Write-TestResult "MCP CreateTask 带完整属性" $true
     
 } catch {
-    Write-TestResult "MCP CreateTask 带提醒时间" $false $_.Exception.Message
+    Write-TestResult "MCP CreateTask 带完整属性" $false $_.Exception.Message
 }
 
 # 测试其他 MCP 工具
 Write-Host "`n[35.6/36] 测试其他 MCP 工具..." -ForegroundColor Yellow
+
+# 测试 Tasks 工具（ListTasks, GetTask, DeleteTask）
+Write-Host "  测试 Tasks 工具..." -ForegroundColor Gray
+try {
+    # ListTasks - 带 projectId
+    $tasksInProject = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Get
+    Write-Host "    ✓ ListTasks (带 projectId): 找到 $($tasksInProject.Count) 个任务" -ForegroundColor Green
+    
+    # ListTasks - 不带 projectId（查询所有任务）
+    $allTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all" -Headers $headers -Method Get
+    Write-Host "    ✓ ListTasks (无 projectId): 找到 $($allTasks.Count) 个任务" -ForegroundColor Green
+    
+    # GetTask
+    if ($mcpTaskId -gt 0) {
+        $task = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId" -Headers $headers -Method Get
+        Write-Host "    ✓ GetTask: $($task.title)" -ForegroundColor Green
+    }
+    
+    # DeleteTask - 创建一个临时任务用于删除测试
+    $tempTask = @{
+        title = "Temp Task for Delete Test"
+    } | ConvertTo-Json
+    $createdTemp = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $tempTask -ContentType "application/json"
+    $tempTaskId = $createdTemp.id
+    
+    # 删除任务
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$tempTaskId" -Headers $headers -Method Delete | Out-Null
+    
+    # 验证任务已删除
+    try {
+        Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$tempTaskId" -Headers $headers -Method Get | Out-Null
+        Write-Host "    ✗ DeleteTask: 任务仍然存在" -ForegroundColor Red
+        $script:testsFailed++
+    } catch {
+        Write-Host "    ✓ DeleteTask: 任务已成功删除" -ForegroundColor Green
+        $script:testsPassed++
+    }
+    
+} catch {
+    Write-Host "    ✗ Tasks 工具测试失败: $($_.Exception.Message)" -ForegroundColor Red
+    $script:testsFailed++
+}
 
 # 测试 Projects 工具
 Write-Host "  测试 Projects 工具..." -ForegroundColor Gray
@@ -1882,11 +2026,22 @@ try {
     
     # UpdateProject
     $updateProject = @{
-        title = "Updated Project Title"
-        description = "Updated via MCP test"
+        title = "Updated Project Title via MCP"
+        description = "Updated description via MCP test"
     } | ConvertTo-Json
-    $updatedProject = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId" -Headers $headers -Method Post -Body $updateProject -ContentType "application/json"
-    Write-Host "    ✓ UpdateProject: $($updatedProject.title)" -ForegroundColor Green
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId" -Headers $headers -Method Post -Body $updateProject -ContentType "application/json" | Out-Null
+    
+    # 重新获取验证
+    $verifiedProject = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId" -Headers $headers -Method Get
+    
+    if ($verifiedProject.title -eq "Updated Project Title via MCP" -and $verifiedProject.description -eq "Updated description via MCP test") {
+        Write-Host "    ✓ UpdateProject: 标题和描述更新并验证成功" -ForegroundColor Green
+        Write-Host "      Title: $($verifiedProject.title)" -ForegroundColor Cyan
+        Write-Host "      Description: $($verifiedProject.description)" -ForegroundColor Cyan
+    } else {
+        Write-Host "    ✗ UpdateProject: 验证失败" -ForegroundColor Red
+        Write-Host "      Expected Title: 'Updated Project Title via MCP', Got: '$($verifiedProject.title)'" -ForegroundColor Gray
+    }
     
     $script:testsPassed++
 } catch {
@@ -1905,26 +2060,54 @@ try {
     $newLabel = @{
         title = "MCP Test Label"
         hex_color = "00ff00"
+        description = "Created via MCP test"
     } | ConvertTo-Json
     $createdLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels" -Headers $headers -Method Put -Body $newLabel -ContentType "application/json"
     $testLabelId = $createdLabel.id
     Write-Host "    ✓ CreateLabel: $($createdLabel.title) (ID: $testLabelId)" -ForegroundColor Green
     
-    # GetLabel
-    $label = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Get
-    Write-Host "    ✓ GetLabel: $($label.title)" -ForegroundColor Green
+    # GetLabel - 验证创建的标签
+    $verifiedLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Get
+    
+    if ($verifiedLabel.title -eq "MCP Test Label" -and $verifiedLabel.hex_color -eq "00ff00") {
+        Write-Host "    ✓ GetLabel: 标签属性验证成功" -ForegroundColor Green
+        Write-Host "      Title: $($verifiedLabel.title)" -ForegroundColor Cyan
+        Write-Host "      Color: #$($verifiedLabel.hex_color)" -ForegroundColor Cyan
+    } else {
+        Write-Host "    ✗ GetLabel: 验证失败" -ForegroundColor Red
+    }
     
     # UpdateLabel
     $updateLabel = @{
         title = "Updated MCP Label"
         hex_color = "ff00ff"
+        description = "Updated via MCP test"
     } | ConvertTo-Json
-    $updatedLabel = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Post -Body $updateLabel -ContentType "application/json"
-    Write-Host "    ✓ UpdateLabel: $($updatedLabel.title)" -ForegroundColor Green
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Post -Body $updateLabel -ContentType "application/json" | Out-Null
+    
+    # 重新获取验证更新
+    $verifiedUpdate = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Get
+    
+    if ($verifiedUpdate.title -eq "Updated MCP Label" -and $verifiedUpdate.hex_color -eq "ff00ff") {
+        Write-Host "    ✓ UpdateLabel: 更新并验证成功" -ForegroundColor Green
+        Write-Host "      Title: $($verifiedUpdate.title)" -ForegroundColor Cyan
+        Write-Host "      Color: #$($verifiedUpdate.hex_color)" -ForegroundColor Cyan
+    } else {
+        Write-Host "    ✗ UpdateLabel: 验证失败" -ForegroundColor Red
+        Write-Host "      Expected Title: 'Updated MCP Label', Got: '$($verifiedUpdate.title)'" -ForegroundColor Gray
+        Write-Host "      Expected Color: 'ff00ff', Got: '$($verifiedUpdate.hex_color)'" -ForegroundColor Gray
+    }
     
     # DeleteLabel
     Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Delete | Out-Null
-    Write-Host "    ✓ DeleteLabel: 标签已删除" -ForegroundColor Green
+    
+    # 验证删除
+    try {
+        Invoke-RestMethod -Uri "http://localhost:8080/api/v1/labels/$testLabelId" -Headers $headers -Method Get | Out-Null
+        Write-Host "    ✗ DeleteLabel: 标签仍然存在" -ForegroundColor Red
+    } catch {
+        Write-Host "    ✓ DeleteLabel: 标签已成功删除" -ForegroundColor Green
+    }
     
     $script:testsPassed++
 } catch {
@@ -1937,7 +2120,7 @@ Write-Host "  测试 Task Comments 工具..." -ForegroundColor Gray
 try {
     # CreateTaskComment
     $newComment = @{
-        comment = "MCP test comment"
+        comment = "MCP test comment - 这是一条测试评论"
     } | ConvertTo-Json
     $createdComment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments" -Headers $headers -Method Put -Body $newComment -ContentType "application/json"
     $commentId = $createdComment.id
@@ -1947,20 +2130,45 @@ try {
     $comments = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments" -Headers $headers -Method Get
     Write-Host "    ✓ ListTaskComments: 找到 $($comments.Count) 条评论" -ForegroundColor Green
     
-    # GetTaskComment
-    $comment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Get
-    Write-Host "    ✓ GetTaskComment: $($comment.comment)" -ForegroundColor Green
+    # GetTaskComment - 验证创建的评论
+    $verifiedComment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Get
+    
+    if ($verifiedComment.comment -eq "MCP test comment - 这是一条测试评论") {
+        Write-Host "    ✓ GetTaskComment: 评论内容验证成功" -ForegroundColor Green
+        Write-Host "      Comment: $($verifiedComment.comment)" -ForegroundColor Cyan
+    } else {
+        Write-Host "    ✗ GetTaskComment: 验证失败" -ForegroundColor Red
+        Write-Host "      Got: $($verifiedComment.comment)" -ForegroundColor Gray
+    }
     
     # UpdateTaskComment
     $updateComment = @{
-        comment = "Updated MCP comment"
+        comment = "Updated MCP comment - 更新后的评论"
     } | ConvertTo-Json
-    $updatedComment = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Post -Body $updateComment -ContentType "application/json"
-    Write-Host "    ✓ UpdateTaskComment: $($updatedComment.comment)" -ForegroundColor Green
+    Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Post -Body $updateComment -ContentType "application/json" | Out-Null
+    
+    # 重新获取验证更新
+    $verifiedUpdate = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Get
+    
+    if ($verifiedUpdate.comment -eq "Updated MCP comment - 更新后的评论") {
+        Write-Host "    ✓ UpdateTaskComment: 更新并验证成功" -ForegroundColor Green
+        Write-Host "      Comment: $($verifiedUpdate.comment)" -ForegroundColor Cyan
+    } else {
+        Write-Host "    ✗ UpdateTaskComment: 验证失败" -ForegroundColor Red
+        Write-Host "      Expected: 'Updated MCP comment - 更新后的评论'" -ForegroundColor Gray
+        Write-Host "      Got: '$($verifiedUpdate.comment)'" -ForegroundColor Gray
+    }
     
     # DeleteTaskComment
     Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Delete | Out-Null
-    Write-Host "    ✓ DeleteTaskComment: 评论已删除" -ForegroundColor Green
+    
+    # 验证删除
+    try {
+        Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/$mcpTaskId/comments/$commentId" -Headers $headers -Method Get | Out-Null
+        Write-Host "    ✗ DeleteTaskComment: 评论仍然存在" -ForegroundColor Red
+    } catch {
+        Write-Host "    ✓ DeleteTaskComment: 评论已成功删除" -ForegroundColor Green
+    }
     
     $script:testsPassed++
 } catch {
