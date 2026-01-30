@@ -81,14 +81,19 @@ public class TaskReminderService : IDisposable
     {
         if (_isInitialized)
         {
+            _logger.LogDebug("Task reminder service already initialized");
             return;
         }
         
         try
         {
-            _logger.LogInformation("Initializing task reminders - scanning all tasks");
+            _logger.LogInformation("🔄 Initializing task reminders - scanning all tasks...");
             
             var projects = await _clientFactory.GetAsync<List<VikunjaProject>>("projects", CancellationToken.None) ?? new();
+            _logger.LogInformation("Found {Count} projects to scan", projects.Count);
+            
+            var totalTasks = 0;
+            var tasksWithReminders = 0;
             
             foreach (var project in projects)
             {
@@ -98,22 +103,39 @@ public class TaskReminderService : IDisposable
                         $"projects/{project.Id}/tasks?per_page=100", 
                         CancellationToken.None) ?? new();
                     
+                    var projectTaskCount = 0;
+                    
                     foreach (var task in tasks)
                     {
                         if (!task.Done)
                         {
                             UpdateTaskInMemory(task, project);
+                            totalTasks++;
+                            projectTaskCount++;
+                            
+                            if (task.Reminders?.Any() == true || task.StartDate.HasValue || task.DueDate.HasValue || task.EndDate.HasValue)
+                            {
+                                tasksWithReminders++;
+                            }
                         }
+                    }
+                    
+                    if (projectTaskCount > 0)
+                    {
+                        _logger.LogDebug("Loaded {Count} pending tasks from project {ProjectId} ({ProjectTitle})", 
+                            projectTaskCount, project.Id, project.Title);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load tasks from project {ProjectId}", project.Id);
+                    _logger.LogWarning(ex, "Failed to load tasks from project {ProjectId} ({ProjectTitle})", 
+                        project.Id, project.Title);
                 }
             }
             
             _isInitialized = true;
-            _logger.LogInformation("Task reminder initialization complete - loaded {Count} pending tasks", _pendingReminders.Count);
+            _logger.LogInformation("✓ Task reminder initialization complete - loaded {TotalTasks} pending tasks ({WithReminders} with reminders/dates)", 
+                totalTasks, tasksWithReminders);
         }
         catch (Exception ex)
         {
@@ -127,7 +149,12 @@ public class TaskReminderService : IDisposable
         if (!task.Done)
         {
             UpdateTaskInMemory(task, project);
-            _logger.LogInformation("Task {TaskId} added to reminder memory", task.Id);
+            _logger.LogInformation("✓ Task {TaskId} ({Title}) added to reminder memory - Project: {ProjectTitle}, Reminders: {ReminderCount}, StartDate: {StartDate}, DueDate: {DueDate}, EndDate: {EndDate}", 
+                task.Id, task.Title, project.Title, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
+        }
+        else
+        {
+            _logger.LogDebug("Task {TaskId} ({Title}) is already done, not adding to reminder memory", task.Id, task.Title);
         }
     }
     
@@ -136,21 +163,48 @@ public class TaskReminderService : IDisposable
         if (task.Done)
         {
             // 任务完成，从内存中移除
-            _pendingReminders.TryRemove(task.Id, out _);
-            _logger.LogInformation("Task {TaskId} removed from reminder memory (completed)", task.Id);
+            var removed = _pendingReminders.TryRemove(task.Id, out var oldInfo);
+            if (removed)
+            {
+                _logger.LogInformation("✓ Task {TaskId} ({Title}) removed from reminder memory (completed) - Had {ReminderCount} reminders", 
+                    task.Id, task.Title, oldInfo?.Reminders.Count ?? 0);
+            }
+            else
+            {
+                _logger.LogDebug("Task {TaskId} ({Title}) marked as done but was not in reminder memory", task.Id, task.Title);
+            }
         }
         else
         {
             // 更新任务信息
+            var wasInMemory = _pendingReminders.ContainsKey(task.Id);
             UpdateTaskInMemory(task, project);
-            _logger.LogInformation("Task {TaskId} updated in reminder memory", task.Id);
+            
+            if (wasInMemory)
+            {
+                _logger.LogInformation("✓ Task {TaskId} ({Title}) updated in reminder memory - Project: {ProjectTitle}, Reminders: {ReminderCount}, StartDate: {StartDate}, DueDate: {DueDate}, EndDate: {EndDate}", 
+                    task.Id, task.Title, project.Title, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
+            }
+            else
+            {
+                _logger.LogInformation("✓ Task {TaskId} ({Title}) added to reminder memory (was not tracked before) - Project: {ProjectTitle}, Reminders: {ReminderCount}", 
+                    task.Id, task.Title, project.Title, task.Reminders?.Count ?? 0);
+            }
         }
     }
     
     public void OnTaskDeleted(long taskId)
     {
-        _pendingReminders.TryRemove(taskId, out _);
-        _logger.LogInformation("Task {TaskId} removed from reminder memory (deleted)", taskId);
+        var removed = _pendingReminders.TryRemove(taskId, out var info);
+        if (removed)
+        {
+            _logger.LogInformation("✓ Task {TaskId} ({Title}) removed from reminder memory (deleted) - Had {ReminderCount} reminders", 
+                taskId, info?.Title ?? "Unknown", info?.Reminders.Count ?? 0);
+        }
+        else
+        {
+            _logger.LogDebug("Task {TaskId} deleted but was not in reminder memory", taskId);
+        }
     }
     
     // 更新内存中的任务信息
@@ -173,8 +227,17 @@ public class TaskReminderService : IDisposable
         
         _pendingReminders.AddOrUpdate(task.Id, info, (_, _) => info);
         
-        _logger.LogDebug("Updated task {TaskId} in memory: Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
-            task.Id, reminders.Count, task.StartDate, task.DueDate, task.EndDate);
+        var now = DateTime.UtcNow;
+        var upcomingReminders = reminders.Where(r => r > now && r <= now.AddMinutes(5)).ToList();
+        
+        if (upcomingReminders.Any())
+        {
+            _logger.LogInformation("⏰ Task {TaskId} has {Count} upcoming reminders in next 5 minutes: {Times}", 
+                task.Id, upcomingReminders.Count, string.Join(", ", upcomingReminders.Select(r => r.ToString("yyyy-MM-dd HH:mm:ss"))));
+        }
+        
+        _logger.LogDebug("Updated task {TaskId} in memory: Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}, Labels={LabelCount}",
+            task.Id, reminders.Count, task.StartDate, task.DueDate, task.EndDate, labelIds.Count);
     }
     
     // 定时检查内存中的待提醒任务
@@ -187,11 +250,17 @@ public class TaskReminderService : IDisposable
             
             if (!enabledConfigs.Any())
             {
+                _logger.LogDebug("Skipping reminder check - no enabled reminder configs");
                 return;
             }
             
             var now = DateTime.UtcNow;
             var checkWindow = TimeSpan.FromMinutes(5); // 检查未来5分钟内的提醒
+            
+            _logger.LogDebug("🔍 Checking {Count} pending tasks for reminders (window: {Window} minutes, users: {Users})", 
+                _pendingReminders.Count, checkWindow.TotalMinutes, enabledConfigs.Count);
+            
+            var remindersToSend = 0;
             
             foreach (var kvp in _pendingReminders)
             {
@@ -200,19 +269,28 @@ public class TaskReminderService : IDisposable
                 // 检查开始时间
                 if (taskInfo.StartDate.HasValue && ShouldSendReminder(taskInfo.StartDate.Value, now, checkWindow))
                 {
+                    _logger.LogInformation("⏰ Triggering START reminder for task {TaskId} ({Title}) at {Time}", 
+                        taskInfo.TaskId, taskInfo.Title, taskInfo.StartDate.Value);
                     await ProcessReminderAsync(taskInfo, "start", taskInfo.StartDate.Value, enabledConfigs);
+                    remindersToSend++;
                 }
                 
                 // 检查截止时间
                 if (taskInfo.DueDate.HasValue && ShouldSendReminder(taskInfo.DueDate.Value, now, checkWindow))
                 {
+                    _logger.LogInformation("⏰ Triggering DUE reminder for task {TaskId} ({Title}) at {Time}", 
+                        taskInfo.TaskId, taskInfo.Title, taskInfo.DueDate.Value);
                     await ProcessReminderAsync(taskInfo, "due", taskInfo.DueDate.Value, enabledConfigs);
+                    remindersToSend++;
                 }
                 
                 // 检查结束时间
                 if (taskInfo.EndDate.HasValue && ShouldSendReminder(taskInfo.EndDate.Value, now, checkWindow))
                 {
+                    _logger.LogInformation("⏰ Triggering END reminder for task {TaskId} ({Title}) at {Time}", 
+                        taskInfo.TaskId, taskInfo.Title, taskInfo.EndDate.Value);
                     await ProcessReminderAsync(taskInfo, "end", taskInfo.EndDate.Value, enabledConfigs);
+                    remindersToSend++;
                 }
                 
                 // 检查提醒时间
@@ -220,9 +298,17 @@ public class TaskReminderService : IDisposable
                 {
                     if (ShouldSendReminder(reminderTime, now, checkWindow))
                     {
+                        _logger.LogInformation("⏰ Triggering REMINDER for task {TaskId} ({Title}) at {Time}", 
+                            taskInfo.TaskId, taskInfo.Title, reminderTime);
                         await ProcessReminderAsync(taskInfo, "reminder", reminderTime, enabledConfigs);
+                        remindersToSend++;
                     }
                 }
+            }
+            
+            if (remindersToSend > 0)
+            {
+                _logger.LogInformation("✓ Processed {Count} reminders in this check cycle", remindersToSend);
             }
         }
         catch (Exception ex)
@@ -246,11 +332,17 @@ public class TaskReminderService : IDisposable
         // 检查是否已发送
         if (_sentReminders.ContainsKey(key))
         {
+            _logger.LogDebug("Skipping duplicate reminder: {Key}", key);
             return;
         }
         
+        _logger.LogInformation("📤 Processing {Type} reminder for task {TaskId} ({Title}) at {Time}", 
+            reminderType.ToUpper(), taskInfo.TaskId, taskInfo.Title, reminderTime);
+        
         // 标记为已发送
         _sentReminders.TryAdd(key, DateTime.UtcNow);
+        
+        var sentCount = 0;
         
         // 发送提醒给所有启用的用户
         foreach (var config in configs)
@@ -258,10 +350,16 @@ public class TaskReminderService : IDisposable
             if (ShouldSendReminderForUser(config, taskInfo))
             {
                 await SendReminderAsync(config, taskInfo, reminderType);
+                sentCount++;
+            }
+            else
+            {
+                _logger.LogDebug("Skipping reminder for user {UserId} - label filter not matched", config.UserId);
             }
         }
         
-        _logger.LogInformation("Sent {Type} reminder for task {TaskId} at {Time}", reminderType, taskInfo.TaskId, reminderTime);
+        _logger.LogInformation("✓ Sent {Type} reminder for task {TaskId} to {Count} user(s)", 
+            reminderType.ToUpper(), taskInfo.TaskId, sentCount);
     }
     
     // 判断是否应该为该用户发送提醒
