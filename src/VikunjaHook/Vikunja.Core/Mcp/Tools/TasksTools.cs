@@ -55,10 +55,11 @@ public class TasksTools
         else
         {
             // Get all tasks across all projects
-            // The tasks/all endpoint requires a filter parameter
-            // If no filter is provided, use a default filter to get all incomplete tasks
-            var filterValue = !string.IsNullOrWhiteSpace(filter) ? filter : "done=false";
-            queryParams.Add($"filter={Uri.EscapeDataString(filterValue)}");
+            // Only add filter if explicitly provided
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                queryParams.Add($"filter={Uri.EscapeDataString(filter)}");
+            }
             endpoint = $"tasks/all?{string.Join("&", queryParams)}";
         }
 
