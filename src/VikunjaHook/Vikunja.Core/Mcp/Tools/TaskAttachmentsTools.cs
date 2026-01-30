@@ -7,19 +7,6 @@ using Vikunja.Core.Mcp.Services;
 namespace Vikunja.Core.Mcp.Tools;
 
 /// <summary>
-/// Represents a task attachment
-/// </summary>
-public record VikunjaAttachment(
-    long Id,
-    long TaskId,
-    string FileName,
-    long FileSize,
-    string? MimeType,
-    DateTime Created,
-    VikunjaUser? CreatedBy
-);
-
-/// <summary>
 /// MCP tools for managing task attachments
 /// </summary>
 public class TaskAttachmentsTools

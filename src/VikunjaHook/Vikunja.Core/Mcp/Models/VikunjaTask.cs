@@ -25,5 +25,10 @@ public record VikunjaTask(
     string? RepeatMode,
     List<VikunjaReminder>? Reminders,
     List<VikunjaTaskRelation>? RelatedTasks,
-    VikunjaUser? CreatedBy
+    VikunjaUser? CreatedBy,
+    string? Identifier,
+    int? Index,
+    long? BucketId,
+    double? Position,
+    bool? IsFavorite
 );

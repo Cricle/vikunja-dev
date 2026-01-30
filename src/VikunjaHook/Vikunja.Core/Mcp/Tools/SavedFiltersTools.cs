@@ -1,21 +1,10 @@
 using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Vikunja.Core.Mcp.Models;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
-
-/// <summary>
-/// Represents a saved filter in Vikunja
-/// </summary>
-public record VikunjaSavedFilter(
-    long Id,
-    string Title,
-    string? Description,
-    string Filters,
-    DateTime Created,
-    DateTime Updated
-);
 
 /// <summary>
 /// MCP tools for managing saved filters

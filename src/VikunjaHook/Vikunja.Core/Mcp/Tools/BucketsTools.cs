@@ -1,23 +1,10 @@
 using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Vikunja.Core.Mcp.Models;
 using Vikunja.Core.Mcp.Services;
 
 namespace Vikunja.Core.Mcp.Tools;
-
-/// <summary>
-/// Represents a bucket (kanban column) in Vikunja
-/// </summary>
-public record VikunjaBucket(
-    long Id,
-    string Title,
-    long ProjectId,
-    int Position,
-    int Limit,
-    int Count,
-    DateTime Created,
-    DateTime Updated
-);
 
 /// <summary>
 /// MCP tools for managing buckets (kanban columns)
