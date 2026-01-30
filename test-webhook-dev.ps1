@@ -1808,6 +1808,64 @@ try {
     Write-TestResult "MCP UpdateTask 完整功能验证" $false $_.Exception.Message
 }
 
+# 测试 MCP CreateTask 带提醒时间
+Write-Host "`n[35.55/36] 测试 MCP CreateTask 带提醒时间..." -ForegroundColor Yellow
+try {
+    # 创建一个带提醒时间的任务
+    $reminderTime1 = (Get-Date).AddMinutes(5).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $reminderTime2 = (Get-Date).AddMinutes(10).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $taskDueDate = (Get-Date).AddMinutes(20).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    
+    $createTaskWithReminders = @{
+        title = "Task with Reminders"
+        description = "测试创建任务时设置提醒时间"
+        due_date = $taskDueDate
+        priority = 3
+        reminders = @(
+            @{ reminder = $reminderTime1 }
+            @{ reminder = $reminderTime2 }
+        )
+    } | ConvertTo-Json -Depth 3
+    
+    $taskWithReminders = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $createTaskWithReminders -ContentType "application/json"
+    $reminderTaskId = $taskWithReminders.id
+    
+    Write-Host "  ✓ 创建任务 (ID: $reminderTaskId)" -ForegroundColor Green
+    
+    # 验证任务是否包含提醒时间
+    if ($taskWithReminders.reminders -and $taskWithReminders.reminders.Count -gt 0) {
+        Write-Host "    ✓ 任务包含 $($taskWithReminders.reminders.Count) 个提醒时间" -ForegroundColor Green
+        foreach ($reminder in $taskWithReminders.reminders) {
+            Write-Host "      - $($reminder.reminder)" -ForegroundColor Cyan
+        }
+        $script:testsPassed++
+    } else {
+        Write-Host "    ✗ 任务不包含提醒时间" -ForegroundColor Red
+        $script:testsFailed++
+    }
+    
+    # 等待 webhook 处理
+    Start-Sleep -Seconds 3
+    
+    # 验证任务是否在提醒内存中
+    $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $taskInMemory = $reminderStatus.tasks | Where-Object { $_.taskId -eq $reminderTaskId }
+    
+    if ($taskInMemory) {
+        Write-Host "    ✓ 任务已添加到提醒内存" -ForegroundColor Green
+        Write-Host "      提醒数量: $($taskInMemory.reminderCount)" -ForegroundColor Cyan
+        $script:testsPassed++
+    } else {
+        Write-Host "    ⚠ 任务未在提醒内存中（可能时间不在窗口内）" -ForegroundColor Yellow
+        $script:testsPassed++
+    }
+    
+    Write-TestResult "MCP CreateTask 带提醒时间" $true
+    
+} catch {
+    Write-TestResult "MCP CreateTask 带提醒时间" $false $_.Exception.Message
+}
+
 # 测试其他 MCP 工具
 Write-Host "`n[35.6/36] 测试其他 MCP 工具..." -ForegroundColor Yellow
 

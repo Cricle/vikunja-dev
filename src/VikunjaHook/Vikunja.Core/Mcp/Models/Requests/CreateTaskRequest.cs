@@ -8,9 +8,12 @@ public record CreateTaskRequest(
     string Title,
     string? Description = null,
     DateTime? DueDate = null,
+    DateTime? StartDate = null,
+    DateTime? EndDate = null,
     int? Priority = null,
     List<long>? Labels = null,
     List<long>? Assignees = null,
     int? RepeatAfter = null,
-    string? RepeatMode = null
+    string? RepeatMode = null,
+    List<DateTime>? Reminders = null
 );

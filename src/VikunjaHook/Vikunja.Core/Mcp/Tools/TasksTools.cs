@@ -66,15 +66,44 @@ public class TasksTools
         [Description("Task title")] string title,
         [Description("Task description (optional)")] string? description = null,
         [Description("Due date in ISO 8601 format (optional)")] string? dueDate = null,
+        [Description("Start date in ISO 8601 format (optional)")] string? startDate = null,
+        [Description("End date in ISO 8601 format (optional)")] string? endDate = null,
         [Description("Priority (0-5, default: 0)")] int? priority = null,
+        [Description("Reminder dates in ISO 8601 format, comma-separated (optional)")] string? reminders = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating task '{Title}' in project {ProjectId}", title, projectId);
 
         DateTime? parsedDueDate = null;
-        if (!string.IsNullOrWhiteSpace(dueDate) && DateTime.TryParse(dueDate, out var date))
+        if (!string.IsNullOrWhiteSpace(dueDate) && DateTime.TryParse(dueDate, out var dueDateTime))
         {
-            parsedDueDate = date;
+            parsedDueDate = dueDateTime;
+        }
+
+        DateTime? parsedStartDate = null;
+        if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var startDateTime))
+        {
+            parsedStartDate = startDateTime;
+        }
+
+        DateTime? parsedEndDate = null;
+        if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var endDateTime))
+        {
+            parsedEndDate = endDateTime;
+        }
+
+        List<DateTime>? parsedReminders = null;
+        if (!string.IsNullOrWhiteSpace(reminders))
+        {
+            parsedReminders = new List<DateTime>();
+            var reminderStrings = reminders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var reminderStr in reminderStrings)
+            {
+                if (DateTime.TryParse(reminderStr, out var reminderDateTime))
+                {
+                    parsedReminders.Add(reminderDateTime);
+                }
+            }
         }
 
         var request = new CreateTaskRequest(
@@ -82,7 +111,10 @@ public class TasksTools
             Title: title,
             Description: description,
             DueDate: parsedDueDate,
-            Priority: priority
+            StartDate: parsedStartDate,
+            EndDate: parsedEndDate,
+            Priority: priority,
+            Reminders: parsedReminders
         );
 
         var task = await _clientFactory.PutAsync<VikunjaTask>(
