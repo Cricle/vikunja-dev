@@ -15,5 +15,8 @@ public record CreateTaskRequest(
     List<long>? Assignees = null,
     int? RepeatAfter = null,
     string? RepeatMode = null,
-    List<VikunjaReminder>? Reminders = null
+    List<VikunjaReminder>? Reminders = null,
+    long? BucketId = null,
+    double? Position = null,
+    string? HexColor = null
 );

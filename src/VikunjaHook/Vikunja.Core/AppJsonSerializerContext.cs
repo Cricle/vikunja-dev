@@ -158,13 +158,13 @@ namespace Vikunja.Core;
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]
 
-// New tool types
-[JsonSerializable(typeof(Vikunja.Core.Mcp.Tools.VikunjaAttachment))]
-[JsonSerializable(typeof(List<Vikunja.Core.Mcp.Tools.VikunjaAttachment>))]
-[JsonSerializable(typeof(Vikunja.Core.Mcp.Tools.VikunjaBucket))]
-[JsonSerializable(typeof(List<Vikunja.Core.Mcp.Tools.VikunjaBucket>))]
-[JsonSerializable(typeof(Vikunja.Core.Mcp.Tools.VikunjaSavedFilter))]
-[JsonSerializable(typeof(List<Vikunja.Core.Mcp.Tools.VikunjaSavedFilter>))]
+// Additional MCP entity models
+[JsonSerializable(typeof(VikunjaAttachment))]
+[JsonSerializable(typeof(List<VikunjaAttachment>))]
+[JsonSerializable(typeof(VikunjaBucket))]
+[JsonSerializable(typeof(List<VikunjaBucket>))]
+[JsonSerializable(typeof(VikunjaSavedFilter))]
+[JsonSerializable(typeof(List<VikunjaSavedFilter>))]
 
 // Webhook response types
 [JsonSerializable(typeof(Vikunja.Core.Mcp.Models.ErrorMessage))]

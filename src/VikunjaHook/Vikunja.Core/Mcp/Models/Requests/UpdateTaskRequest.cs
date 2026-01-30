@@ -18,5 +18,8 @@ public record UpdateTaskRequest(
     string? RepeatMode = null,
     List<long>? Labels = null,
     List<long>? Assignees = null,
-    List<VikunjaReminder>? Reminders = null
+    List<VikunjaReminder>? Reminders = null,
+    long? BucketId = null,
+    double? Position = null,
+    bool? IsFavorite = null
 );

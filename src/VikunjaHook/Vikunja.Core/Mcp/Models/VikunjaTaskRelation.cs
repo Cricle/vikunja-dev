@@ -5,5 +5,8 @@ namespace Vikunja.Core.Mcp.Models;
 /// </summary>
 public record VikunjaTaskRelation(
     long TaskId,
-    string RelationKind
+    long OtherTaskId,
+    string RelationKind,
+    DateTime Created,
+    VikunjaUser? CreatedBy
 );
