@@ -114,8 +114,13 @@ public sealed class ScheduledPushService
             {
                 _logger.LogInformation("用户 {UserId} 没有符合条件的未完成任务，跳过推送", config.UserId);
                 record.Success = true;
-                record.Title = "无待办任务";
+                record.Title = config.TitleTemplate.Replace("{{count}}", "0").Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
                 record.Body = "今天没有待办任务 ✨";
+                
+                // 更新最后推送时间
+                config.LastPushTime = DateTime.UtcNow;
+                await SaveScheduledConfigAsync(config, cancellationToken);
+                
                 AddHistory(record);
                 return;
             }
@@ -198,8 +203,14 @@ public sealed class ScheduledPushService
             // 过滤任务：优先级 OR 标签
             var filteredTasks = allTasks.Where(task =>
             {
+                // 如果没有设置任何过滤条件，返回所有任务
+                if (config.MinPriority == 0 && config.LabelIds.Count == 0)
+                {
+                    return true;
+                }
+
                 // 检查优先级（大于等于最低优先级）
-                var priorityMatch = task.Priority >= config.MinPriority;
+                var priorityMatch = config.MinPriority > 0 && task.Priority >= config.MinPriority;
 
                 // 检查标签（任意标签匹配）
                 var labelMatch = false;
