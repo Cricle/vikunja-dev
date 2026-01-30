@@ -49,6 +49,14 @@
                 <span>{{ t('nav.reminder') }}</span>
               </router-link>
               <router-link
+                :to="{ name: 'scheduledPush' }"
+                class="nav-link"
+                :class="{ 'nav-link-active': $route.name === 'scheduledPush' }"
+              >
+                <va-icon name="schedule" size="small" />
+                <span>{{ t('nav.scheduledPush') }}</span>
+              </router-link>
+              <router-link
                 :to="{ name: 'history' }"
                 class="nav-link"
                 :class="{ 'nav-link-active': $route.name === 'history' }"
@@ -97,6 +105,14 @@
                     </va-list-item-section>
                     <va-list-item-section>
                       <va-list-item-label>{{ t('nav.reminder') }}</va-list-item-label>
+                    </va-list-item-section>
+                  </va-list-item>
+                  <va-list-item :to="{ name: 'scheduledPush' }" :class="{ 'active-menu-item': $route.name === 'scheduledPush' }" clickable>
+                    <va-list-item-section icon>
+                      <va-icon name="schedule" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <va-list-item-label>{{ t('nav.scheduledPush') }}</va-list-item-label>
                     </va-list-item-section>
                   </va-list-item>
                   <va-list-item :to="{ name: 'history' }" :class="{ 'active-menu-item': $route.name === 'history' }" clickable>

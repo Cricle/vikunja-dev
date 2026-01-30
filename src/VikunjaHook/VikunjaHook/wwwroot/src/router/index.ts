@@ -24,6 +24,11 @@ const router = createRouter({
       component: () => import('@/views/TaskReminder.vue')
     },
     {
+      path: '/scheduled-push',
+      name: 'scheduledPush',
+      component: () => import('@/views/ScheduledPushView.vue')
+    },
+    {
       path: '/history',
       name: 'history',
       component: () => import('@/views/PushHistory.vue')
