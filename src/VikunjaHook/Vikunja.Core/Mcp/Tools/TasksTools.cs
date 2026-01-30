@@ -30,9 +30,10 @@ public class TasksTools
         [Description("Page number (default: 1)")] int page = 1,
         [Description("Items per page (default: 50)")] int perPage = 50,
         [Description("Search query (optional)")] string? search = null,
+        [Description("Filter expression (optional, e.g., 'done=false')")] string? filter = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}", projectId, page);
+        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}, filter: {Filter}", projectId, page, filter);
 
         var queryParams = new List<string>
         {
@@ -55,8 +56,9 @@ public class TasksTools
         {
             // Get all tasks across all projects
             // The tasks/all endpoint requires a filter parameter
-            // Use a simple filter to get all incomplete tasks
-            queryParams.Add("filter=done=false");
+            // If no filter is provided, use a default filter to get all incomplete tasks
+            var filterValue = !string.IsNullOrWhiteSpace(filter) ? filter : "done=false";
+            queryParams.Add($"filter={Uri.EscapeDataString(filterValue)}");
             endpoint = $"tasks/all?{string.Join("&", queryParams)}";
         }
 
