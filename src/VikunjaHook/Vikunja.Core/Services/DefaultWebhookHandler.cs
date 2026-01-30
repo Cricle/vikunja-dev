@@ -94,30 +94,47 @@ public class DefaultWebhookHandler : WebhookHandlerBase
         // 获取完整的任务信息
         var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task!.Id}", cancellationToken);
         
+        if (task == null)
+        {
+            Logger.LogWarning("{EventType}: Failed to get task info for task {TaskId}", eventType, webhookEvent.Task.Id);
+            return;
+        }
+        
         // 获取项目信息（如果有效）
         VikunjaProject? project = null;
         if (webhookEvent.ProjectId > 0)
         {
             project = await _clientFactory.GetAsync<VikunjaProject>($"projects/{webhookEvent.ProjectId}", cancellationToken);
-        }
-        
-        if (task != null && project != null)
-        {
-            Logger.LogInformation("{EventType}: Updating reminder service for task {TaskId}, Done={Done}, Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
-                eventType, task.Id, task.Done, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
-            
-            if (isCreated)
+            if (project == null)
             {
-                _reminderService.OnTaskCreated(task, project);
-            }
-            else
-            {
-                _reminderService.OnTaskUpdated(task, project);
+                Logger.LogWarning("{EventType}: Failed to get project info for project {ProjectId}, task {TaskId}", 
+                    eventType, webhookEvent.ProjectId, webhookEvent.Task.Id);
+                return;
             }
         }
         else
         {
-            Logger.LogWarning("{EventType}: Failed to get complete task or project info for task {TaskId}", eventType, webhookEvent.Task.Id);
+            // ProjectId 为 0 时，创建一个默认项目对象
+            project = new VikunjaProject
+            {
+                Id = 0,
+                Title = "Inbox",
+                Description = string.Empty
+            };
+            Logger.LogDebug("{EventType}: Task {TaskId} has no project (projectId=0), using default Inbox", 
+                eventType, task.Id);
+        }
+        
+        Logger.LogInformation("{EventType}: Updating reminder service for task {TaskId}, Done={Done}, Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
+            eventType, task.Id, task.Done, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
+        
+        if (isCreated)
+        {
+            _reminderService.OnTaskCreated(task, project);
+        }
+        else
+        {
+            _reminderService.OnTaskUpdated(task, project);
         }
     }
 }
