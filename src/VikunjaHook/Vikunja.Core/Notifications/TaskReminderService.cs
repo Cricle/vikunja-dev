@@ -172,6 +172,9 @@ public class TaskReminderService : IDisposable
         );
         
         _pendingReminders.AddOrUpdate(task.Id, info, (_, _) => info);
+        
+        _logger.LogDebug("Updated task {TaskId} in memory: Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
+            task.Id, reminders.Count, task.StartDate, task.DueDate, task.EndDate);
     }
     
     // 定时检查内存中的待提醒任务
