@@ -48,9 +48,6 @@ public class EventRouter
         _logger.LogInformation("Routing webhook event: {EventType} for project {ProjectId}",
             webhookEvent.EventType, webhookEvent.ProjectId);
 
-        // 更新任务提醒服务的内存
-        await UpdateReminderServiceAsync(webhookEvent, cancellationToken);
-
         // Load all user configurations
         var configs = await _configManager.LoadAllConfigsAsync(cancellationToken);
 
@@ -63,66 +60,6 @@ public class EventRouter
         // Process each user configuration asynchronously
         var tasks = configs.Select(config => ProcessUserConfigAsync(config, webhookEvent, cancellationToken));
         await Task.WhenAll(tasks);
-    }
-    
-    // 根据 webhook 事件更新提醒服务的内存
-    private async Task UpdateReminderServiceAsync(WebhookEvent webhookEvent, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (webhookEvent.EventType == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null)
-            {
-                // 获取完整的任务信息
-                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                
-                // Only get project if projectId is valid
-                VikunjaProject? project = null;
-                if (webhookEvent.ProjectId > 0)
-                {
-                    project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
-                }
-                
-                if (task != null && project != null)
-                {
-                    _logger.LogInformation("TaskCreated: Updating reminder service for task {TaskId}, Reminders={ReminderCount}",
-                        task.Id, task.Reminders?.Count ?? 0);
-                    _reminderService.OnTaskCreated(task, project);
-                }
-            }
-            else if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && webhookEvent.Task != null)
-            {
-                // 获取完整的任务信息
-                var task = await _clientFactory.GetAsync<VikunjaTask>($"tasks/{webhookEvent.Task.Id}", cancellationToken);
-                
-                // Only get project if projectId is valid
-                VikunjaProject? project = null;
-                if (webhookEvent.ProjectId > 0)
-                {
-                    project = await GetProjectInfoAsync(webhookEvent.ProjectId, cancellationToken);
-                }
-                
-                if (task != null && project != null)
-                {
-                    _logger.LogInformation("TaskUpdated: Updating reminder service for task {TaskId}, Done={Done}, Reminders={ReminderCount}, StartDate={StartDate}, DueDate={DueDate}, EndDate={EndDate}",
-                        task.Id, task.Done, task.Reminders?.Count ?? 0, task.StartDate, task.DueDate, task.EndDate);
-                    _reminderService.OnTaskUpdated(task, project);
-                }
-                else
-                {
-                    _logger.LogWarning("TaskUpdated: Failed to get complete task or project info for task {TaskId}", webhookEvent.Task.Id);
-                }
-            }
-            else if (webhookEvent.EventType == VikunjaEventTypes.TaskDeleted && webhookEvent.Task != null)
-            {
-                _logger.LogInformation("TaskDeleted: Removing task {TaskId} from reminder service", webhookEvent.Task.Id);
-                _reminderService.OnTaskDeleted(webhookEvent.Task.Id);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to update reminder service for event {EventType}, TaskId={TaskId}", 
-                webhookEvent.EventType, webhookEvent.Task?.Id);
-        }
     }
     
     // 获取项目信息
