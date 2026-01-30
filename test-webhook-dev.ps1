@@ -1581,7 +1581,7 @@ try {
         start_date = $startTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
         due_date = $dueTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
         end_date = $endTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        reminder_dates = @(
+        reminders = @(
             @{ reminder = $reminder1Time.ToString("yyyy-MM-ddTHH:mm:ssZ") }
             @{ reminder = $reminder2Time.ToString("yyyy-MM-ddTHH:mm:ssZ") }
         )
