@@ -114,7 +114,6 @@ builder.Services.AddSingleton(sp =>
         mcpTools,
         providers,
         pushHistory,
-        reminderService,
         logger,
         vikunjaUrl);
 });
