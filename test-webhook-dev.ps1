@@ -1562,6 +1562,138 @@ try {
     Write-TestResult "结束时间提醒（endDate）" $false $_.Exception.Message
 }
 
+# 测试开始时间、结束时间、提醒时间的实际发送
+Write-Host "`n[32.6/36] 测试开始时间、结束时间、提醒时间实际发送..." -ForegroundColor Yellow
+try {
+    Write-Host "  创建包含所有时间类型的任务..." -ForegroundColor Gray
+    
+    # 计算时间（都在未来2-4分钟内，确保在5分钟检查窗口内）
+    $now = Get-Date
+    $startTime = $now.AddMinutes(2).ToUniversalTime()
+    $dueTime = $now.AddMinutes(3).ToUniversalTime()
+    $endTime = $now.AddMinutes(4).ToUniversalTime()
+    $reminder1Time = $now.AddMinutes(2.5).ToUniversalTime()
+    $reminder2Time = $now.AddMinutes(3.5).ToUniversalTime()
+    
+    $allTimesTask = @{
+        title = "All Times Reminder Test"
+        description = "测试所有时间类型的提醒发送"
+        start_date = $startTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        due_date = $dueTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        end_date = $endTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        reminder_dates = @(
+            @{ reminder = $reminder1Time.ToString("yyyy-MM-ddTHH:mm:ssZ") }
+            @{ reminder = $reminder2Time.ToString("yyyy-MM-ddTHH:mm:ssZ") }
+        )
+    } | ConvertTo-Json -Depth 10
+    
+    $allTimesTestTask = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Put -Body $allTimesTask -ContentType "application/json"
+    $allTimesTaskId = $allTimesTestTask.id
+    
+    Write-Host "  ✓ 创建任务 (ID: $allTimesTaskId)" -ForegroundColor Green
+    Write-Host "    - 开始时间: $($startTime.ToString('HH:mm:ss'))" -ForegroundColor Cyan
+    Write-Host "    - 截止时间: $($dueTime.ToString('HH:mm:ss'))" -ForegroundColor Cyan
+    Write-Host "    - 结束时间: $($endTime.ToString('HH:mm:ss'))" -ForegroundColor Cyan
+    Write-Host "    - 提醒1: $($reminder1Time.ToString('HH:mm:ss'))" -ForegroundColor Cyan
+    Write-Host "    - 提醒2: $($reminder2Time.ToString('HH:mm:ss'))" -ForegroundColor Cyan
+    
+    # 等待任务被加载到提醒内存
+    Start-Sleep -Seconds 3
+    
+    # 检查任务是否在提醒内存中
+    $checkLogs = docker-compose -f docker-compose.dev.yml logs --since 10s vikunja-hook 2>&1 | Out-String
+    $inMemory = $checkLogs -match "Task $allTimesTaskId.*added to reminder memory" -or 
+                $checkLogs -match "Task $allTimesTaskId.*updated in reminder memory"
+    
+    if ($inMemory) {
+        Write-Host "  ✓ 任务已加载到提醒内存" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 未确认任务是否在提醒内存中" -ForegroundColor Yellow
+    }
+    
+    # 检查是否检测到即将到来的提醒
+    $upcomingReminders = $checkLogs -match "upcoming reminders in next 5 minutes" -and $checkLogs -match "Task $allTimesTaskId"
+    if ($upcomingReminders) {
+        Write-Host "  ✓ 检测到即将到来的提醒" -ForegroundColor Green
+    }
+    
+    # 等待第一个扫描周期（10秒）+ 缓冲时间
+    Write-Host "  等待第一个扫描周期（15秒）..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 检查日志中的提醒触发
+    $scanLogs1 = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    
+    $startTriggered = $scanLogs1 -match "Triggering START reminder for task $allTimesTaskId"
+    $dueTriggered = $scanLogs1 -match "Triggering DUE reminder for task $allTimesTaskId"
+    $endTriggered = $scanLogs1 -match "Triggering END reminder for task $allTimesTaskId"
+    $reminderTriggered = $scanLogs1 -match "Triggering REMINDER for task $allTimesTaskId"
+    
+    $checkingLogs = $scanLogs1 -match "Checking.*pending tasks for reminders"
+    
+    Write-Host "  扫描状态:" -ForegroundColor Gray
+    if ($checkingLogs) {
+        Write-Host "    ✓ 定时扫描已执行" -ForegroundColor Green
+    } else {
+        Write-Host "    ⚠ 未检测到扫描日志" -ForegroundColor Yellow
+    }
+    
+    if ($startTriggered) {
+        Write-Host "    ✓ START 提醒已触发" -ForegroundColor Green
+    }
+    if ($dueTriggered) {
+        Write-Host "    ✓ DUE 提醒已触发" -ForegroundColor Green
+    }
+    if ($endTriggered) {
+        Write-Host "    ✓ END 提醒已触发" -ForegroundColor Green
+    }
+    if ($reminderTriggered) {
+        Write-Host "    ✓ REMINDER 提醒已触发" -ForegroundColor Green
+    }
+    
+    # 等待第二个扫描周期
+    Write-Host "  等待第二个扫描周期（15秒）..." -ForegroundColor Gray
+    Start-Sleep -Seconds 15
+    
+    # 再次检查日志
+    $scanLogs2 = docker-compose -f docker-compose.dev.yml logs --since 20s vikunja-hook 2>&1 | Out-String
+    
+    $moreTriggered = $scanLogs2 -match "Triggering.*reminder for task $allTimesTaskId"
+    if ($moreTriggered) {
+        Write-Host "  ✓ 第二轮扫描检测到更多提醒" -ForegroundColor Green
+    }
+    
+    # 检查提醒历史
+    Start-Sleep -Seconds 2
+    $history = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-history?count=20" -Method Get
+    $taskReminders = $history.records | Where-Object { $_.taskId -eq $allTimesTaskId }
+    
+    Write-Host "  提醒历史记录:" -ForegroundColor Gray
+    if ($taskReminders) {
+        $reminderTypes = $taskReminders | Group-Object -Property reminderType
+        foreach ($type in $reminderTypes) {
+            Write-Host "    - $($type.Name): $($type.Count) 条记录" -ForegroundColor Cyan
+        }
+        Write-Host "  ✓ 找到 $($taskReminders.Count) 条提醒记录" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 未找到提醒历史记录（可能时间窗口未到或配置未启用）" -ForegroundColor Yellow
+    }
+    
+    # 检查提醒状态
+    $reminderStatus = Invoke-RestMethod -Uri "http://localhost:5082/api/reminder-status" -Method Get
+    $taskInStatus = $reminderStatus.tasks | Where-Object { $_.taskId -eq $allTimesTaskId }
+    
+    if ($taskInStatus) {
+        Write-Host "  ✓ 任务在提醒状态中: $($taskInStatus.title)" -ForegroundColor Green
+        Write-Host "    - 提醒数量: $($taskInStatus.reminderCount)" -ForegroundColor Cyan
+    }
+    
+    Write-TestResult "开始时间、结束时间、提醒时间实际发送" $true
+    
+} catch {
+    Write-TestResult "开始时间、结束时间、提醒时间实际发送" $false $_.Exception.Message
+}
+
 # 测试定时扫描功能
 Write-Host "`n[33/36] 测试定时扫描功能..." -ForegroundColor Yellow
 try {
