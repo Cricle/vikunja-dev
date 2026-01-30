@@ -33,7 +33,8 @@ public class TasksTools
         [Description("Filter expression (optional, e.g., 'done=false')")] string? filter = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}, filter: {Filter}", projectId, page, filter);
+        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}, search: {Search}, filter: {Filter}", 
+            projectId, page, search, filter);
 
         var queryParams = new List<string>
         {
@@ -46,6 +47,11 @@ public class TasksTools
             queryParams.Add($"s={Uri.EscapeDataString(search)}");
         }
 
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            queryParams.Add($"filter={Uri.EscapeDataString(filter)}");
+        }
+
         string endpoint;
         if (projectId.HasValue)
         {
@@ -54,13 +60,8 @@ public class TasksTools
         }
         else
         {
-            // Get all tasks across all projects
-            // Only add filter if explicitly provided
-            if (!string.IsNullOrWhiteSpace(filter))
-            {
-                queryParams.Add($"filter={Uri.EscapeDataString(filter)}");
-            }
-            endpoint = $"tasks/all?{string.Join("&", queryParams)}";
+            // Get all tasks across all projects using /tasks endpoint
+            endpoint = $"tasks?{string.Join("&", queryParams)}";
         }
 
         var tasks = await _clientFactory.GetAsync<List<VikunjaTask>>(endpoint, cancellationToken);
