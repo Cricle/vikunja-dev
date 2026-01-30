@@ -187,6 +187,10 @@ var reminderService = app.Services.GetRequiredService<TaskReminderService>();
 reminderService.Start();
 app.Logger.LogInformation("TaskReminderService started");
 
+// Start ScheduledPushService (instantiate to start timer)
+var scheduledPushService = app.Services.GetRequiredService<ScheduledPushService>();
+app.Logger.LogInformation("ScheduledPushService started");
+
 // Serve static files from wwwroot/dist
 app.UseStaticFiles(new StaticFileOptions
 {

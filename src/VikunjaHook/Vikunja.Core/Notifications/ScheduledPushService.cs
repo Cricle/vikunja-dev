@@ -65,12 +65,15 @@ public sealed class ScheduledPushService
                         // 检查是否到达推送时间
                         if (config.PushTime == currentTime)
                         {
-                            // 检查今天是否已推送
-                            if (config.LastPushTime.HasValue && 
-                                config.LastPushTime.Value.Date == now.Date)
+                            // 检查今天是否已推送（使用本地时间比较）
+                            if (config.LastPushTime.HasValue)
                             {
-                                _logger.LogDebug("用户 {UserId} 的配置 {ConfigId} 今天已推送，跳过", userId, config.Id);
-                                continue;
+                                var lastPushLocal = config.LastPushTime.Value.ToLocalTime();
+                                if (lastPushLocal.Date == now.Date)
+                                {
+                                    _logger.LogDebug("用户 {UserId} 的配置 {ConfigId} 今天已推送，跳过", userId, config.Id);
+                                    continue;
+                                }
                             }
 
                             _logger.LogInformation("⏰ 触发定时推送 - 用户: {UserId}, 时间: {Time}", userId, currentTime);
