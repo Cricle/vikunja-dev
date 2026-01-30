@@ -31,10 +31,12 @@ public class TasksTools
         [Description("Items per page (default: 50)")] int perPage = 50,
         [Description("Search query (optional)")] string? search = null,
         [Description("Filter expression (optional, e.g., 'done=false')")] string? filter = null,
+        [Description("Sort by field (optional, e.g., 'due_date', 'priority', 'id')")] string? sortBy = null,
+        [Description("Sort order (optional, 'asc' or 'desc')")] string? orderBy = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}, search: {Search}, filter: {Filter}", 
-            projectId, page, search, filter);
+        _logger.LogInformation("Listing tasks - projectId: {ProjectId}, page: {Page}, search: {Search}, filter: {Filter}, sortBy: {SortBy}, orderBy: {OrderBy}", 
+            projectId, page, search, filter, sortBy, orderBy);
 
         var queryParams = new List<string>
         {
@@ -50,6 +52,16 @@ public class TasksTools
         if (!string.IsNullOrWhiteSpace(filter))
         {
             queryParams.Add($"filter={Uri.EscapeDataString(filter)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(sortBy))
+        {
+            queryParams.Add($"sort_by={Uri.EscapeDataString(sortBy)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(orderBy))
+        {
+            queryParams.Add($"order_by={orderBy.ToLowerInvariant()}");
         }
 
         string endpoint;
