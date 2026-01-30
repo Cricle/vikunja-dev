@@ -24,6 +24,20 @@
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
 
+    <!-- Advanced trimming options - 关闭不需要的功能 -->
+    <!-- 参考: https://learn.microsoft.com/zh-cn/dotnet/core/deploying/trimming/trimming-options -->
+    <EventSourceSupport>false</EventSourceSupport>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+    <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetricsSupport>false</MetricsSupport>
+    
+    <!-- 其他优化选项 -->
+    <DebuggerSupport>false</DebuggerSupport>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+
     <!-- Package metadata -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>Cricle.VikunjaHook.McpServer</PackageId>
@@ -37,11 +51,6 @@
   <!-- Include additional files -->
   <ItemGroup>
     <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ModelContextProtocol" Version="0.5.0-preview.1" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.5.0-preview.1" />
   </ItemGroup>
 
   <ItemGroup>

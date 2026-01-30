@@ -1,39 +1,88 @@
-# Git
+# ============================================
+# Git 相关
+# ============================================
 .git
 .gitignore
+.gitattributes
 .github
 
-# Build artifacts
+# ============================================
+# 构建产物和缓存
+# ============================================
 **/bin/
 **/obj/
 **/logs/
-
-# IDE
-.vs/
-.vscode/
-*.user
-*.suo
-
-# Node
+**/dist/
+**/.nuget/
+**/.npm/
 **/node_modules/
 **/npm-debug.log
+**/yarn-error.log
+**/package-lock.json.bak
 
-# Frontend build output (will be built in Docker)
+# ============================================
+# IDE 和编辑器
+# ============================================
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.swp
+*.swo
+*~
+
+# ============================================
+# 前端构建产物（在 Docker 中构建）
+# ============================================
 **/wwwroot/dist/
+**/wwwroot/node_modules/
 
-# Test files (except scripts we want to copy)
+# ============================================
+# 测试和文档
+# ============================================
 *.http
-
-# Documentation (keep test scripts)
 *.md
 !README.md
+docs/
+test-*.ps1
+test-reminder-ui.ps1
 
-# CI/CD
-.github/workflows/
+# ============================================
+# Docker 相关
+# ============================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
 
-# Misc
-**/.DS_Store
-**/Thumbs.db
+# ============================================
+# 环境配置
+# ============================================
 **/.env
 **/.env.*
 !**/.env.example
+
+# ============================================
+# 数据和日志
+# ============================================
+data/
+**/data/configs/*.json
+*.log
+*.db
+*.sqlite
+
+# ============================================
+# 操作系统
+# ============================================
+**/.DS_Store
+**/Thumbs.db
+**/*.tmp
+**/*.temp
+
+# ============================================
+# CI/CD
+# ============================================
+.github/workflows/
+*.yml
+*.yaml
+!**/appsettings*.json
