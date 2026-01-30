@@ -33,6 +33,8 @@ public class DefaultWebhookHandler : WebhookHandlerBase
         {
             var webhookEvent = ConvertToWebhookEvent(payload);
             
+            Logger.LogDebug("Converting webhook event to WebhookEvent, EventType: {EventType}", webhookEvent.EventType);
+            
             // 先更新提醒服务
             await UpdateReminderServiceAsync(webhookEvent, cancellationToken);
             
@@ -63,6 +65,9 @@ public class DefaultWebhookHandler : WebhookHandlerBase
     // 根据 webhook 事件更新提醒服务的内存
     private async Task UpdateReminderServiceAsync(WebhookEvent webhookEvent, CancellationToken cancellationToken)
     {
+        Logger.LogDebug("UpdateReminderServiceAsync called for event: {EventType}, TaskId: {TaskId}", 
+            webhookEvent.EventType, webhookEvent.Task?.Id);
+        
         try
         {
             if (webhookEvent.EventType == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null)
@@ -77,6 +82,10 @@ public class DefaultWebhookHandler : WebhookHandlerBase
             {
                 Logger.LogInformation("TaskDeleted: Removing task {TaskId} from reminder service", webhookEvent.Task.Id);
                 _reminderService.OnTaskDeleted(webhookEvent.Task.Id);
+            }
+            else
+            {
+                Logger.LogDebug("Skipping reminder update for event type: {EventType}", webhookEvent.EventType);
             }
         }
         catch (Exception ex)
