@@ -15,7 +15,6 @@ public class EventRouter
     private readonly McpToolsAdapter _mcpTools;
     private readonly IEnumerable<PushDeerProvider> _providers;
     private readonly InMemoryPushEventHistory _pushHistory;
-    private readonly TaskReminderService _reminderService;
     private readonly ILogger<EventRouter> _logger;
     private readonly string? _vikunjaUrl;
 
@@ -26,7 +25,6 @@ public class EventRouter
         McpToolsAdapter mcpTools,
         IEnumerable<PushDeerProvider> providers,
         InMemoryPushEventHistory pushHistory,
-        TaskReminderService reminderService,
         ILogger<EventRouter> logger,
         string? vikunjaUrl = null)
     {
@@ -36,7 +34,6 @@ public class EventRouter
         _mcpTools = mcpTools;
         _providers = providers;
         _pushHistory = pushHistory;
-        _reminderService = reminderService;
         _logger = logger;
         _vikunjaUrl = vikunjaUrl?.TrimEnd('/');
     }
@@ -62,20 +59,6 @@ public class EventRouter
         await Task.WhenAll(tasks);
     }
     
-    // 获取项目信息
-    private async Task<VikunjaProject?> GetProjectInfoAsync(long projectId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await _clientFactory.GetAsync<VikunjaProject>($"projects/{projectId}", cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to get project {ProjectId}", projectId);
-            return null;
-        }
-    }
-
     private async Task ProcessUserConfigAsync(
         UserConfig config,
         WebhookEvent webhookEvent,
