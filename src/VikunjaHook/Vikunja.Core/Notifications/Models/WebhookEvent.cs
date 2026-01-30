@@ -28,10 +28,29 @@ public class WebhookEvent
         {
             if (Data.ValueKind == JsonValueKind.Object)
             {
+                // 首先尝试从 data 根级别获取 project_id
                 if (Data.TryGetProperty("project_id", out var projectId))
                     return projectId.GetInt32();
                 if (Data.TryGetProperty("ProjectId", out var projectIdAlt))
                     return projectIdAlt.GetInt32();
+                
+                // 如果根级别没有，尝试从 task 对象中获取
+                if (Data.TryGetProperty("task", out var taskElement) && 
+                    taskElement.ValueKind == JsonValueKind.Object)
+                {
+                    if (taskElement.TryGetProperty("project_id", out var taskProjectId))
+                        return taskProjectId.GetInt32();
+                    if (taskElement.TryGetProperty("ProjectId", out var taskProjectIdAlt))
+                        return taskProjectIdAlt.GetInt32();
+                }
+                
+                // 最后尝试从 project 对象中获取
+                if (Data.TryGetProperty("project", out var projectElement) && 
+                    projectElement.ValueKind == JsonValueKind.Object)
+                {
+                    if (projectElement.TryGetProperty("id", out var projectIdFromProject))
+                        return projectIdFromProject.GetInt32();
+                }
             }
             return 0;
         }
