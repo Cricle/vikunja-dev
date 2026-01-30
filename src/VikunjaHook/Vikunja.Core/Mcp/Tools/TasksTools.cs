@@ -97,16 +97,20 @@ public class TasksTools
             parsedEndDate = endDateTime;
         }
 
-        List<DateTime>? parsedReminders = null;
+        List<VikunjaReminder>? parsedReminders = null;
         if (!string.IsNullOrWhiteSpace(reminders))
         {
-            parsedReminders = new List<DateTime>();
+            parsedReminders = new List<VikunjaReminder>();
             var reminderStrings = reminders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var reminderStr in reminderStrings)
             {
                 if (DateTime.TryParse(reminderStr, out var reminderDateTime))
                 {
-                    parsedReminders.Add(reminderDateTime);
+                    parsedReminders.Add(new VikunjaReminder(
+                        Reminder: reminderDateTime,
+                        RelativePeriod: 0,
+                        RelativeTo: ""
+                    ));
                 }
             }
         }
@@ -185,16 +189,20 @@ public class TasksTools
             parsedEndDate = eDate;
         }
 
-        List<DateTime>? parsedReminders = null;
+        List<VikunjaReminder>? parsedReminders = null;
         if (!string.IsNullOrWhiteSpace(reminders))
         {
-            parsedReminders = new List<DateTime>();
+            parsedReminders = new List<VikunjaReminder>();
             var reminderStrings = reminders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var reminderStr in reminderStrings)
             {
                 if (DateTime.TryParse(reminderStr, out var reminderDateTime))
                 {
-                    parsedReminders.Add(reminderDateTime);
+                    parsedReminders.Add(new VikunjaReminder(
+                        Reminder: reminderDateTime,
+                        RelativePeriod: 0,
+                        RelativeTo: ""
+                    ));
                 }
             }
         }
