@@ -2134,14 +2134,64 @@ try {
     $tasksInProject = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/projects/$projectId/tasks" -Headers $headers -Method Get
     Write-Host "    ✓ ListTasks (带 projectId): 找到 $($tasksInProject.Count) 个任务" -ForegroundColor Green
     
-    # ListTasks - 不带 projectId（查询所有任务）
-    # 注意：tasks/all 端点需要 filter 参数
+    # ListTasks - 不带 projectId，不带 filter（测试修复后的行为）
     try {
-        $allTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?filter=done%3Dfalse" -Headers $headers -Method Get
-        Write-Host "    ✓ ListTasks (无 projectId, filter=done=false): 找到 $($allTasks.Count) 个任务" -ForegroundColor Green
+        $allTasksNoFilter = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?page=1&per_page=50" -Headers $headers -Method Get
+        Write-Host "    ✓ ListTasks (无 projectId, 无 filter): 找到 $($allTasksNoFilter.Count) 个任务" -ForegroundColor Green
     } catch {
-        # 如果 filter 方式失败，说明端点需要特定参数
-        Write-Host "    ⚠ ListTasks (无 projectId) 需要 filter 参数，跳过此测试" -ForegroundColor Yellow
+        Write-Host "    ✗ ListTasks (无 projectId, 无 filter) 失败: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "      错误详情: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        $script:testsFailed++
+    }
+    
+    # ListTasks - 带 search 参数
+    try {
+        $searchTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?page=1&per_page=50&s=test" -Headers $headers -Method Get
+        Write-Host "    ✓ ListTasks (search='test'): 找到 $($searchTasks.Count) 个任务" -ForegroundColor Green
+    } catch {
+        Write-Host "    ✗ ListTasks (search='test') 失败: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "      错误详情: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        $script:testsFailed++
+    }
+    
+    # ListTasks - 带 filter 参数
+    try {
+        $filteredTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?page=1&per_page=50&filter=done%3Dfalse" -Headers $headers -Method Get
+        Write-Host "    ✓ ListTasks (filter='done=false'): 找到 $($filteredTasks.Count) 个任务" -ForegroundColor Green
+    } catch {
+        Write-Host "    ✗ ListTasks (filter='done=false') 失败: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "      错误详情: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        $script:testsFailed++
+    }
+    
+    # ListTasks - 带 search 和 filter 参数
+    try {
+        $searchFilterTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?page=1&per_page=50&s=test&filter=done%3Dfalse" -Headers $headers -Method Get
+        Write-Host "    ✓ ListTasks (search='test', filter='done=false'): 找到 $($searchFilterTasks.Count) 个任务" -ForegroundColor Green
+    } catch {
+        Write-Host "    ✗ ListTasks (search + filter) 失败: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "      错误详情: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        $script:testsFailed++
+    }
+    
+    # ListTasks - 带 page 和 perPage 参数
+    try {
+        $pagedTasks = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/tasks/all?page=1&per_page=10" -Headers $headers -Method Get
+        Write-Host "    ✓ ListTasks (page=1, perPage=10): 找到 $($pagedTasks.Count) 个任务" -ForegroundColor Green
+    } catch {
+        Write-Host "    ✗ ListTasks (page + perPage) 失败: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "      错误详情: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        $script:testsFailed++
     }
     
     # GetTask
