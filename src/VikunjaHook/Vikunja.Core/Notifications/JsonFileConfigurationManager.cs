@@ -153,6 +153,27 @@ public class JsonFileConfigurationManager
         return configs;
     }
 
+    public async Task<List<string>> GetAllUserIdsAsync(CancellationToken cancellationToken = default)
+    {
+        var userIds = new List<string>();
+        
+        if (!Directory.Exists(_configDirectory))
+            return userIds;
+
+        var files = Directory.GetFiles(_configDirectory, "*.json");
+        
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                userIds.Add(fileName);
+            }
+        }
+
+        return await Task.FromResult(userIds);
+    }
+
     public async Task<byte[]> ExportConfigsAsync(
         IEnumerable<string> userIds, 
         CancellationToken cancellationToken = default)

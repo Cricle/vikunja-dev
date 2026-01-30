@@ -145,6 +145,21 @@ builder.Services.AddSingleton(sp =>
         vikunjaUrl);
 });
 
+// Register ScheduledPushService
+builder.Services.AddSingleton(sp =>
+{
+    var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
+    var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
+    var providers = sp.GetServices<PushDeerProvider>();
+    var logger = sp.GetRequiredService<ILogger<ScheduledPushService>>();
+    
+    return new ScheduledPushService(
+        clientFactory,
+        configManager,
+        providers,
+        logger);
+});
+
 // Add MCP server with HTTP transport (SSE) and all tools
 builder.Services
     .AddMcpServer()
@@ -563,6 +578,59 @@ app.MapGet("/api/reminder-status", (TaskReminderService reminderService) =>
 {
     var status = reminderService.GetReminderStatus();
     return Results.Ok(status);
+});
+
+// Scheduled Push API endpoints
+app.MapGet("/api/scheduled-push/{userId}", async (
+    string userId,
+    ScheduledPushService scheduledPushService,
+    CancellationToken cancellationToken) =>
+{
+    var configs = await scheduledPushService.LoadScheduledConfigsAsync(userId, cancellationToken);
+    return Results.Ok(configs);
+});
+
+app.MapPost("/api/scheduled-push/{userId}", async (
+    string userId,
+    HttpContext context,
+    ScheduledPushService scheduledPushService,
+    CancellationToken cancellationToken) =>
+{
+    var config = await context.Request.ReadFromJsonAsync(
+        WebhookNotificationJsonContext.Default.ScheduledPushConfig,
+        cancellationToken);
+    
+    if (config == null || config.UserId != userId)
+    {
+        return Results.BadRequest();
+    }
+    
+    await scheduledPushService.SaveScheduledConfigAsync(config, cancellationToken);
+    return Results.Ok(config);
+});
+
+app.MapDelete("/api/scheduled-push/{userId}/{configId}", async (
+    string userId,
+    string configId,
+    ScheduledPushService scheduledPushService,
+    CancellationToken cancellationToken) =>
+{
+    await scheduledPushService.DeleteScheduledConfigAsync(userId, configId, cancellationToken);
+    return Results.Ok(new { message = "Scheduled push config deleted" });
+});
+
+app.MapGet("/api/scheduled-push-history", (
+    ScheduledPushService scheduledPushService,
+    int? count) =>
+{
+    var records = scheduledPushService.GetHistory(count ?? 50);
+    return Results.Ok(new { records, totalCount = records.Count });
+});
+
+app.MapDelete("/api/scheduled-push-history", (ScheduledPushService scheduledPushService) =>
+{
+    scheduledPushService.ClearHistory();
+    return Results.Ok(new { message = "History cleared" });
 });
 
 // SPA fallback - must be last to not interfere with API routes
