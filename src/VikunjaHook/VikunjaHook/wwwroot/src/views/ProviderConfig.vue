@@ -193,6 +193,18 @@
             <va-icon name="key" />
           </template>
         </va-input>
+        
+        <va-input
+          v-if="formData.providerType === 'bark'"
+          v-model="formData.settings.deviceKey"
+          :label="t('providers.deviceKey')"
+          type="password"
+          class="form-field"
+        >
+          <template #prepend>
+            <va-icon name="key" />
+          </template>
+        </va-input>
       </div>
     </va-modal>
 
@@ -274,7 +286,7 @@ const formData = ref({
   }
 })
 
-const availableProviders = ['pushdeer']
+const availableProviders = ['pushdeer', 'bark']
 
 function maskSensitive(key: string, value: string): string {
   // Skip internal fields

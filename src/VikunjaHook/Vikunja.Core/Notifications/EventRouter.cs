@@ -13,7 +13,7 @@ public class EventRouter
     private readonly JsonFileConfigurationManager _configManager;
     private readonly SimpleTemplateEngine _templateEngine;
     private readonly McpToolsAdapter _mcpTools;
-    private readonly IEnumerable<PushDeerProvider> _providers;
+    private readonly IEnumerable<NotificationProviderBase> _providers;
     private readonly InMemoryPushEventHistory _pushHistory;
     private readonly ILogger<EventRouter> _logger;
     private readonly string? _vikunjaUrl;
@@ -23,7 +23,7 @@ public class EventRouter
         JsonFileConfigurationManager configManager,
         SimpleTemplateEngine templateEngine,
         McpToolsAdapter mcpTools,
-        IEnumerable<PushDeerProvider> providers,
+        IEnumerable<NotificationProviderBase> providers,
         InMemoryPushEventHistory pushHistory,
         ILogger<EventRouter> logger,
         string? vikunjaUrl = null)
@@ -437,11 +437,16 @@ public class EventRouter
             {
                 NotificationResult result;
                 
-                // For PushDeer, we need to pass the API key
+                // Handle providers with keys
                 if (provider is Providers.PushDeerProvider pushDeerProvider &&
                     providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
                 {
                     result = await pushDeerProvider.SendAsync(message, pushKey, cancellationToken);
+                }
+                else if (provider is Providers.BarkProvider barkProvider &&
+                    providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
+                {
+                    result = await barkProvider.SendAsync(message, deviceKey, cancellationToken);
                 }
                 else
                 {

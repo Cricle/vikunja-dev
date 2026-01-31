@@ -12,7 +12,7 @@ public class TaskReminderService : IDisposable
     private readonly IVikunjaClientFactory _clientFactory;
     private readonly JsonFileConfigurationManager _configManager;
     private readonly SimpleTemplateEngine _templateEngine;
-    private readonly IEnumerable<PushDeerProvider> _providers;
+    private readonly IEnumerable<NotificationProviderBase> _providers;
     private readonly InMemoryPushEventHistory _pushHistory;
     private readonly TaskReminderHistory _reminderHistory;
     private readonly ILogger<TaskReminderService> _logger;
@@ -46,7 +46,7 @@ public class TaskReminderService : IDisposable
         IVikunjaClientFactory clientFactory,
         JsonFileConfigurationManager configManager,
         SimpleTemplateEngine templateEngine,
-        IEnumerable<PushDeerProvider> providers,
+        IEnumerable<NotificationProviderBase> providers,
         InMemoryPushEventHistory pushHistory,
         TaskReminderHistory reminderHistory,
         ILogger<TaskReminderService> logger,
@@ -529,6 +529,11 @@ public class TaskReminderService : IDisposable
                         providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
                     {
                         result = await pushDeer.SendAsync(message, pushKey, CancellationToken.None);
+                    }
+                    else if (provider is BarkProvider bark && 
+                        providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
+                    {
+                        result = await bark.SendAsync(message, deviceKey, CancellationToken.None);
                     }
                     else
                     {

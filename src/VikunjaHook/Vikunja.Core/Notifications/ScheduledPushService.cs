@@ -14,7 +14,7 @@ public sealed class ScheduledPushService
 {
     private readonly IVikunjaClientFactory _clientFactory;
     private readonly JsonFileConfigurationManager _configManager;
-    private readonly IEnumerable<PushDeerProvider> _providers;
+    private readonly IEnumerable<NotificationProviderBase> _providers;
     private readonly ILogger<ScheduledPushService> _logger;
     private readonly Timer _timer;
     private readonly List<ScheduledPushRecord> _history;
@@ -24,7 +24,7 @@ public sealed class ScheduledPushService
     public ScheduledPushService(
         IVikunjaClientFactory clientFactory,
         JsonFileConfigurationManager configManager,
-        IEnumerable<PushDeerProvider> providers,
+        IEnumerable<NotificationProviderBase> providers,
         ILogger<ScheduledPushService> logger)
     {
         _clientFactory = clientFactory;
@@ -155,15 +155,27 @@ public sealed class ScheduledPushService
                         Format: NotificationFormat.Markdown
                     );
 
+                    NotificationResult result;
+                    
                     if (provider is PushDeerProvider pushDeer && 
                         providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
                     {
-                        var result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
-                        if (result.Success)
-                        {
-                            pushSuccess = true;
-                            _logger.LogInformation("✓ 推送成功 - 提供商: {Provider}", providerType);
-                        }
+                        result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
+                    }
+                    else if (provider is BarkProvider bark && 
+                        providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
+                    {
+                        result = await bark.SendAsync(message, deviceKey, cancellationToken);
+                    }
+                    else
+                    {
+                        result = await provider.SendAsync(message, cancellationToken);
+                    }
+                    
+                    if (result.Success)
+                    {
+                        pushSuccess = true;
+                        _logger.LogInformation("✓ 推送成功 - 提供商: {Provider}", providerType);
                     }
                 }
                 catch (Exception ex)

@@ -97,6 +97,7 @@ export default {
     disabled: 'Disabled',
     settings: 'Settings',
     pushkey: 'Push Key',
+    deviceKey: 'Device Key',
     save: 'Save',
     cancel: 'Cancel',
     confirmDelete: 'Confirm delete this provider?',

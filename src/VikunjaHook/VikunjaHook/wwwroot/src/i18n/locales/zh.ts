@@ -97,6 +97,7 @@ export default {
     disabled: '禁用',
     settings: '设置',
     pushkey: 'Push Key',
+    deviceKey: 'Device Key',
     save: '保存',
     cancel: '取消',
     confirmDelete: '确认删除此提供者？',

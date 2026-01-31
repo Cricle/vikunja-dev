@@ -99,7 +99,10 @@ builder.Services.AddSingleton(sp =>
     var templateEngine = sp.GetRequiredService<SimpleTemplateEngine>();
     var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
     var mcpTools = sp.GetRequiredService<McpToolsAdapter>();
-    var providers = sp.GetServices<PushDeerProvider>();
+    var pushDeerProviders = sp.GetServices<PushDeerProvider>();
+    var barkProviders = sp.GetServices<BarkProvider>();
+    var allProviders = pushDeerProviders.Cast<NotificationProviderBase>()
+        .Concat(barkProviders.Cast<NotificationProviderBase>());
     var pushHistory = sp.GetRequiredService<InMemoryPushEventHistory>();
     var reminderService = sp.GetRequiredService<TaskReminderService>();
     var logger = sp.GetRequiredService<ILogger<EventRouter>>();
@@ -112,7 +115,7 @@ builder.Services.AddSingleton(sp =>
         configManager,
         templateEngine,
         mcpTools,
-        providers,
+        allProviders,
         pushHistory,
         logger,
         vikunjaUrl);
@@ -121,6 +124,8 @@ builder.Services.AddSingleton(sp =>
 // Register notification providers
 builder.Services.AddHttpClient<PushDeerProvider>();
 builder.Services.AddSingleton<PushDeerProvider>();
+builder.Services.AddHttpClient<BarkProvider>();
+builder.Services.AddSingleton<BarkProvider>();
 
 // Register TaskReminderService
 builder.Services.AddSingleton(sp =>
@@ -128,7 +133,10 @@ builder.Services.AddSingleton(sp =>
     var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
     var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
     var templateEngine = sp.GetRequiredService<SimpleTemplateEngine>();
-    var providers = sp.GetServices<PushDeerProvider>();
+    var pushDeerProviders = sp.GetServices<PushDeerProvider>();
+    var barkProviders = sp.GetServices<BarkProvider>();
+    var allProviders = pushDeerProviders.Cast<NotificationProviderBase>()
+        .Concat(barkProviders.Cast<NotificationProviderBase>());
     var pushHistory = sp.GetRequiredService<InMemoryPushEventHistory>();
     var reminderHistory = sp.GetRequiredService<TaskReminderHistory>();
     var logger = sp.GetRequiredService<ILogger<TaskReminderService>>();
@@ -138,7 +146,7 @@ builder.Services.AddSingleton(sp =>
         clientFactory,
         configManager,
         templateEngine,
-        providers,
+        allProviders,
         pushHistory,
         reminderHistory,
         logger,
@@ -150,13 +158,16 @@ builder.Services.AddSingleton(sp =>
 {
     var clientFactory = sp.GetRequiredService<IVikunjaClientFactory>();
     var configManager = sp.GetRequiredService<JsonFileConfigurationManager>();
-    var providers = sp.GetServices<PushDeerProvider>();
+    var pushDeerProviders = sp.GetServices<PushDeerProvider>();
+    var barkProviders = sp.GetServices<BarkProvider>();
+    var allProviders = pushDeerProviders.Cast<NotificationProviderBase>()
+        .Concat(barkProviders.Cast<NotificationProviderBase>());
     var logger = sp.GetRequiredService<ILogger<ScheduledPushService>>();
     
     return new ScheduledPushService(
         clientFactory,
         configManager,
-        providers,
+        allProviders,
         logger);
 });
 
@@ -343,7 +354,8 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
     string userId,
     HttpContext context,
     JsonFileConfigurationManager configManager,
-    IEnumerable<PushDeerProvider> providers,
+    IEnumerable<PushDeerProvider> pushDeerProviders,
+    IEnumerable<BarkProvider> barkProviders,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -363,7 +375,10 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
         return Results.NotFound();
     }
     
-    var provider = providers.FirstOrDefault(p => p.ProviderType == request.ProviderType);
+    var allProviders = pushDeerProviders.Cast<NotificationProviderBase>()
+        .Concat(barkProviders.Cast<NotificationProviderBase>());
+    
+    var provider = allProviders.FirstOrDefault(p => p.ProviderType == request.ProviderType);
     
     if (provider == null)
     {
@@ -386,12 +401,23 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
         
         NotificationResult result;
         
-        // Special handling for PushDeer
+        // Special handling for providers with keys
         if (provider is PushDeerProvider pushDeer)
         {
             if (providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
             {
                 result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
+            }
+            else
+            {
+                return Results.BadRequest();
+            }
+        }
+        else if (provider is BarkProvider bark)
+        {
+            if (providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
+            {
+                result = await bark.SendAsync(message, deviceKey, cancellationToken);
             }
             else
             {
