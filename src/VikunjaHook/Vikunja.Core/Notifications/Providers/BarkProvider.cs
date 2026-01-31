@@ -8,7 +8,7 @@ namespace Vikunja.Core.Notifications.Providers;
 
 public class BarkProvider : NotificationProviderBase
 {
-    private const string ApiBaseUrl = "https://api.day.app/push";
+    private const string ApiBaseUrl = "https://api.day.app";
 
     private readonly HttpClient _httpClient;
 
@@ -57,20 +57,14 @@ public class BarkProvider : NotificationProviderBase
         string deviceKey,
         CancellationToken cancellationToken)
     {
-        var request = new BarkRequest
-        {
-            DeviceKey = deviceKey,
-            Title = message.Title,
-            Body = message.Body,
-            // Bark supports markdown-like formatting in body
-            IsArchive = 1 // Save to history
-        };
+        // URL encode title and body
+        var encodedTitle = Uri.EscapeDataString(message.Title);
+        var encodedBody = Uri.EscapeDataString(message.Body);
+        
+        // Bark API: GET https://api.day.app/{deviceKey}/{title}/{body}?isArchive=1
+        var url = $"{ApiBaseUrl}/{deviceKey}/{encodedTitle}/{encodedBody}?isArchive=1";
 
-        var response = await _httpClient.PostAsJsonAsync(
-            ApiBaseUrl,
-            request,
-            BarkJsonContext.Default.BarkRequest,
-            cancellationToken);
+        var response = await _httpClient.GetAsync(url, cancellationToken);
 
         if (response.IsSuccessStatusCode)
         {
@@ -151,22 +145,6 @@ public class BarkProvider : NotificationProviderBase
     }
 }
 
-// Bark API models
-public class BarkRequest
-{
-    [JsonPropertyName("device_key")]
-    public string DeviceKey { get; set; } = string.Empty;
-
-    [JsonPropertyName("title")]
-    public string Title { get; set; } = string.Empty;
-
-    [JsonPropertyName("body")]
-    public string Body { get; set; } = string.Empty;
-
-    [JsonPropertyName("isArchive")]
-    public int IsArchive { get; set; } = 1;
-}
-
 public class BarkResponse
 {
     [JsonPropertyName("code")]
@@ -183,7 +161,6 @@ public class BarkResponse
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-[JsonSerializable(typeof(BarkRequest))]
 [JsonSerializable(typeof(BarkResponse))]
 public partial class BarkJsonContext : JsonSerializerContext
 {
