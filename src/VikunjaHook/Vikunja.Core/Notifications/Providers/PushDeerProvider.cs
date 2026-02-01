@@ -111,42 +111,13 @@ public class PushDeerProvider : NotificationProviderBase
         ProviderConfig config,
         CancellationToken cancellationToken)
     {
-        if (!config.Settings.TryGetValue("pushkey", out var pushKey) ||
-            string.IsNullOrWhiteSpace(pushKey))
-        {
-            return new ValidationResult(
-                IsValid: false,
-                ErrorMessage: "PushDeer API key (pushkey) is required");
-        }
-
-        // Test the API key by sending a test request
-        try
-        {
-            var testMessage = new NotificationMessage(
-                Title: "Test Notification",
-                Body: "This is a test notification from Vikunja Webhook System",
-                Format: NotificationFormat.Text);
-
-            var result = await SendAsync(testMessage, pushKey, cancellationToken);
-
-            if (result.Success)
-            {
-                return new ValidationResult(IsValid: true);
-            }
-            else
-            {
-                return new ValidationResult(
-                    IsValid: false,
-                    ErrorMessage: $"API key validation failed: {result.ErrorMessage}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error validating PushDeer configuration");
-            return new ValidationResult(
-                IsValid: false,
-                ErrorMessage: $"Validation error: {ex.Message}");
-        }
+        return await ValidateWithTestNotificationAsync(
+            config,
+            "pushkey",
+            "PushDeer API key (pushkey)",
+            SendAsync,
+            cancellationToken
+        );
     }
 }
 

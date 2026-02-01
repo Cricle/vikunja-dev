@@ -116,4 +116,53 @@ public abstract class NotificationProviderBase
     {
         return Task.FromResult(new ValidationResult(IsValid: true));
     }
+
+    /// <summary>
+    /// 通用的配置验证辅助方法：检查必需的设置键并发送测试通知
+    /// </summary>
+    protected async Task<ValidationResult> ValidateWithTestNotificationAsync(
+        ProviderConfig config,
+        string settingKey,
+        string settingDisplayName,
+        Func<NotificationMessage, string, CancellationToken, Task<NotificationResult>> sendFunc,
+        CancellationToken cancellationToken)
+    {
+        // 检查必需的设置键
+        if (!config.Settings.TryGetValue(settingKey, out var settingValue) ||
+            string.IsNullOrWhiteSpace(settingValue))
+        {
+            return new ValidationResult(
+                IsValid: false,
+                ErrorMessage: $"{settingDisplayName} is required");
+        }
+
+        // 发送测试通知
+        try
+        {
+            var testMessage = new NotificationMessage(
+                Title: "Test Notification",
+                Body: "This is a test notification from Vikunja Webhook System",
+                Format: NotificationFormat.Text);
+
+            var result = await sendFunc(testMessage, settingValue, cancellationToken);
+
+            if (result.Success)
+            {
+                return new ValidationResult(IsValid: true);
+            }
+            else
+            {
+                return new ValidationResult(
+                    IsValid: false,
+                    ErrorMessage: $"{settingDisplayName} validation failed: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error validating {ProviderType} configuration", ProviderType);
+            return new ValidationResult(
+                IsValid: false,
+                ErrorMessage: $"Validation error: {ex.Message}");
+        }
+    }
 }

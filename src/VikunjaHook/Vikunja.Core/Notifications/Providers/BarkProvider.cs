@@ -106,42 +106,13 @@ public class BarkProvider : NotificationProviderBase
         ProviderConfig config,
         CancellationToken cancellationToken)
     {
-        if (!config.Settings.TryGetValue("deviceKey", out var deviceKey) ||
-            string.IsNullOrWhiteSpace(deviceKey))
-        {
-            return new ValidationResult(
-                IsValid: false,
-                ErrorMessage: "Bark device key is required");
-        }
-
-        // Test the device key by sending a test request
-        try
-        {
-            var testMessage = new NotificationMessage(
-                Title: "Test Notification",
-                Body: "This is a test notification from Vikunja Webhook System",
-                Format: NotificationFormat.Text);
-
-            var result = await SendAsync(testMessage, deviceKey, cancellationToken);
-
-            if (result.Success)
-            {
-                return new ValidationResult(IsValid: true);
-            }
-            else
-            {
-                return new ValidationResult(
-                    IsValid: false,
-                    ErrorMessage: $"Device key validation failed: {result.ErrorMessage}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error validating Bark configuration");
-            return new ValidationResult(
-                IsValid: false,
-                ErrorMessage: $"Validation error: {ex.Message}");
-        }
+        return await ValidateWithTestNotificationAsync(
+            config,
+            "deviceKey",
+            "Bark device key",
+            SendAsync,
+            cancellationToken
+        );
     }
 }
 
