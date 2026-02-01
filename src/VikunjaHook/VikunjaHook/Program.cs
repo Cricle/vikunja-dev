@@ -399,35 +399,12 @@ app.MapPost("/api/webhook-config/{userId}/test", async (
             Body: request.Body ?? "This is a test notification from Vikunja Webhook System",
             Format: NotificationFormat.Text);
         
-        NotificationResult result;
-        
-        // Special handling for providers with keys
-        if (provider is PushDeerProvider pushDeer)
-        {
-            if (providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
-            {
-                result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
-            }
-            else
-            {
-                return Results.BadRequest();
-            }
-        }
-        else if (provider is BarkProvider bark)
-        {
-            if (providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
-            {
-                result = await bark.SendAsync(message, deviceKey, cancellationToken);
-            }
-            else
-            {
-                return Results.BadRequest();
-            }
-        }
-        else
-        {
-            result = await provider.SendAsync(message, cancellationToken);
-        }
+        var result = await NotificationHelper.SendNotificationAsync(
+            provider,
+            providerConfig,
+            message,
+            cancellationToken
+        );
         
         return Results.Ok(result);
     }

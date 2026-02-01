@@ -435,23 +435,12 @@ public class EventRouter
 
             try
             {
-                NotificationResult result;
-                
-                // Handle providers with keys
-                if (provider is Providers.PushDeerProvider pushDeerProvider &&
-                    providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
-                {
-                    result = await pushDeerProvider.SendAsync(message, pushKey, cancellationToken);
-                }
-                else if (provider is Providers.BarkProvider barkProvider &&
-                    providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
-                {
-                    result = await barkProvider.SendAsync(message, deviceKey, cancellationToken);
-                }
-                else
-                {
-                    result = await provider.SendAsync(message, cancellationToken);
-                }
+                var result = await NotificationHelper.SendNotificationAsync(
+                    provider,
+                    providerConfig,
+                    message,
+                    cancellationToken
+                );
 
                 providerResults.Add(new ProviderPushResult
                 {

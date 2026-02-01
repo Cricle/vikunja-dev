@@ -523,22 +523,12 @@ public class TaskReminderService : IDisposable
                 
                 try
                 {
-                    NotificationResult result;
-                    
-                    if (provider is PushDeerProvider pushDeer && 
-                        providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
-                    {
-                        result = await pushDeer.SendAsync(message, pushKey, CancellationToken.None);
-                    }
-                    else if (provider is BarkProvider bark && 
-                        providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
-                    {
-                        result = await bark.SendAsync(message, deviceKey, CancellationToken.None);
-                    }
-                    else
-                    {
-                        result = await provider.SendAsync(message, CancellationToken.None);
-                    }
+                    var result = await NotificationHelper.SendNotificationAsync(
+                        provider,
+                        providerConfig,
+                        message,
+                        CancellationToken.None
+                    );
                     
                     // Record in push history
                     _pushHistory.AddRecord(new PushEventRecord

@@ -155,22 +155,12 @@ public sealed class ScheduledPushService
                         Format: NotificationFormat.Markdown
                     );
 
-                    NotificationResult result;
-                    
-                    if (provider is PushDeerProvider pushDeer && 
-                        providerConfig.Settings.TryGetValue("pushkey", out var pushKey))
-                    {
-                        result = await pushDeer.SendAsync(message, pushKey, cancellationToken);
-                    }
-                    else if (provider is BarkProvider bark && 
-                        providerConfig.Settings.TryGetValue("deviceKey", out var deviceKey))
-                    {
-                        result = await bark.SendAsync(message, deviceKey, cancellationToken);
-                    }
-                    else
-                    {
-                        result = await provider.SendAsync(message, cancellationToken);
-                    }
+                    var result = await NotificationHelper.SendNotificationAsync(
+                        provider,
+                        providerConfig,
+                        message,
+                        cancellationToken
+                    );
                     
                     if (result.Success)
                     {
