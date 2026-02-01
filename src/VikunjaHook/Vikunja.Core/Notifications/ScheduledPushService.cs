@@ -135,44 +135,22 @@ public sealed class ScheduledPushService
             _logger.LogInformation("📤 推送未完成任务 - 用户: {UserId}, 任务数: {Count}", 
                 config.UserId, tasks.Count);
 
+            // 创建通知消息
+            var message = new NotificationMessage(
+                Title: record.Title,
+                Body: record.Body,
+                Format: NotificationFormat.Markdown
+            );
+
             // 发送推送
-            var pushSuccess = false;
-            foreach (var providerType in config.Providers)
-            {
-                var provider = _providers.FirstOrDefault(p => p.ProviderType == providerType);
-                if (provider == null)
-                    continue;
-
-                var providerConfig = userConfig.Providers.FirstOrDefault(p => p.ProviderType == providerType);
-                if (providerConfig == null)
-                    continue;
-
-                try
-                {
-                    var message = new NotificationMessage(
-                        Title: record.Title,
-                        Body: record.Body,
-                        Format: NotificationFormat.Markdown
-                    );
-
-                    var result = await NotificationHelper.SendNotificationAsync(
-                        provider,
-                        providerConfig,
-                        message,
-                        cancellationToken
-                    );
-                    
-                    if (result.Success)
-                    {
-                        pushSuccess = true;
-                        _logger.LogInformation("✓ 推送成功 - 提供商: {Provider}", providerType);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "推送失败 - 提供商: {Provider}", providerType);
-                }
-            }
+            var pushSuccess = await NotificationHelper.SendToProvidersAsync(
+                _providers,
+                config.Providers,
+                userConfig.Providers,
+                message,
+                _logger,
+                cancellationToken
+            );
 
             record.Success = pushSuccess;
 
@@ -356,11 +334,6 @@ public sealed class ScheduledPushService
         ScheduledPushConfig config,
         CancellationToken cancellationToken)
     {
-        var dirPath = Path.Combine("data", "scheduled-push");
-        Directory.CreateDirectory(dirPath);
-
-        var filePath = Path.Combine(dirPath, $"{config.UserId}.json");
-
         var configs = await LoadScheduledConfigsAsync(config.UserId, cancellationToken);
         
         var existingIndex = configs.FindIndex(c => c.Id == config.Id);
@@ -374,12 +347,7 @@ public sealed class ScheduledPushService
             configs.Add(config);
         }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(
-            configs,
-            WebhookNotificationJsonContext.Default.ListScheduledPushConfig
-        );
-
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        await SaveScheduledConfigsAsync(config.UserId, configs, cancellationToken);
         _logger.LogInformation("✓ 保存定时推送配置 - 用户: {UserId}, 配置ID: {ConfigId}", 
             config.UserId, config.Id);
     }
@@ -392,7 +360,19 @@ public sealed class ScheduledPushService
         var configs = await LoadScheduledConfigsAsync(userId, cancellationToken);
         configs.RemoveAll(c => c.Id == configId);
 
+        await SaveScheduledConfigsAsync(userId, configs, cancellationToken);
+        _logger.LogInformation("✓ 删除定时推送配置 - 用户: {UserId}, 配置ID: {ConfigId}", 
+            userId, configId);
+    }
+
+    private static async Task SaveScheduledConfigsAsync(
+        string userId,
+        List<ScheduledPushConfig> configs,
+        CancellationToken cancellationToken)
+    {
         var dirPath = Path.Combine("data", "scheduled-push");
+        Directory.CreateDirectory(dirPath);
+
         var filePath = Path.Combine(dirPath, $"{userId}.json");
 
         var json = System.Text.Json.JsonSerializer.Serialize(
@@ -401,7 +381,5 @@ public sealed class ScheduledPushService
         );
 
         await File.WriteAllTextAsync(filePath, json, cancellationToken);
-        _logger.LogInformation("✓ 删除定时推送配置 - 用户: {UserId}, 配置ID: {ConfigId}", 
-            userId, configId);
     }
 }

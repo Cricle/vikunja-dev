@@ -35,4 +35,62 @@ public static class NotificationHelper
         // 其他 provider 使用默认方法
         return await provider.SendAsync(message, cancellationToken);
     }
+
+    /// <summary>
+    /// 批量发送通知到多个 providers
+    /// </summary>
+    public static async Task<bool> SendToProvidersAsync(
+        IEnumerable<NotificationProviderBase> allProviders,
+        IEnumerable<string> providerTypes,
+        IEnumerable<ProviderConfig> providerConfigs,
+        NotificationMessage message,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        var success = false;
+
+        foreach (var providerType in providerTypes)
+        {
+            var provider = allProviders.FirstOrDefault(p => p.ProviderType == providerType);
+            if (provider == null)
+            {
+                logger.LogWarning("Provider {ProviderType} not found", providerType);
+                continue;
+            }
+
+            var providerConfig = providerConfigs.FirstOrDefault(p => p.ProviderType == providerType);
+            if (providerConfig == null)
+            {
+                logger.LogWarning("Provider config for {ProviderType} not found", providerType);
+                continue;
+            }
+
+            try
+            {
+                var result = await SendNotificationAsync(
+                    provider,
+                    providerConfig,
+                    message,
+                    cancellationToken
+                );
+
+                if (result.Success)
+                {
+                    success = true;
+                    logger.LogInformation("✓ 推送成功 - 提供商: {Provider}", providerType);
+                }
+                else
+                {
+                    logger.LogWarning("✗ 推送失败 - 提供商: {Provider}, 错误: {Error}",
+                        providerType, result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "✗ 推送异常 - 提供商: {Provider}", providerType);
+            }
+        }
+
+        return success;
+    }
 }
