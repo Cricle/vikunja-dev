@@ -31,10 +31,7 @@ public class BarkProvider : NotificationProviderBase
     {
         if (string.IsNullOrWhiteSpace(deviceKey))
         {
-            return new NotificationResult(
-                Success: false,
-                ErrorMessage: "Bark device key is required",
-                Timestamp: DateTime.UtcNow);
+            return CreateErrorResult("Bark device key is required");
         }
 
         return await SendWithRetryAsync(
@@ -46,10 +43,7 @@ public class BarkProvider : NotificationProviderBase
         NotificationMessage message,
         CancellationToken cancellationToken)
     {
-        return new NotificationResult(
-            Success: false,
-            ErrorMessage: "Bark requires device key. Use SendAsync(message, deviceKey) instead.",
-            Timestamp: DateTime.UtcNow);
+        return CreateErrorResult("Bark requires device key. Use SendAsync(message, deviceKey) instead.");
     }
 
     private async Task<NotificationResult> SendWithKeyAsync(
@@ -66,40 +60,22 @@ public class BarkProvider : NotificationProviderBase
 
         var response = await _httpClient.GetAsync(url, cancellationToken);
 
-        if (response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
         {
-            var result = await response.Content.ReadFromJsonAsync(
-                BarkJsonContext.Default.BarkResponse,
-                cancellationToken);
+            return CreateHttpErrorResult(response.StatusCode);
+        }
 
-            if (result?.Code == 200)
-            {
-                Logger.LogInformation("Bark notification sent successfully");
-                return new NotificationResult(
-                    Success: true,
-                    ErrorMessage: null,
-                    Timestamp: DateTime.UtcNow);
-            }
-            else
-            {
-                var errorMsg = $"Bark API error: Code {result?.Code}";
-                if (result?.Message != null)
-                {
-                    errorMsg += $" - {result.Message}";
-                }
-                return new NotificationResult(
-                    Success: false,
-                    ErrorMessage: errorMsg,
-                    Timestamp: DateTime.UtcNow);
-            }
-        }
-        else
-        {
-            return new NotificationResult(
-                Success: false,
-                ErrorMessage: $"HTTP error: {response.StatusCode}",
-                Timestamp: DateTime.UtcNow);
-        }
+        var result = await response.Content.ReadFromJsonAsync(
+            BarkJsonContext.Default.BarkResponse,
+            cancellationToken);
+
+        return HandleApiResponse(
+            result,
+            r => r.Code == 200,
+            r => r.Code,
+            r => r.Message,
+            "Bark notification sent successfully"
+        );
     }
 
     protected override async Task<ValidationResult> ValidateConfigCoreAsync(

@@ -165,4 +165,67 @@ public abstract class NotificationProviderBase
                 ErrorMessage: $"Validation error: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 创建成功的通知结果
+    /// </summary>
+    protected static NotificationResult CreateSuccessResult()
+    {
+        return new NotificationResult(
+            Success: true,
+            ErrorMessage: null,
+            Timestamp: DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// 创建失败的通知结果
+    /// </summary>
+    protected static NotificationResult CreateErrorResult(string errorMessage)
+    {
+        return new NotificationResult(
+            Success: false,
+            ErrorMessage: errorMessage,
+            Timestamp: DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// 创建 HTTP 错误结果
+    /// </summary>
+    protected static NotificationResult CreateHttpErrorResult(System.Net.HttpStatusCode statusCode)
+    {
+        return CreateErrorResult($"HTTP error: {statusCode}");
+    }
+
+    /// <summary>
+    /// 处理 API 响应的通用方法
+    /// </summary>
+    protected NotificationResult HandleApiResponse<T>(
+        T? response,
+        Func<T, bool> isSuccess,
+        Func<T, int> getCode,
+        Func<T, string?> getErrorMessage,
+        string successLogMessage) where T : class
+    {
+        if (response == null)
+        {
+            return CreateErrorResult("Empty response from API");
+        }
+
+        if (isSuccess(response))
+        {
+            Logger.LogInformation(successLogMessage);
+            return CreateSuccessResult();
+        }
+        else
+        {
+            var code = getCode(response);
+            var errorMsg = $"{ProviderType} API error: Code {code}";
+            var apiError = getErrorMessage(response);
+            if (apiError != null)
+            {
+                errorMsg += $" - {apiError}";
+            }
+            return CreateErrorResult(errorMsg);
+        }
+    }
 }

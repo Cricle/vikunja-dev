@@ -31,10 +31,7 @@ public class PushDeerProvider : NotificationProviderBase
     {
         if (string.IsNullOrWhiteSpace(pushKey))
         {
-            return new NotificationResult(
-                Success: false,
-                ErrorMessage: "PushDeer API key is required",
-                Timestamp: DateTime.UtcNow);
+            return CreateErrorResult("PushDeer API key is required");
         }
 
         return await SendWithRetryAsync(
@@ -46,10 +43,7 @@ public class PushDeerProvider : NotificationProviderBase
         NotificationMessage message,
         CancellationToken cancellationToken)
     {
-        return new NotificationResult(
-            Success: false,
-            ErrorMessage: "PushDeer requires API key. Use SendAsync(message, pushKey) instead.",
-            Timestamp: DateTime.UtcNow);
+        return CreateErrorResult("PushDeer requires API key. Use SendAsync(message, pushKey) instead.");
     }
 
     private async Task<NotificationResult> SendWithKeyAsync(
@@ -71,40 +65,22 @@ public class PushDeerProvider : NotificationProviderBase
             PushDeerJsonContext.Default.PushDeerRequest,
             cancellationToken);
 
-        if (response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
         {
-            var result = await response.Content.ReadFromJsonAsync(
-                PushDeerJsonContext.Default.PushDeerResponse,
-                cancellationToken);
+            return CreateHttpErrorResult(response.StatusCode);
+        }
 
-            if (result?.Code == 0)
-            {
-                Logger.LogInformation("PushDeer notification sent successfully");
-                return new NotificationResult(
-                    Success: true,
-                    ErrorMessage: null,
-                    Timestamp: DateTime.UtcNow);
-            }
-            else
-            {
-                var errorMsg = $"PushDeer API error: Code {result?.Code}";
-                if (result?.Error != null)
-                {
-                    errorMsg += $" - {result.Error}";
-                }
-                return new NotificationResult(
-                    Success: false,
-                    ErrorMessage: errorMsg,
-                    Timestamp: DateTime.UtcNow);
-            }
-        }
-        else
-        {
-            return new NotificationResult(
-                Success: false,
-                ErrorMessage: $"HTTP error: {response.StatusCode}",
-                Timestamp: DateTime.UtcNow);
-        }
+        var result = await response.Content.ReadFromJsonAsync(
+            PushDeerJsonContext.Default.PushDeerResponse,
+            cancellationToken);
+
+        return HandleApiResponse(
+            result,
+            r => r.Code == 0,
+            r => r.Code,
+            r => r.Error,
+            "PushDeer notification sent successfully"
+        );
     }
 
     protected override async Task<ValidationResult> ValidateConfigCoreAsync(
