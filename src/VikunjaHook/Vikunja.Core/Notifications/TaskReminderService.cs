@@ -556,21 +556,11 @@ public class TaskReminderService : IDisposable
                     });
                     
                     // Record in reminder history
-                    _reminderHistory.AddRecord(new TaskReminderRecord
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        Timestamp = DateTime.UtcNow,
-                        TaskId = taskInfo.TaskId,
-                        TaskTitle = taskInfo.Title,
-                        ProjectTitle = taskInfo.ProjectTitle,
-                        ReminderType = reminderType,
-                        UserId = config.UserId,
-                        Title = title,
-                        Body = body,
-                        Providers = new List<string> { providerType },
-                        Success = result.Success,
-                        ErrorMessage = result.ErrorMessage
-                    });
+                    AddReminderHistoryRecord(
+                        taskInfo, reminderType, config.UserId, 
+                        title, body, providerType, 
+                        result.Success, result.ErrorMessage
+                    );
                     
                     if (result.Success)
                     {
@@ -588,21 +578,11 @@ public class TaskReminderService : IDisposable
                     _logger.LogError(ex, "Error sending reminder via {Provider}", providerType);
                     
                     // Record failed reminder
-                    _reminderHistory.AddRecord(new TaskReminderRecord
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        Timestamp = DateTime.UtcNow,
-                        TaskId = taskInfo.TaskId,
-                        TaskTitle = taskInfo.Title,
-                        ProjectTitle = taskInfo.ProjectTitle,
-                        ReminderType = reminderType,
-                        UserId = config.UserId,
-                        Title = title,
-                        Body = body,
-                        Providers = new List<string> { providerType },
-                        Success = false,
-                        ErrorMessage = ex.Message
-                    });
+                    AddReminderHistoryRecord(
+                        taskInfo, reminderType, config.UserId,
+                        title, body, providerType,
+                        false, ex.Message
+                    );
                 }
             }
         }
@@ -639,6 +619,33 @@ public class TaskReminderService : IDisposable
                 ReminderCount = t.Reminders.Count
             }).ToList()
         };
+    }
+
+    private void AddReminderHistoryRecord(
+        TaskReminderInfo taskInfo,
+        string reminderType,
+        string userId,
+        string title,
+        string body,
+        string providerType,
+        bool success,
+        string? errorMessage)
+    {
+        _reminderHistory.AddRecord(new TaskReminderRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            Timestamp = DateTime.UtcNow,
+            TaskId = taskInfo.TaskId,
+            TaskTitle = taskInfo.Title,
+            ProjectTitle = taskInfo.ProjectTitle,
+            ReminderType = reminderType,
+            UserId = userId,
+            Title = title,
+            Body = body,
+            Providers = new List<string> { providerType },
+            Success = success,
+            ErrorMessage = errorMessage
+        });
     }
 }
 
