@@ -190,89 +190,10 @@ public class EventRouter
             }
         }
 
-        // Extract comment data from webhook event
-        if (webhookEvent.EventType.Contains("comment") && 
-            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            if (webhookEvent.Data.TryGetProperty("id", out var commentId) &&
-                webhookEvent.Data.TryGetProperty("comment", out var commentText))
-            {
-                var comment = new CommentTemplateData
-                {
-                    Id = commentId.GetInt32(),
-                    Text = commentText.GetString() ?? string.Empty
-                };
-                
-                // Try to get author info
-                if (webhookEvent.Data.TryGetProperty("author", out var authorProp) &&
-                    authorProp.ValueKind == System.Text.Json.JsonValueKind.Object)
-                {
-                    if (authorProp.TryGetProperty("username", out var username))
-                    {
-                        comment.Author = username.GetString() ?? string.Empty;
-                    }
-                }
-                
-                context = context with { Comment = comment };
-                
-                // Try to get task info from task_id in comment event
-                if (webhookEvent.Data.TryGetProperty("task_id", out var commentTaskId) && commentTaskId.GetInt32() > 0)
-                {
-                    context = await EnrichTaskDataAsync(context, commentTaskId.GetInt32(), cancellationToken);
-                }
-            }
-        }
-
-        // Extract attachment data from webhook event
-        if (webhookEvent.EventType.Contains("attachment") &&
-            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            if (webhookEvent.Data.TryGetProperty("id", out var attachmentId) &&
-                webhookEvent.Data.TryGetProperty("file_name", out var fileName))
-            {
-                var attachment = new AttachmentTemplateData
-                {
-                    Id = attachmentId.GetInt32(),
-                    FileName = fileName.GetString() ?? string.Empty
-                };
-                
-                context = context with { Attachment = attachment };
-                
-                // Try to get task info from task_id in attachment event
-                if (webhookEvent.Data.TryGetProperty("task_id", out var attachmentTaskId) && attachmentTaskId.GetInt32() > 0)
-                {
-                    context = await EnrichTaskDataAsync(context, attachmentTaskId.GetInt32(), cancellationToken);
-                }
-            }
-        }
-
-        // Extract relation data from webhook event
-        if (webhookEvent.EventType.Contains("relation") &&
-            webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            if (webhookEvent.Data.TryGetProperty("task_id", out var taskId) &&
-                webhookEvent.Data.TryGetProperty("other_task_id", out var otherTaskId))
-            {
-                var relation = new RelationTemplateData
-                {
-                    TaskId = taskId.GetInt32(),
-                    RelatedTaskId = otherTaskId.GetInt32()
-                };
-                
-                if (webhookEvent.Data.TryGetProperty("relation_kind", out var relationType))
-                {
-                    relation.RelationType = relationType.GetString() ?? string.Empty;
-                }
-                
-                context = context with { Relation = relation };
-                
-                // Try to get task info from task_id in relation event
-                if (taskId.GetInt32() > 0)
-                {
-                    context = await EnrichTaskDataAsync(context, taskId.GetInt32(), cancellationToken);
-                }
-            }
-        }
+        // Extract event-specific data
+        context = await ExtractCommentDataAsync(webhookEvent, context, cancellationToken);
+        context = await ExtractAttachmentDataAsync(webhookEvent, context, cancellationToken);
+        context = await ExtractRelationDataAsync(webhookEvent, context, cancellationToken);
 
         // Try to extract user data from webhook event data
         if (webhookEvent.Data.ValueKind == System.Text.Json.JsonValueKind.Object)
@@ -521,5 +442,123 @@ public class EventRouter
                 Url = string.IsNullOrWhiteSpace(_vikunjaUrl) ? string.Empty : $"{_vikunjaUrl}/tasks/{taskId}"
             } 
         };
+    }
+
+    // 提取评论数据
+    private async Task<TemplateContext> ExtractCommentDataAsync(
+        WebhookEvent webhookEvent,
+        TemplateContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!webhookEvent.EventType.Contains("comment") || 
+            webhookEvent.Data.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return context;
+        }
+
+        if (!webhookEvent.Data.TryGetProperty("id", out var commentId) ||
+            !webhookEvent.Data.TryGetProperty("comment", out var commentText))
+        {
+            return context;
+        }
+
+        var comment = new CommentTemplateData
+        {
+            Id = commentId.GetInt32(),
+            Text = commentText.GetString() ?? string.Empty
+        };
+        
+        // Try to get author info
+        if (webhookEvent.Data.TryGetProperty("author", out var authorProp) &&
+            authorProp.ValueKind == System.Text.Json.JsonValueKind.Object &&
+            authorProp.TryGetProperty("username", out var username))
+        {
+            comment.Author = username.GetString() ?? string.Empty;
+        }
+        
+        context = context with { Comment = comment };
+        
+        // Try to get task info from task_id
+        if (webhookEvent.Data.TryGetProperty("task_id", out var taskId) && taskId.GetInt32() > 0)
+        {
+            context = await EnrichTaskDataAsync(context, taskId.GetInt32(), cancellationToken);
+        }
+
+        return context;
+    }
+
+    // 提取附件数据
+    private async Task<TemplateContext> ExtractAttachmentDataAsync(
+        WebhookEvent webhookEvent,
+        TemplateContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!webhookEvent.EventType.Contains("attachment") ||
+            webhookEvent.Data.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return context;
+        }
+
+        if (!webhookEvent.Data.TryGetProperty("id", out var attachmentId) ||
+            !webhookEvent.Data.TryGetProperty("file_name", out var fileName))
+        {
+            return context;
+        }
+
+        var attachment = new AttachmentTemplateData
+        {
+            Id = attachmentId.GetInt32(),
+            FileName = fileName.GetString() ?? string.Empty
+        };
+        
+        context = context with { Attachment = attachment };
+        
+        // Try to get task info from task_id
+        if (webhookEvent.Data.TryGetProperty("task_id", out var taskId) && taskId.GetInt32() > 0)
+        {
+            context = await EnrichTaskDataAsync(context, taskId.GetInt32(), cancellationToken);
+        }
+
+        return context;
+    }
+
+    // 提取关系数据
+    private async Task<TemplateContext> ExtractRelationDataAsync(
+        WebhookEvent webhookEvent,
+        TemplateContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!webhookEvent.EventType.Contains("relation") ||
+            webhookEvent.Data.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return context;
+        }
+
+        if (!webhookEvent.Data.TryGetProperty("task_id", out var taskId) ||
+            !webhookEvent.Data.TryGetProperty("other_task_id", out var otherTaskId))
+        {
+            return context;
+        }
+
+        var relation = new RelationTemplateData
+        {
+            TaskId = taskId.GetInt32(),
+            RelatedTaskId = otherTaskId.GetInt32()
+        };
+        
+        if (webhookEvent.Data.TryGetProperty("relation_kind", out var relationType))
+        {
+            relation.RelationType = relationType.GetString() ?? string.Empty;
+        }
+        
+        context = context with { Relation = relation };
+        
+        // Try to get task info from task_id
+        if (taskId.GetInt32() > 0)
+        {
+            context = await EnrichTaskDataAsync(context, taskId.GetInt32(), cancellationToken);
+        }
+
+        return context;
     }
 }

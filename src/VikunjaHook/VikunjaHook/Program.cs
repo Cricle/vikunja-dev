@@ -475,42 +475,27 @@ app.MapPost("/api/webhook", async (
     }
 });
 
-// Get push event history
-app.MapGet("/api/push-history", (
-    InMemoryPushEventHistory pushHistory,
-    int? count) =>
-{
-    var records = pushHistory.GetRecentRecords(count ?? 50);
-    var response = new PushHistoryResponse
+// History endpoints - unified pattern
+app.MapGet("/api/push-history", (InMemoryPushEventHistory pushHistory, int? count) =>
+    Results.Ok(new PushHistoryResponse
     {
-        Records = records,
+        Records = pushHistory.GetRecentRecords(count ?? 50),
         TotalCount = pushHistory.GetTotalCount()
-    };
-    return Results.Ok(response);
-});
+    }));
 
-// Clear push event history
 app.MapDelete("/api/push-history", (InMemoryPushEventHistory pushHistory) =>
 {
     pushHistory.Clear();
-    var response = new ClearHistoryResponse { Message = "History cleared" };
-    return Results.Ok(response);
+    return Results.Ok(new ClearHistoryResponse { Message = "History cleared" });
 });
 
-// Get task reminder history
-app.MapGet("/api/reminder-history", (
-    TaskReminderHistory reminderHistory,
-    int? count) =>
-{
-    var records = reminderHistory.GetRecentRecords(count ?? 50);
-    return new ReminderHistoryResponse
+app.MapGet("/api/reminder-history", (TaskReminderHistory reminderHistory, int? count) =>
+    new ReminderHistoryResponse
     {
-        Records = records,
+        Records = reminderHistory.GetRecentRecords(count ?? 50),
         TotalCount = reminderHistory.GetTotalCount()
-    };
-});
+    });
 
-// Clear task reminder history
 app.MapDelete("/api/reminder-history", (TaskReminderHistory reminderHistory) =>
 {
     reminderHistory.Clear();
@@ -582,20 +567,14 @@ app.MapGet("/api/mcp/labels", async (
 
 // Get reminder status (for monitoring)
 app.MapGet("/api/reminder-status", (TaskReminderService reminderService) =>
-{
-    var status = reminderService.GetReminderStatus();
-    return Results.Ok(status);
-});
+    Results.Ok(reminderService.GetReminderStatus()));
 
 // Scheduled Push API endpoints
 app.MapGet("/api/scheduled-push/{userId}", async (
     string userId,
     ScheduledPushService scheduledPushService,
     CancellationToken cancellationToken) =>
-{
-    var configs = await scheduledPushService.LoadScheduledConfigsAsync(userId, cancellationToken);
-    return Results.Ok(configs);
-});
+    Results.Ok(await scheduledPushService.LoadScheduledConfigsAsync(userId, cancellationToken)));
 
 app.MapPost("/api/scheduled-push/{userId}", async (
     string userId,
@@ -626,9 +605,7 @@ app.MapDelete("/api/scheduled-push/{userId}/{configId}", async (
     return Results.Ok(new { message = "Scheduled push config deleted" });
 });
 
-app.MapGet("/api/scheduled-push-history", (
-    ScheduledPushService scheduledPushService,
-    int? count) =>
+app.MapGet("/api/scheduled-push-history", (ScheduledPushService scheduledPushService, int? count) =>
 {
     var records = scheduledPushService.GetHistory(count ?? 50);
     return Results.Ok(new { records, totalCount = records.Count });

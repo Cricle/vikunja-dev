@@ -70,22 +70,24 @@ public class DefaultWebhookHandler : WebhookHandlerBase
         
         try
         {
-            if (webhookEvent.EventType == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null)
+            switch (webhookEvent.EventType)
             {
-                await HandleTaskCreatedOrUpdatedAsync(webhookEvent, true, cancellationToken);
-            }
-            else if (webhookEvent.EventType == VikunjaEventTypes.TaskUpdated && webhookEvent.Task != null)
-            {
-                await HandleTaskCreatedOrUpdatedAsync(webhookEvent, false, cancellationToken);
-            }
-            else if (webhookEvent.EventType == VikunjaEventTypes.TaskDeleted && webhookEvent.Task != null)
-            {
-                Logger.LogInformation("TaskDeleted: Removing task {TaskId} from reminder service", webhookEvent.Task.Id);
-                _reminderService.OnTaskDeleted(webhookEvent.Task.Id);
-            }
-            else
-            {
-                Logger.LogDebug("Skipping reminder update for event type: {EventType}", webhookEvent.EventType);
+                case var type when type == VikunjaEventTypes.TaskCreated && webhookEvent.Task != null:
+                    await HandleTaskCreatedOrUpdatedAsync(webhookEvent, true, cancellationToken);
+                    break;
+                
+                case var type when type == VikunjaEventTypes.TaskUpdated && webhookEvent.Task != null:
+                    await HandleTaskCreatedOrUpdatedAsync(webhookEvent, false, cancellationToken);
+                    break;
+                
+                case var type when type == VikunjaEventTypes.TaskDeleted && webhookEvent.Task != null:
+                    Logger.LogInformation("TaskDeleted: Removing task {TaskId} from reminder service", webhookEvent.Task.Id);
+                    _reminderService.OnTaskDeleted(webhookEvent.Task.Id);
+                    break;
+                
+                default:
+                    Logger.LogDebug("Skipping reminder update for event type: {EventType}", webhookEvent.EventType);
+                    break;
             }
         }
         catch (Exception ex)

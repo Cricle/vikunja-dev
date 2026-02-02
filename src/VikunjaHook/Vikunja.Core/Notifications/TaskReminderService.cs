@@ -432,62 +432,14 @@ public class TaskReminderService : IDisposable
                 "start" => reminderConfig.StartDateTemplate,
                 "due" => reminderConfig.DueDateTemplate,
                 "end" => reminderConfig.EndDateTemplate,
-                "reminder" => reminderConfig.ReminderTimeTemplate,
                 _ => reminderConfig.ReminderTimeTemplate
             };
             
             // Build context for template
-            var context = new TemplateContext
-            {
-                Task = new TaskTemplateData
-                {
-                    Id = (int)taskInfo.TaskId,
-                    Title = taskInfo.Title,
-                    Description = string.Empty,
-                    Done = false,
-                    Priority = 0,
-                    DueDate = taskInfo.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
-                    Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
-                        : $"Task ID: {taskInfo.TaskId}"
-                },
-                Project = new ProjectTemplateData
-                {
-                    Id = (int)taskInfo.ProjectId,
-                    Title = taskInfo.ProjectTitle,
-                    Description = string.Empty,
-                    Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/projects/{taskInfo.ProjectId}" 
-                        : $"Project ID: {taskInfo.ProjectId}"
-                },
-                Event = new EventData
-                {
-                    Type = $"task.reminder.{reminderType}",
-                    Timestamp = DateTime.UtcNow,
-                    Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
-                        ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
-                        : $"Task ID: {taskInfo.TaskId}"
-                }
-            };
+            var context = BuildTemplateContext(taskInfo, reminderType);
             
-            // Add custom properties for reminder-specific data
-            var startDate = taskInfo.StartDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
-            var endDate = taskInfo.EndDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
-            var reminders = taskInfo.Reminders.Any() 
-                ? string.Join(", ", taskInfo.Reminders.Select(r => r.ToString("yyyy-MM-dd HH:mm")))
-                : "None";
-            
-            var title = _templateEngine.Render(template.TitleTemplate, context)
-                .Replace("{{task.startDate}}", startDate)
-                .Replace("{{task.endDate}}", endDate)
-                .Replace("{{task.reminders}}", reminders)
-                .Replace("{{reminder.type}}", reminderType);
-                
-            var body = _templateEngine.Render(template.BodyTemplate, context)
-                .Replace("{{task.startDate}}", startDate)
-                .Replace("{{task.endDate}}", endDate)
-                .Replace("{{task.reminders}}", reminders)
-                .Replace("{{reminder.type}}", reminderType);
+            // Render title and body with custom replacements
+            var (title, body) = RenderReminderTemplate(template, context, taskInfo, reminderType);
             
             var message = new NotificationMessage(title, body, reminderConfig.Format);
             
@@ -503,92 +455,161 @@ public class TaskReminderService : IDisposable
             }
             
             // Send to each provider
-            foreach (var providerType in providerTypes)
-            {
-                var providerConfig = config.Providers.FirstOrDefault(p => 
-                    p.ProviderType.Equals(providerType, StringComparison.OrdinalIgnoreCase));
-                
-                if (providerConfig == null)
-                {
-                    continue;
-                }
-                
-                var provider = _providers.FirstOrDefault(p => 
-                    p.ProviderType.Equals(providerType, StringComparison.OrdinalIgnoreCase));
-                
-                if (provider == null)
-                {
-                    continue;
-                }
-                
-                try
-                {
-                    var result = await NotificationHelper.SendNotificationAsync(
-                        provider,
-                        providerConfig,
-                        message,
-                        CancellationToken.None
-                    );
-                    
-                    // Record in push history
-                    _pushHistory.AddRecord(new PushEventRecord
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        EventName = $"task.reminder.{reminderType}",
-                        Timestamp = DateTime.UtcNow,
-                        EventData = new EventDataInfo
-                        {
-                            Title = title,
-                            Body = body,
-                            Format = reminderConfig.Format.ToString()
-                        },
-                        Providers = new List<ProviderPushResult>
-                        {
-                            new ProviderPushResult
-                            {
-                                ProviderType = providerType,
-                                Success = result.Success,
-                                Message = result.ErrorMessage,
-                                Timestamp = DateTime.UtcNow,
-                                NotificationContent = message
-                            }
-                        }
-                    });
-                    
-                    // Record in reminder history
-                    AddReminderHistoryRecord(
-                        taskInfo, reminderType, config.UserId, 
-                        title, body, providerType, 
-                        result.Success, result.ErrorMessage
-                    );
-                    
-                    if (result.Success)
-                    {
-                        _logger.LogInformation("Reminder sent to {UserId} via {Provider} for task {TaskId}", 
-                            config.UserId, providerType, taskInfo.TaskId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to send reminder to {UserId} via {Provider}: {Error}", 
-                            config.UserId, providerType, result.ErrorMessage);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error sending reminder via {Provider}", providerType);
-                    
-                    // Record failed reminder
-                    AddReminderHistoryRecord(
-                        taskInfo, reminderType, config.UserId,
-                        title, body, providerType,
-                        false, ex.Message
-                    );
-                }
-            }
+            await SendToProvidersAsync(config, providerTypes, message, taskInfo, reminderType, title, body);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error sending reminder for task {TaskId}", taskInfo.TaskId);
+        }
+    }
+
+    private TemplateContext BuildTemplateContext(TaskReminderInfo taskInfo, string reminderType)
+    {
+        return new TemplateContext
+        {
+            Task = new TaskTemplateData
+            {
+                Id = (int)taskInfo.TaskId,
+                Title = taskInfo.Title,
+                Description = string.Empty,
+                Done = false,
+                Priority = 0,
+                DueDate = taskInfo.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty,
+                Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
+                    ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
+                    : $"Task ID: {taskInfo.TaskId}"
+            },
+            Project = new ProjectTemplateData
+            {
+                Id = (int)taskInfo.ProjectId,
+                Title = taskInfo.ProjectTitle,
+                Description = string.Empty,
+                Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
+                    ? $"{_vikunjaUrl.TrimEnd('/')}/projects/{taskInfo.ProjectId}" 
+                    : $"Project ID: {taskInfo.ProjectId}"
+            },
+            Event = new EventData
+            {
+                Type = $"task.reminder.{reminderType}",
+                Timestamp = DateTime.UtcNow,
+                Url = !string.IsNullOrWhiteSpace(_vikunjaUrl) 
+                    ? $"{_vikunjaUrl.TrimEnd('/')}/tasks/{taskInfo.TaskId}" 
+                    : $"Task ID: {taskInfo.TaskId}"
+            }
+        };
+    }
+
+    private (string title, string body) RenderReminderTemplate(
+        ReminderTemplate template,
+        TemplateContext context,
+        TaskReminderInfo taskInfo,
+        string reminderType)
+    {
+        var startDate = taskInfo.StartDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
+        var endDate = taskInfo.EndDate?.ToString("yyyy-MM-dd HH:mm") ?? "None";
+        var reminders = taskInfo.Reminders.Any() 
+            ? string.Join(", ", taskInfo.Reminders.Select(r => r.ToString("yyyy-MM-dd HH:mm")))
+            : "None";
+        
+        var title = _templateEngine.Render(template.TitleTemplate, context)
+            .Replace("{{task.startDate}}", startDate)
+            .Replace("{{task.endDate}}", endDate)
+            .Replace("{{task.reminders}}", reminders)
+            .Replace("{{reminder.type}}", reminderType);
+            
+        var body = _templateEngine.Render(template.BodyTemplate, context)
+            .Replace("{{task.startDate}}", startDate)
+            .Replace("{{task.endDate}}", endDate)
+            .Replace("{{task.reminders}}", reminders)
+            .Replace("{{reminder.type}}", reminderType);
+
+        return (title, body);
+    }
+
+    private async Task SendToProvidersAsync(
+        UserConfig config,
+        List<string> providerTypes,
+        NotificationMessage message,
+        TaskReminderInfo taskInfo,
+        string reminderType,
+        string title,
+        string body)
+    {
+        foreach (var providerType in providerTypes)
+        {
+            var providerConfig = config.Providers.FirstOrDefault(p => 
+                p.ProviderType.Equals(providerType, StringComparison.OrdinalIgnoreCase));
+            
+            if (providerConfig == null) continue;
+            
+            var provider = _providers.FirstOrDefault(p => 
+                p.ProviderType.Equals(providerType, StringComparison.OrdinalIgnoreCase));
+            
+            if (provider == null) continue;
+            
+            try
+            {
+                var result = await NotificationHelper.SendNotificationAsync(
+                    provider,
+                    providerConfig,
+                    message,
+                    CancellationToken.None
+                );
+                
+                // Record in push history
+                _pushHistory.AddRecord(new PushEventRecord
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    EventName = $"task.reminder.{reminderType}",
+                    Timestamp = DateTime.UtcNow,
+                    EventData = new EventDataInfo
+                    {
+                        Title = title,
+                        Body = body,
+                        Format = config.ReminderConfig!.Format.ToString()
+                    },
+                    Providers = new List<ProviderPushResult>
+                    {
+                        new ProviderPushResult
+                        {
+                            ProviderType = providerType,
+                            Success = result.Success,
+                            Message = result.ErrorMessage,
+                            Timestamp = DateTime.UtcNow,
+                            NotificationContent = message
+                        }
+                    }
+                });
+                
+                // Record in reminder history
+                AddReminderHistoryRecord(
+                    taskInfo, reminderType, config.UserId, 
+                    title, body, providerType, 
+                    result.Success, result.ErrorMessage
+                );
+                
+                if (result.Success)
+                {
+                    _logger.LogInformation("Reminder sent to {UserId} via {Provider} for task {TaskId}", 
+                        config.UserId, providerType, taskInfo.TaskId);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to send reminder to {UserId} via {Provider}: {Error}", 
+                        config.UserId, providerType, result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending reminder via {Provider}", providerType);
+                
+                // Record failed reminder
+                AddReminderHistoryRecord(
+                    taskInfo, reminderType, config.UserId,
+                    title, body, providerType,
+                    false, ex.Message
+                );
+            }
         }
     }
 
