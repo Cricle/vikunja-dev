@@ -117,10 +117,9 @@ public sealed class ScheduledPushService
             {
                 _logger.LogInformation("用户 {UserId} 没有符合条件的未完成任务，跳过推送", config.UserId);
                 record.Success = true;
-                record.Title = config.TitleTemplate.Replace("{{count}}", "0").Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
+                record.Title = RenderTemplate(config.TitleTemplate, tasks);
                 record.Body = "今天没有待办任务 ✨";
                 
-                // 更新最后推送时间
                 config.LastPushTime = DateTime.UtcNow;
                 await SaveScheduledConfigAsync(config, cancellationToken);
                 
@@ -129,8 +128,8 @@ public sealed class ScheduledPushService
             }
 
             // 渲染标题和正文
-            record.Title = RenderTitle(config.TitleTemplate, tasks);
-            record.Body = RenderBody(config.BodyTemplate, tasks);
+            record.Title = RenderTemplate(config.TitleTemplate, tasks);
+            record.Body = RenderTemplate(config.BodyTemplate, tasks, includeTaskList: true);
 
             _logger.LogInformation("📤 推送未完成任务 - 用户: {UserId}, 任务数: {Count}", 
                 config.UserId, tasks.Count);
@@ -174,7 +173,6 @@ public sealed class ScheduledPushService
     {
         try
         {
-            // 获取所有未完成的任务
             var allTasks = await _clientFactory.GetAsync<List<VikunjaTask>>(
                 "tasks?filter=done%3Dfalse&per_page=1000",
                 cancellationToken
@@ -183,30 +181,18 @@ public sealed class ScheduledPushService
             if (allTasks == null || allTasks.Count == 0)
                 return new List<VikunjaTask>();
 
+            // 如果没有设置任何过滤条件，返回所有任务
+            if (config.MinPriority == 0 && config.LabelIds.Count == 0)
+                return allTasks;
+
             // 过滤任务：优先级 OR 标签
-            var filteredTasks = allTasks.Where(task =>
+            return allTasks.Where(task =>
             {
-                // 如果没有设置任何过滤条件，返回所有任务
-                if (config.MinPriority == 0 && config.LabelIds.Count == 0)
-                {
-                    return true;
-                }
-
-                // 检查优先级（大于等于最低优先级）
                 var priorityMatch = config.MinPriority > 0 && task.Priority >= config.MinPriority;
-
-                // 检查标签（任意标签匹配）
-                var labelMatch = false;
-                if (config.LabelIds.Count > 0 && task.Labels != null)
-                {
-                    labelMatch = task.Labels.Any(label => config.LabelIds.Contains(label.Id));
-                }
-
-                // OR 运算：优先级匹配 OR 标签匹配
+                var labelMatch = config.LabelIds.Count > 0 && 
+                                task.Labels?.Any(label => config.LabelIds.Contains(label.Id)) == true;
                 return priorityMatch || labelMatch;
             }).ToList();
-
-            return filteredTasks;
         }
         catch (Exception ex)
         {
@@ -215,32 +201,30 @@ public sealed class ScheduledPushService
         }
     }
 
-    private static string RenderTitle(string template, List<VikunjaTask> tasks)
+    private static string RenderTemplate(string template, List<VikunjaTask> tasks, bool includeTaskList = false)
     {
-        return template
+        var result = template
             .Replace("{{count}}", tasks.Count.ToString())
             .Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
+
+        if (includeTaskList)
+        {
+            result = result.Replace("{{tasks}}", RenderTaskList(tasks));
+        }
+
+        return result;
     }
 
-    private static string RenderBody(string template, List<VikunjaTask> tasks)
+    private static string RenderTaskList(List<VikunjaTask> tasks)
     {
         var sb = new StringBuilder();
         
-        // 按优先级分组
-        var groupedTasks = tasks
-            .GroupBy(t => t.Priority)
-            .OrderByDescending(g => g.Key);
-
-        foreach (var group in groupedTasks)
+        foreach (var group in tasks.GroupBy(t => t.Priority).OrderByDescending(g => g.Key))
         {
             var priorityEmoji = group.Key switch
             {
-                5 => "🔴",
-                4 => "🟠",
-                3 => "🟡",
-                2 => "🟢",
-                1 => "🔵",
-                _ => "⚪"
+                5 => "🔴", 4 => "🟠", 3 => "🟡", 
+                2 => "🟢", 1 => "🔵", _ => "⚪"
             };
 
             foreach (var task in group.OrderBy(t => t.DueDate ?? DateTime.MaxValue))
@@ -249,18 +233,18 @@ public sealed class ScheduledPushService
                 
                 if (task.DueDate.HasValue)
                 {
-                    var dueDate = task.DueDate.Value;
-                    var daysUntilDue = (dueDate.Date - DateTime.Now.Date).Days;
+                    var daysUntilDue = (task.DueDate.Value.Date - DateTime.Now.Date).Days;
                     
-                    if (daysUntilDue < 0)
-                        sb.Append($" ⚠️ 已逾期 {-daysUntilDue} 天");
-                    else if (daysUntilDue == 0)
-                        sb.Append(" 📅 今天到期");
-                    else if (daysUntilDue <= 3)
-                        sb.Append($" 📅 {daysUntilDue} 天后到期");
+                    sb.Append(daysUntilDue switch
+                    {
+                        < 0 => $" ⚠️ 已逾期 {-daysUntilDue} 天",
+                        0 => " 📅 今天到期",
+                        <= 3 => $" 📅 {daysUntilDue} 天后到期",
+                        _ => ""
+                    });
                 }
 
-                if (task.Labels != null && task.Labels.Count > 0)
+                if (task.Labels?.Count > 0)
                 {
                     sb.Append($" 🏷️ {string.Join(", ", task.Labels.Select(l => l.Title))}");
                 }
@@ -269,12 +253,7 @@ public sealed class ScheduledPushService
             }
         }
 
-        var tasksMarkdown = sb.ToString();
-
-        return template
-            .Replace("{{tasks}}", tasksMarkdown)
-            .Replace("{{count}}", tasks.Count.ToString())
-            .Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
+        return sb.ToString();
     }
 
     private void AddHistory(ScheduledPushRecord record)

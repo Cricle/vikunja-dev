@@ -6,47 +6,22 @@ using Vikunja.Core.Notifications.Models;
 
 namespace Vikunja.Core.Notifications.Providers;
 
-public class PushDeerProvider : NotificationProviderBase
+public class PushDeerProvider : KeyBasedProviderBase
 {
     private const string ApiBaseUrl = "https://api2.pushdeer.com";
-
     private readonly HttpClient _httpClient;
 
     public override string ProviderType => "pushdeer";
+    protected override string KeySettingName => "pushkey";
+    protected override string KeyDisplayName => "PushDeer API key";
 
-    public PushDeerProvider(
-        HttpClient httpClient,
-        ILogger<PushDeerProvider> logger) : base(logger)
+    public PushDeerProvider(HttpClient httpClient, ILogger<PushDeerProvider> logger) 
+        : base(logger)
     {
         _httpClient = httpClient;
     }
 
-    /// <summary>
-    /// Send notification with PushDeer API key
-    /// </summary>
-    public async Task<NotificationResult> SendAsync(
-        NotificationMessage message,
-        string? pushKey,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(pushKey))
-        {
-            return CreateErrorResult("PushDeer API key is required");
-        }
-
-        return await SendWithRetryAsync(
-            () => SendWithKeyAsync(message, pushKey, cancellationToken),
-            cancellationToken);
-    }
-
-    protected override async Task<NotificationResult> SendCoreAsync(
-        NotificationMessage message,
-        CancellationToken cancellationToken)
-    {
-        return CreateErrorResult("PushDeer requires API key. Use SendAsync(message, pushKey) instead.");
-    }
-
-    private async Task<NotificationResult> SendWithKeyAsync(
+    protected override async Task<NotificationResult> SendWithKeyAsync(
         NotificationMessage message,
         string pushKey,
         CancellationToken cancellationToken)
@@ -66,9 +41,7 @@ public class PushDeerProvider : NotificationProviderBase
             cancellationToken);
 
         if (!response.IsSuccessStatusCode)
-        {
             return CreateHttpErrorResult(response.StatusCode);
-        }
 
         var result = await response.Content.ReadFromJsonAsync(
             PushDeerJsonContext.Default.PushDeerResponse,
@@ -80,19 +53,6 @@ public class PushDeerProvider : NotificationProviderBase
             r => r.Code,
             r => r.Error,
             "PushDeer notification sent successfully"
-        );
-    }
-
-    protected override async Task<ValidationResult> ValidateConfigCoreAsync(
-        ProviderConfig config,
-        CancellationToken cancellationToken)
-    {
-        return await ValidateWithTestNotificationAsync(
-            config,
-            "pushkey",
-            "PushDeer API key (pushkey)",
-            SendAsync,
-            cancellationToken
         );
     }
 }
